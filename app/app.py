@@ -23,6 +23,10 @@ APP_DIR = Path(__file__).resolve().parent
 MODELS_DIR = ROOT_DIR / "models"
 STATIC_VIDEO_PATH = ROOT_DIR / "static" / "video" / "rescuer.mp4"
 MODEL_CACHE = {}
+VIDEO_CLASS_MIN_CONF = {
+    "dog": 0.75,
+    "cat": 0.75,
+}
 
 
 def get_model_path(model_variant):
@@ -261,7 +265,7 @@ def image_detection(image, segmentation_mask_path, start_x, start_y, conf_thresh
         report,
     )
 
-def video_detection(video_path, conf_threshold, model_variant, frame_skip=15, max_frames=180):
+def video_detection(video_path, conf_threshold, model_variant, frame_skip=15, max_frames=0):
     video_path = _resolve_video_path(video_path)
     if not video_path:
         return None, "Please upload a video first."
@@ -287,22 +291,37 @@ def video_detection(video_path, conf_threshold, model_variant, frame_skip=15, ma
     all_classes = set()
     frame_count = 0
     last_annotated_frame = None
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
 
     frame_skip = max(1, int(frame_skip or 1))
-    max_frames = max(frame_skip, int(max_frames or frame_skip))
+    max_frames = int(max_frames or 0)
     model_video = get_model(model_variant)
 
-    while cap.isOpened() and frame_count < max_frames:
+    def _video_box_allowed(box, names):
+        class_name = names[int(box.cls[0])]
+        min_conf = VIDEO_CLASS_MIN_CONF.get(class_name, conf_threshold)
+        return float(box.conf[0]) >= min_conf
+
+    while cap.isOpened():
         ret, frame = cap.read()
         if not ret:
             break
 
+        if max_frames > 0 and frame_count >= max_frames:
+            break
+
         if frame_count % frame_skip == 0:
             results = model_video(frame, conf=conf_threshold, verbose=False)
-            annotated_frame = custom_bounding_box(frame, results)
+            filtered_boxes = [box for box in results[0].boxes if _video_box_allowed(box, results[0].names)]
+            filtered_result = type(
+                "FilteredVideoResult",
+                (),
+                {"names": results[0].names, "boxes": filtered_boxes},
+            )()
+            annotated_frame = custom_bounding_box(frame, [filtered_result])
         
-            for c in results[0].boxes.cls:
-                class_name = results[0].names[int(c)]
+            for box in filtered_boxes:
+                class_name = results[0].names[int(box.cls[0])]
                 all_classes.add(class_name)
                 
             last_annotated_frame = np.ascontiguousarray(annotated_frame)
@@ -319,8 +338,8 @@ def video_detection(video_path, conf_threshold, model_variant, frame_skip=15, ma
     out.release()
 
     predictions = ", ".join(sorted(all_classes)) if all_classes else "No detections."
-    if cap.get(cv2.CAP_PROP_FRAME_COUNT) > max_frames:
-        predictions += f" (preview limited to first {max_frames} frames)"
+    if max_frames > 0 and total_frames > max_frames:
+        predictions += f" (limited to first {max_frames} frames)"
     return temp_video_path, predictions
 
 with gr.Blocks() as app:
@@ -450,7 +469,7 @@ with gr.Blocks() as app:
                 video = gr.Video(label="Upload a Video", autoplay=True)
                 conf_threshold = gr.Slider(label="Confidence Threshold", minimum=0.0, maximum=1.0, step=0.05, value=0.30)
                 frame_skip = gr.Slider(label="Frame Skip (higher = faster)", minimum=1, maximum=60, step=1, value=15)
-                max_frames = gr.Slider(label="Max Processed Frames", minimum=30, maximum=600, step=30, value=180)
+                max_frames = gr.Slider(label="Max Processed Frames (0 = full video)", minimum=0, maximum=600, step=30, value=0)
                 output_model = gr.Dropdown(["yolov11n", "yolov11s", "yolov11m", "yolov11l"], label="Select Model", info="Select the YOLOv11 model variant to use.", value="yolov11m")
                 btn = gr.Button("Process Video", variant="primary")
             with gr.Column():
