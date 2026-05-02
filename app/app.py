@@ -1,3 +1,4 @@
+import os
 import gradio as gr
 from ultralytics import YOLO
 import cv2
@@ -158,6 +159,16 @@ def segmentation_summary_rows(segmentation_summary):
     ]
 
 
+def _resolve_video_path(video_path):
+    if video_path is None:
+        return None
+    if isinstance(video_path, dict):
+        return video_path.get("path") or video_path.get("name")
+    if hasattr(video_path, "name"):
+        return video_path.name
+    return str(video_path)
+
+
 def path_summary_text(path_result, has_segmentation_mask):
     if not path_result or not path_result.get("found"):
         return f"路径规划结果：{path_result.get('message', '当前未能生成有效路径。')}" if path_result else "路径规划结果：当前未能生成有效路径。"
@@ -241,31 +252,44 @@ def image_detection(image, segmentation_mask_path, start_x, start_y, conf_thresh
         report,
     )
 
-def video_detection(video_path, conf_threshold, model_variant, frame_skip=3):
-    if video_path is None:
+def video_detection(video_path, conf_threshold, model_variant, frame_skip=15, max_frames=180):
+    video_path = _resolve_video_path(video_path)
+    if not video_path:
         return None, "Please upload a video first."
 
     cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        return None, f"Unable to open video file: {video_path}"
+
     width  = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    fps    = cap.get(cv2.CAP_PROP_FPS)
+    fps    = cap.get(cv2.CAP_PROP_FPS) or 25.0
+    if width <= 0 or height <= 0:
+        cap.release()
+        return None, "Unable to read video dimensions."
 
-    temp_video_path = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False).name
+    temp_video_fd, temp_video_path = tempfile.mkstemp(suffix=".mp4")
+    os.close(temp_video_fd)
     out = cv2.VideoWriter(temp_video_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (width, height))
+    if not out.isOpened():
+        cap.release()
+        return None, "Unable to create output video writer."
 
     all_classes = set()
     frame_count = 0
     last_annotated_frame = None
 
+    frame_skip = max(1, int(frame_skip or 1))
+    max_frames = max(frame_skip, int(max_frames or frame_skip))
     model_video = get_model(model_variant)
 
-    while cap.isOpened():
+    while cap.isOpened() and frame_count < max_frames:
         ret, frame = cap.read()
         if not ret:
             break
 
         if frame_count % frame_skip == 0:
-            results = model_video(frame, conf=conf_threshold)
+            results = model_video(frame, conf=conf_threshold, verbose=False)
             annotated_frame = custom_bounding_box(frame, results)
         
             for c in results[0].boxes.cls:
@@ -286,6 +310,8 @@ def video_detection(video_path, conf_threshold, model_variant, frame_skip=3):
     out.release()
 
     predictions = ", ".join(sorted(all_classes)) if all_classes else "No detections."
+    if cap.get(cv2.CAP_PROP_FRAME_COUNT) > max_frames:
+        predictions += f" (preview limited to first {max_frames} frames)"
     return temp_video_path, predictions
 
 with gr.Blocks() as app:
@@ -414,13 +440,15 @@ with gr.Blocks() as app:
             with gr.Column():
                 video = gr.Video(label="Upload a Video", autoplay=True)
                 conf_threshold = gr.Slider(label="Confidence Threshold", minimum=0.0, maximum=1.0, step=0.05, value=0.30)
+                frame_skip = gr.Slider(label="Frame Skip (higher = faster)", minimum=1, maximum=60, step=1, value=15)
+                max_frames = gr.Slider(label="Max Processed Frames", minimum=30, maximum=600, step=30, value=180)
                 output_model = gr.Dropdown(["yolov11n", "yolov11s", "yolov11m", "yolov11l"], label="Select Model", info="Select the YOLOv11 model variant to use.", value="yolov11m")
                 btn = gr.Button("Process Video", variant="primary")
             with gr.Column():
                 output_video = gr.Video(label="Processed Video", autoplay=True)
                 output_predictions = gr.Textbox(label="Predictions", placeholder="Predictions will appear here...")
 
-        btn.click(fn=video_detection, inputs=[video, conf_threshold, output_model], outputs=[output_video, output_predictions])
+        btn.click(fn=video_detection, inputs=[video, conf_threshold, output_model, frame_skip, max_frames], outputs=[output_video, output_predictions])
 
         video_path = str(STATIC_VIDEO_PATH)
 
