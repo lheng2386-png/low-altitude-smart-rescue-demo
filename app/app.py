@@ -5,6 +5,9 @@ import tempfile
 import numpy as np
 from pathlib import Path
 
+from priority_ranker import rank_targets
+from report_generator import generate_report
+
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 APP_DIR = Path(__file__).resolve().parent
@@ -70,10 +73,67 @@ def costum_bounding_box(image, results):
     return annotated_image
 
 
+def extract_targets(results):
+    class_names = results[0].names
+    targets = []
+
+    for index, box in enumerate(results[0].boxes, start=1):
+        cls_id = int(box.cls[0])
+        confidence = round(float(box.conf[0]), 4)
+        x1, y1, x2, y2 = map(float, box.xyxy[0])
+        width = max(0.0, x2 - x1)
+        height = max(0.0, y2 - y1)
+        area = width * height
+
+        targets.append(
+            {
+                "id": f"T{index:03d}",
+                "class_name": class_names[cls_id],
+                "confidence": confidence,
+                "bbox": [round(x1, 2), round(y1, 2), round(x2, 2), round(y2, 2)],
+                "center": [round((x1 + x2) / 2, 2), round((y1 + y2) / 2, 2)],
+                "area": round(area, 2),
+            }
+        )
+
+    return targets
+
+
+def target_table_rows(targets):
+    return [
+        [
+            target["id"],
+            target["class_name"],
+            target["confidence"],
+            target["bbox"],
+            target["center"],
+            target["area"],
+        ]
+        for target in targets
+    ]
+
+
+def ranking_table_rows(ranked_targets):
+    return [
+        [
+            target["rank"],
+            target["target_id"],
+            target["class_name"],
+            target["confidence"],
+            target["bbox"],
+            target["risk_score"],
+            target["risk_level"],
+            target["reason"],
+        ]
+        for target in ranked_targets
+    ]
+
+
 def image_detection(image, conf_threshold, model_variant):
     if image is None:
-        return None, "Please upload an image first."
+        return None, [], [], "请先上传一张图像。"
 
+    image_width, image_height = image.size
     image_bgr = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
 
     weights_path = get_model_path(model_variant)
@@ -84,20 +144,11 @@ def image_detection(image, conf_threshold, model_variant):
     image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
     annotated_image = costum_bounding_box(image_rgb, results)
 
-    class_names = results[0].names
-    prediction_lines = []
-    for box in results[0].boxes:
-        cls_id = int(box.cls[0])
-        confidence = float(box.conf[0])
-        x1, y1, x2, y2 = map(float, box.xyxy[0])
-        prediction_lines.append(
-            f"{class_names[cls_id]} | confidence={confidence:.3f} | "
-            f"bbox=[{x1:.1f}, {y1:.1f}, {x2:.1f}, {y2:.1f}]"
-        )
+    targets = extract_targets(results)
+    ranked_targets = rank_targets(targets, image_width, image_height)
+    report = generate_report(targets, ranked_targets)
 
-    predictions = "\n".join(prediction_lines) if prediction_lines else "No detections."
-
-    return annotated_image, predictions
+    return annotated_image, target_table_rows(targets), ranking_table_rows(ranked_targets), report
 
 def video_detection(video_path, conf_threshold, model_variant, frame_skip=3):
     if video_path is None:
@@ -150,7 +201,6 @@ def video_detection(video_path, conf_threshold, model_variant, frame_skip=3):
 with gr.Blocks() as app:
     gr.HTML("""
         <h1 style='text-align: center'>Urban Disaster Monitor</h1>
-        <h2 style='text-align: center'><a href='https://github.com/MariaCarolinass/urban-disaster-monitor' target='_blank'>GitHub</a></h2>
     """)
 
     with gr.Tab("Image"):
@@ -162,9 +212,36 @@ with gr.Blocks() as app:
                 btn = gr.Button("Process Image", variant="primary")
             with gr.Column():
                 output_image = gr.Image(label="Processed Image")
-                output_predictions = gr.Textbox(label="Predictions", placeholder="Predictions will appear here...")
+                output_details = gr.Dataframe(
+                    headers=["id", "class_name", "confidence", "bbox", "center", "area"],
+                    label="Detection Details",
+                    interactive=False,
+                )
+                output_ranking = gr.Dataframe(
+                    headers=[
+                        "rank",
+                        "target_id",
+                        "class_name",
+                        "confidence",
+                        "bbox",
+                        "risk_score",
+                        "risk_level",
+                        "reason",
+                    ],
+                    label="Risk Ranking",
+                    interactive=False,
+                )
+                output_report = gr.Textbox(
+                    label="Generated Rescue Report",
+                    lines=14,
+                    placeholder="Rescue report will appear here...",
+                )
 
-        btn.click(fn=image_detection, inputs=[image, conf_threshold, output_model], outputs=[output_image, output_predictions])
+        btn.click(
+            fn=image_detection,
+            inputs=[image, conf_threshold, output_model],
+            outputs=[output_image, output_details, output_ranking, output_report],
+        )
     
         gr.Examples(
             examples=[
