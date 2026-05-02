@@ -4,9 +4,7 @@
 
 [![YOLOv11](https://img.shields.io/badge/YOLOv11-ultralytics-green)](https://docs.ultralytics.com/models/yolov8/#yolov8-usage-examples) ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg) ![Dataset: CC BY 4.0](https://img.shields.io/badge/Dataset-CC%20BY%204.0-blue.svg)
 
-[Dataset](./dataset) | [Models](./models) | [Notebooks](./notebooks) | [Kaggle](https://www.kaggle.com/datasets/mariacsoares/urban-disaster-object-detection-dataset/data) | [Roboflow](https://universe.roboflow.com/ufrnprojects-xlut9/urban-disaster-monitor) | [App](https://huggingface.co/spaces/carolinasoares/urban-disaster-monitor-v2)
-
-[Português](./README-pt.md) | English
+[Dataset](./dataset) | [Models](./models) | [Notebooks](./notebooks)
 
 </div>
 
@@ -65,7 +63,6 @@ In urban disaster situations, every second counts. This project offers a compute
 
 - [About the project](#about-the-project)
   - [Features](#features)
-  - [Institutional context](#institutional-context)
 - [Dataset](#dataset)
   - [Pre-processing and augmentations](#pre-processing-and-augmentations)
   - [Class composition](#class-composition)
@@ -74,7 +71,7 @@ In urban disaster situations, every second counts. This project offers a compute
     - [Public images](#public-images)
     - [Synthetic images (Gemini 2.5 Flash Image)](#synthetic-images-gemini-25-flash-image)
 - [Annotations and Model](#annotations-and-model)
-  - [Classes (Roboflow)](#classes-roboflow)
+  - [Classes](#classes)
   - [Architecture](#architecture)
   - [Training pipeline](#training-pipeline)
   - [Training environment (Colab + T4 GPU)](#training-environment-colab--t4-gpu)
@@ -86,11 +83,9 @@ In urban disaster situations, every second counts. This project offers a compute
 - [Conclusions and recommendations by model](#conclusions-and-recommendations-by-model)
   - [Future work](#future-work)
 - [Interactive Interface](#interactive-interface)
-  - [Test online](#test-online)
   - [Features](#features)
   - [Technologies](#technologies)
   - [Run locally](#run-locally)
-- [Team](#team)
 - [License](#license)
 - [References](#references)
 
@@ -103,12 +98,6 @@ In urban disaster situations, every second counts. This project offers a compute
 - Detection and classification of **Civilians**, **Rescuers**, **Cows**, **Horses**, **Dogs** and **Cats**
 - **Metrics** and **bounding boxes** visualization
 - Interactive **Gradio** interface for uploading and testing images and videos
-
-### Institutional context
-
-The project started during the Computer Vision course taught by **Prof. Dr. [Helton Maia](https://heltonmaia.com/)** at **ECT/UFRN**. It was developed voluntarily for **Smart Metropolis** (IMD/UFRN) as part of **Project SPICI (Integrated Public Security in Smart Cities)**, constituting an intelligent platform for real-time image collection, processing and analysis for crisis and disaster management.
-
-<a href="https://smlab.imd.ufrn.br/"><img src="static/images/smartmetropolislab.png" alt="Smart Metropolis logo" width="150"/></a> <a href="https://smlab.imd.ufrn.br/projeto-spici/"><img src="static/images/spici.png" alt="SPICI logo" width="100"/></a> <a href="https://imd.ufrn.br/"><img src="static/images/imd-logo.7784f1db.webp" alt="IMD/UFRN logo" width="150"/></a> <a href="https://www.ect.ufrn.br/"><img src="static/images/cet.png" alt="ECT/UFRN logo" width="100"/></a>
 
 ## Dataset
 
@@ -139,7 +128,7 @@ The dataset was developed for **detection and counting of survivors** (civilians
 
 *Annotated objects* indicates the total bounding boxes per class; *images containing the class* indicates in how many distinct images each class appears. The **rescuer** class was introduced to avoid alerts in areas occupied only by emergency teams, reducing false positives. The distinction criterion between rescuers and civilians is based on visual attributes such as helmets, reflective vests or red-yellow uniforms typical of rescue teams.
 
-- **Annotation:** [Roboflow](https://universe.roboflow.com/ufrnprojects-xlut9/urban-disaster-monitor/)
+- **Annotation:** YOLO-format object detection labels
 - **Partitioning:** 83% train (2,674) / 12% validation (383) / 6% test (183) 
 - **Partitioned dataset:** [dataset](./dataset)
 - **License:** [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.en)
@@ -159,7 +148,7 @@ Collected from sources with open or shareable licenses:
 - [Wikimedia Commons](https://commons.wikimedia.org/)
 - [Flickr](https://www.flickr.com/)
 - [Google Images](https://images.google.com)
-- [Roboflow Universe](https://universe.roboflow.com/)
+- Public web images
 
 <div align="center">
 
@@ -206,9 +195,9 @@ Example prompts:
 
 ## Annotations and Model
 
-Annotations were performed on the **Roboflow** platform and converted to YOLO format. The YOLOv11 model is trained on the six classes defined below, with continuous validation and evaluation on an independent test set.
+Annotations are provided in YOLO format. The YOLOv11 model is trained on the six classes defined below, with continuous validation and evaluation on an independent test set.
 
-### Classes (Roboflow)
+### Classes
 
 | Class | Description |
 |--------|-----------|
@@ -225,7 +214,7 @@ The model uses **YOLO** (You Only Look Once), a reference in real-time object de
 
 ### Training pipeline
 
-1. **Conversion:** Roboflow annotations to YOLO format (`.txt`)
+1. **Conversion:** annotations to YOLO format (`.txt`)
 2. **Iterative training:** parameters above; Adam or SGD optimizers
 3. **Continuous validation:** real-time metrics, *overfitting* detection, early stopping
 4. **Final evaluation:** independent test set to verify generalization
@@ -333,17 +322,9 @@ The analysis reinforces the role of augmentations, data balancing and temporal m
 
 The interface was built with **Gradio** to allow testing the trained models without setting up a training environment. You can upload images or videos and view detections (civilians, rescuers and animals) with _bounding boxes_ and labels in real time.
 
-### Test online
-
-The application is available on **Hugging Face Spaces**. No installation required to try it:
-
-**👉 [Open Urban Disaster Monitor](https://huggingface.co/spaces/carolinasoares/urban-disaster-monitor-v2)**
-
 <div align="center">
 <img src="static/images/app_gradio.png" alt="App interface on Gradio" width="900"/>
 </div>
-
-*Interface hosted on [Hugging Face](https://huggingface.co).*
 
 ### Features
 
@@ -362,13 +343,13 @@ The application is available on **Hugging Face Spaces**. No installation require
 Clone the repository:
 
 ```bash
-git clone https://github.com/MariaCarolinass/urban-disaster-monitor.git
+git clone https://github.com/lheng2386-png/low-altitude-smart-rescue-demo.git
 ```
 
 Navigate to the `app` folder:
 
 ```bash
-cd urban-disaster-monitor/app
+cd low-altitude-smart-rescue-demo/app
 ```
 
 Create a virtual environment with venv:
@@ -398,12 +379,6 @@ Run the project:
 ```bash
 python app.py
 ```
-
-## Team
-
-| [![](https://github.com/jagaldino.png?size=80)](https://github.com/jagaldino) | [![](https://github.com/MariaCarolinass.png?size=80)](https://github.com/MariaCarolinass) |
-| :---------------------------------------------------------------------------: | :-----------------------------------------------------------------------------: |
-|                           **João Galdino**                           |                             **Carolina Soares**                | 
 
 ## License
 
