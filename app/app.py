@@ -20,6 +20,7 @@ ROOT_DIR = Path(__file__).resolve().parents[1]
 APP_DIR = Path(__file__).resolve().parent
 MODELS_DIR = ROOT_DIR / "models"
 STATIC_VIDEO_PATH = ROOT_DIR / "static" / "video" / "rescuer.mp4"
+MODEL_CACHE = {}
 
 
 def get_model_path(model_variant):
@@ -31,7 +32,14 @@ def get_model_path(model_variant):
         )
     return str(weights_path)
 
-def costum_bounding_box(image, results):
+
+def get_model(model_variant):
+    if model_variant not in MODEL_CACHE:
+        MODEL_CACHE[model_variant] = YOLO(get_model_path(model_variant))
+    return MODEL_CACHE[model_variant]
+
+
+def custom_bounding_box(image, results):
     annotated_image = image.copy()
     font = cv2.FONT_HERSHEY_SIMPLEX
     font_scale = 0.5
@@ -156,13 +164,12 @@ def image_detection(image, segmentation_mask_path, conf_threshold, model_variant
     image_width, image_height = image.size
     image_bgr = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
 
-    weights_path = get_model_path(model_variant)
-    model_image = YOLO(weights_path)
+    model_image = get_model(model_variant)
     
     results = model_image(image_bgr, conf=conf_threshold)
 
     image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
-    annotated_image = costum_bounding_box(image_rgb, results)
+    annotated_image = custom_bounding_box(image_rgb, results)
 
     targets = extract_targets(results)
     segmentation_mask = None
@@ -170,7 +177,12 @@ def image_detection(image, segmentation_mask_path, conf_threshold, model_variant
     segmentation_summary = {}
 
     if segmentation_mask_path:
-        segmentation_mask = load_segmentation_mask(segmentation_mask_path)
+        mask_path = (
+            segmentation_mask_path.name
+            if hasattr(segmentation_mask_path, "name")
+            else segmentation_mask_path
+        )
+        segmentation_mask = load_segmentation_mask(mask_path)
         segmentation_mask = resize_segmentation_mask(segmentation_mask, image_width, image_height)
         segmentation_overlay = create_segmentation_overlay(image_rgb, segmentation_mask)
         segmentation_summary = summarize_segmentation(segmentation_mask)
@@ -203,8 +215,7 @@ def video_detection(video_path, conf_threshold, model_variant, frame_skip=3):
     frame_count = 0
     last_annotated_frame = None
 
-    weights_path = get_model_path(model_variant)
-    model_video = YOLO(weights_path)
+    model_video = get_model(model_variant)
 
     while cap.isOpened():
         ret, frame = cap.read()
@@ -213,7 +224,7 @@ def video_detection(video_path, conf_threshold, model_variant, frame_skip=3):
 
         if frame_count % frame_skip == 0:
             results = model_video(frame, conf=conf_threshold)
-            annotated_frame = costum_bounding_box(frame, results)
+            annotated_frame = custom_bounding_box(frame, results)
         
             for c in results[0].boxes.cls:
                 class_name = results[0].names[int(c)]
@@ -245,10 +256,9 @@ with gr.Blocks() as app:
         with gr.Row():
             with gr.Column():
                 image = gr.Image(label="Upload an Image", type="pil")
-                segmentation_mask = gr.Image(
+                segmentation_mask = gr.File(
                     label="Optional Segmentation Mask Upload",
-                    type="filepath",
-                    image_mode="RGB",
+                    file_types=[".png", ".jpg", ".jpeg"],
                 )
                 conf_threshold = gr.Slider(label="Confidence Threshold", minimum=0.0, maximum=1.0, step=0.05, value=0.30)
                 output_model = gr.Dropdown(["yolov11n", "yolov11s", "yolov11m", "yolov11l"], label="Select Model", info="Select the YOLOv11 model variant to use.", value="yolov11m")

@@ -197,3 +197,8 @@ cython_debug/
 
 app/models/
 *.pid
+.DS_Store
+.gradio/
+runs/
+*.tmp
+app/venv/

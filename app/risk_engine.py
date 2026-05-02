@@ -7,6 +7,26 @@ CLASS_WEIGHTS = {
     "rescuer": 0.15,
 }
 
+CLASS_ALIASES = {
+    "rescuers": "rescuer",
+    "person": "civilian",
+    "people": "civilian",
+}
+
+CLASS_REASONS = {
+    "civilian": "检测到疑似被困平民，建议优先核查和救援。",
+    "rescuer": "检测到救援人员，默认不作为被困目标优先处理。",
+    "dog": "检测到小型动物，建议在人员救援后处理。",
+    "cat": "检测到小型动物，建议在人员救援后处理。",
+    "horse": "检测到大型动物，转移难度较高，建议标记并后续处理。",
+    "cow": "检测到大型动物，转移难度较高，建议标记并后续处理。",
+}
+
+
+def normalize_class_name(class_name):
+    normalized = str(class_name or "").strip().lower().replace(" ", "_").replace("-", "_")
+    return CLASS_ALIASES.get(normalized, normalized)
+
 
 def _clamp(value, minimum=0.0, maximum=1.0):
     return max(minimum, min(maximum, value))
@@ -24,14 +44,18 @@ def calculate_risk(target, image_width, image_height, environment_context=None):
     image_area = max(float(image_width * image_height), 1.0)
     area_weight = _clamp(float(target.get("area", 0.0)) / image_area)
     confidence = _clamp(float(target.get("confidence", 0.0)))
-    class_name = target.get("class_name", "")
+    raw_class_name = target.get("class_name", "")
+    class_name = normalize_class_name(raw_class_name)
     class_weight = CLASS_WEIGHTS.get(class_name, 0.3)
+    base_reason = CLASS_REASONS.get(
+        class_name,
+        "检测到未知救援相关目标，建议人工复核。",
+    )
 
     if environment_context is None:
         risk_score = class_weight * 70 + confidence * 20 + area_weight * 10
         risk_reason = (
-            f"{class_name} class weight={class_weight:.2f}, "
-            f"confidence={confidence:.2f}, area_ratio={area_weight:.3f}. "
+            f"{base_reason}"
             "当前未接入灾区语义分割结果，风险评分仅基于目标类别、置信度和目标面积。"
         )
     else:
@@ -43,8 +67,7 @@ def calculate_risk(target, image_width, image_height, environment_context=None):
         )
         risk_score = base_target_score + environment_score
         risk_reason = (
-            f"{class_name} base={base_target_score:.2f}, "
-            f"environment_score={environment_score:.2f}. "
+            f"{base_reason}"
             f"{environment_context.get('environment_reason', '')}"
         )
 

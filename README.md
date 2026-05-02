@@ -1,10 +1,12 @@
 # AeroRescue-AI
 
-**面向低空应急救援的无人机多模态灾情识别与辅助决策系统**
+**AeroRescue-AI：面向低空应急救援的无人机多模态灾情识别与辅助决策系统**
 
 This repository is a competition-stage prototype for low-altitude UAV disaster rescue assistance. It starts from UAV-style images or videos, detects rescue-related targets with YOLOv11, optionally reads RescueNet-style semantic segmentation masks, converts detections into structured target records, estimates risk, ranks rescue priority, and generates a first-pass Chinese rescue report.
 
 At the current stage, the project is deliberately kept as a lightweight Gradio demo. It does not integrate ARGUS, Detection-Models, FastAPI, React, Docker, route planning, or any large language model API yet. RescueNet is currently used as a semantic mask format and environmental-risk reference, not as an automatic segmentation model.
+
+Current segmentation mask fusion, environment-enhanced risk ranking, risk scoring, rescue priority ranking, and report generation are available in the Image Tab only. The Video Tab is currently a basic detection preview and does not yet produce segmentation summaries, risk ranking, or rescue reports.
 
 <div align="center">
 
@@ -56,7 +58,7 @@ Distinguishing `civilian` from `rescuer` is important. Generic person detectors 
 
 ## Demo Preview
 
-The Gradio page supports image and video input. For image detection, the current interface returns an annotated image, optional segmentation overlay, detection details table, segmentation summary table, risk ranking table, and generated Chinese rescue report.
+The Gradio page supports image and video input. For image detection, the current interface returns an annotated image, optional segmentation overlay, detection details table, segmentation summary table, risk ranking table, and generated Chinese rescue report. The Video Tab currently returns a processed video preview and detected class names only.
 
 <div align="center">
 
@@ -175,7 +177,9 @@ final_risk_score = base_target_score + environment_score
 
 The environment score ranges from 0 to 30. High-risk classes include `water`, `road_blocked`, `major_damage`, and `destroyed_building`. Medium-risk classes include `minor_damage`, `tree`, and `vehicle`. Low-risk classes include `road_clear`, `no_damage_building`, and `background`.
 
-Current segmentation support is mask-based. The repository does not include a pretrained RescueNet segmentation checkpoint, so the app does not pretend to automatically segment a raw image. Users can upload a RescueNet-style class-id or RGB mask to activate environmental risk fusion.
+Current third-step segmentation support is mask-based. It is not automatic semantic segmentation model inference. The repository does not include a pretrained RescueNet segmentation checkpoint, so the app does not pretend to automatically segment a raw image. Users can upload a RescueNet-style class-id or RGB mask to activate segmentation mask fusion and environmental risk fusion.
+
+For class-id masks, PNG is recommended. JPG compression can change pixel values and break class-id semantics.
 
 See [SECOND_STEP_DECISION_LAYER.md](SECOND_STEP_DECISION_LAYER.md) for details.
 See [THIRD_STEP_SEGMENTATION_LAYER.md](THIRD_STEP_SEGMENTATION_LAYER.md) for the segmentation layer.
@@ -271,6 +275,8 @@ After uploading an image, the page returns:
 - Segmentation summary table, if a mask is uploaded
 - Risk ranking table
 - Generated Chinese rescue report
+
+The Video Tab currently supports basic YOLO detection preview only. It does not yet support risk scoring, priority ranking, segmentation summary, or report generation.
 
 If no target is detected, the app keeps the tables empty and reports:
 

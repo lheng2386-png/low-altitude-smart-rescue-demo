@@ -82,7 +82,7 @@ def _rgb_to_class_id_mask(rgb_mask):
 def load_segmentation_mask(mask_path):
     image = Image.open(mask_path)
 
-    if image.mode in {"L", "I", "I;16", "P"}:
+    if image.mode in {"L", "I", "I;16"}:
         mask = np.array(image)
         if mask.ndim == 3:
             mask = mask[:, :, 0]
@@ -108,11 +108,16 @@ def create_segmentation_overlay(image, mask, alpha=0.45):
     height, width = image_rgb.shape[:2]
     aligned_mask = resize_segmentation_mask(mask, width, height)
 
-    color_mask = np.zeros_like(image_rgb, dtype=np.uint8)
+    color_mask = image_rgb.copy()
+    foreground = aligned_mask != 0
     for class_id, color in RESCUENET_COLORS.items():
+        if class_id == 0:
+            continue
         color_mask[aligned_mask == class_id] = color
 
-    overlay = cv2.addWeighted(image_rgb, 1.0 - alpha, color_mask, alpha, 0)
+    overlay = image_rgb.copy()
+    blended = cv2.addWeighted(image_rgb, 1.0 - alpha, color_mask, alpha, 0)
+    overlay[foreground] = blended[foreground]
     return overlay
 
 

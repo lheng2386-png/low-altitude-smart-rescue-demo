@@ -44,7 +44,7 @@ def generate_report(targets, ranked_targets, segmentation_summary=None):
     if not targets:
         segmentation_text = _segmentation_section(segmentation_summary, [])
         return (
-            "低空智援初版救援报告\n\n"
+            "AeroRescue-AI 灾情识别与救援辅助报告\n\n"
             "当前图像未检测到明确救援目标。\n\n"
             f"{segmentation_text}\n"
             "初步建议：建议更换视角、提高图像清晰度或降低检测置信度阈值后复核。\n\n"
@@ -83,7 +83,7 @@ def generate_report(targets, ranked_targets, segmentation_summary=None):
     segmentation_text = _segmentation_section(segmentation_summary, ranked_targets)
 
     return (
-        "低空智援初版救援报告\n\n"
+        "AeroRescue-AI 灾情识别与救援辅助报告\n\n"
         f"一、识别概况\n"
         f"本次识别目标总数：{len(targets)}。\n"
         f"civilian 数量：{civilian_count}；rescuer 数量：{rescuer_count}；"

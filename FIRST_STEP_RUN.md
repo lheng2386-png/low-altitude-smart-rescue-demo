@@ -1,6 +1,6 @@
-# 第一阶段运行说明：低空智援灾害目标检测 Demo
+# 第一阶段运行说明：AeroRescue-AI 灾害目标检测 Demo
 
-本阶段只跑通 Gradio + YOLOv11 灾害目标检测 Demo，不接入 ARGUS、Detection-Models、RescueNet，也不重新训练模型。
+本阶段只跑通 AeroRescue-AI（面向低空应急救援的无人机多模态灾情识别与辅助决策系统）的 Gradio + YOLOv11 灾害目标检测 Demo，不接入 ARGUS、Detection-Models、RescueNet，也不重新训练模型。
 
 ## 环境建议
 
