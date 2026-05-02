@@ -200,7 +200,8 @@ def video_detection(video_path, conf_threshold, model_variant, frame_skip=3):
 
 with gr.Blocks() as app:
     gr.HTML("""
-        <h1 style='text-align: center'>Urban Disaster Monitor</h1>
+        <h1 style='text-align: center'>Low-Altitude Smart Rescue Demo</h1>
+        <p style='text-align: center'>YOLO disaster target detection with initial rescue risk ranking and report generation</p>
     """)
 
     with gr.Tab("Image"):

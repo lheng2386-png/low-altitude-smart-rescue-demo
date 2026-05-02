@@ -1,10 +1,10 @@
-# 第一阶段运行说明：urban-disaster-monitor 灾害目标检测 Demo
+# 第一阶段运行说明：低空智援灾害目标检测 Demo
 
 本阶段只跑通 Gradio + YOLOv11 灾害目标检测 Demo，不接入 ARGUS、Detection-Models、RescueNet，也不重新训练模型。
 
 ## 环境建议
 
-- Python：建议 3.9-3.11；当前本机验证使用 Python 3.9.6。
+- Python：建议 3.10-3.12；当前本机验证使用 Python 3.12。Gradio 5.x 不适合继续使用 Python 3.9。
 - GPU：不是必需。CPU 可以运行图片检测；视频检测在 CPU 上会慢一些。
 - 模型文件：仓库内需要存在以下权重文件：
   - `models/yolov11n/best.pt`
