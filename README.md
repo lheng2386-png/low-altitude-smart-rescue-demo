@@ -41,6 +41,8 @@ This demo focuses on the first usable loop:
 | Risk scoring | `app/risk_engine.py` | Target score with optional environment enhancement |
 | Priority ranking | `app/priority_ranker.py` | Ranked rescue target table with environment context |
 | Report generation | `app/report_generator.py` | Chinese rescue report with optional segmentation summary |
+| A* Path Planning | `app/path_planner.py` | Reference route from rescue start point to highest-risk target |
+| Path Overlay | `app/path_planner.py` | Draws start, goal, and planned path on the image |
 | Interface | Gradio | Upload, model selection, result visualization |
 
 Supported classes:
@@ -58,7 +60,7 @@ Distinguishing `civilian` from `rescuer` is important. Generic person detectors 
 
 ## Demo Preview
 
-The Gradio page supports image and video input. For image detection, the current interface returns an annotated image, optional segmentation overlay, detection details table, segmentation summary table, risk ranking table, and generated Chinese rescue report. The Video Tab currently returns a processed video preview and detected class names only.
+The Gradio page supports image and video input. For image detection, the current interface returns an annotated image, optional segmentation overlay, optional path overlay, detection details table, segmentation summary table, risk ranking table, path planning summary, and generated Chinese rescue report. The Video Tab currently returns a processed video preview and detected class names only.
 
 <div align="center">
 
@@ -196,13 +198,13 @@ Completed:
 - A Chinese rescue report is generated without calling any external API.
 - Optional RescueNet-style segmentation mask upload is available.
 - Segmentation overlay, area summary, and environment-enhanced risk ranking are available when a mask is uploaded.
+- A* path planning and path overlay are available in the Image Tab.
 
 Not included yet:
 
 - ARGUS-style platform integration
 - Detection-Models comparison experiments
 - Automatic RescueNet segmentation inference from raw images
-- Path planning
 - Full web application architecture
 - Automatic cloud deployment
 
@@ -217,6 +219,7 @@ Not included yet:
 │   ├── segmentation_engine.py
 │   ├── priority_ranker.py
 │   ├── report_generator.py
+│   ├── path_planner.py
 │   ├── requirements.txt
 │   └── examples
 ├── models
@@ -271,12 +274,14 @@ After uploading an image, the page returns:
 
 - Annotated image with detection boxes
 - Optional segmentation overlay
+- Optional path planning overlay
 - Detection details table
 - Segmentation summary table, if a mask is uploaded
 - Risk ranking table
+- Path planning summary
 - Generated Chinese rescue report
 
-The Video Tab currently supports basic YOLO detection preview only. It does not yet support risk scoring, priority ranking, segmentation summary, or report generation.
+The Image Tab currently supports segmentation mask fusion, environment-enhanced risk ranking, A* path planning, and report generation. The Video Tab currently supports basic YOLO detection preview only. It does not yet support risk scoring, priority ranking, segmentation summary, path planning, or report generation.
 
 If no target is detected, the app keeps the tables empty and reports:
 
@@ -288,9 +293,10 @@ If no target is detected, the app keeps the tables empty and reports:
 
 1. Stabilize the current Gradio + YOLO detection and decision-layer demo.
 2. Keep improving RescueNet-style segmentation mask fusion and prepare segmentation model training.
-3. Add A* route planning based on target priority and passable areas.
+3. Improve path planning with real passability constraints and multi-target routing.
 4. Fuse target detection, segmentation, and path cost into a stronger rescue decision layer.
-5. Upgrade from demo interface to a fuller web system inspired by ARGUS-style task management and report workflows.
+5. Add Detection-Models comparison experiments.
+6. Upgrade from demo interface to a fuller web system inspired by ARGUS-style task management and report workflows.
 
 ## Deployment Note
 

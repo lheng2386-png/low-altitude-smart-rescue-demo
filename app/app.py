@@ -8,6 +8,7 @@ from pathlib import Path
 from priority_ranker import rank_targets
 from report_generator import generate_report
 from environment_risk import CLASS_DISPLAY_NAMES
+from path_planner import create_path_overlay, plan_rescue_path
 from segmentation_engine import (
     create_segmentation_overlay,
     load_segmentation_mask,
@@ -157,9 +158,32 @@ def segmentation_summary_rows(segmentation_summary):
     ]
 
 
-def image_detection(image, segmentation_mask_path, conf_threshold, model_variant):
+def path_summary_text(path_result, has_segmentation_mask):
+    if not path_result or not path_result.get("found"):
+        return f"路径规划结果：{path_result.get('message', '当前未能生成有效路径。')}" if path_result else "路径规划结果：当前未能生成有效路径。"
+
+    start = path_result.get("start", [0, 0])
+    goal = path_result.get("goal", [0, 0])
+    target_id = path_result.get("target_id", "unknown")
+    target_class = path_result.get("target_class", "unknown")
+    summary = [
+        "路径规划结果：A* 路径规划成功。",
+        f"起点 S：({start[0]}, {start[1]})",
+        f"终点 T：{target_id} / {target_class} @ ({goal[0]}, {goal[1]})",
+        f"路径长度：{path_result.get('path_length', 0)} 个像素点",
+        f"累计路径代价：{path_result.get('total_cost', 0.0):.2f}",
+    ]
+    if has_segmentation_mask:
+        summary.append("当前路径规划已结合 RescueNet-style segmentation mask 的环境代价。")
+    else:
+        summary.append("当前未上传 segmentation mask，路径规划仅基于图像平面默认代价地图。")
+    summary.append(f"说明：{path_result.get('message', 'A* 路径规划成功。')}")
+    return "\n".join(summary)
+
+
+def image_detection(image, segmentation_mask_path, start_x, start_y, conf_threshold, model_variant):
     if image is None:
-        return None, None, [], [], [], "请先上传一张图像。"
+        return None, None, None, [], [], [], "", "请先上传一张图像。"
 
     image_width, image_height = image.size
     image_bgr = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
@@ -175,6 +199,7 @@ def image_detection(image, segmentation_mask_path, conf_threshold, model_variant
     segmentation_mask = None
     segmentation_overlay = None
     segmentation_summary = {}
+    has_segmentation_mask = bool(segmentation_mask_path)
 
     if segmentation_mask_path:
         mask_path = (
@@ -188,14 +213,31 @@ def image_detection(image, segmentation_mask_path, conf_threshold, model_variant
         segmentation_summary = summarize_segmentation(segmentation_mask)
 
     ranked_targets = rank_targets(targets, image_width, image_height, segmentation_mask)
-    report = generate_report(targets, ranked_targets, segmentation_summary)
+    if start_y is None or float(start_y) < 0:
+        start_y = image_height - 20
+    if start_x is None:
+        start_x = 20
+
+    path_result = plan_rescue_path(
+        ranked_targets,
+        segmentation_mask,
+        image_width,
+        image_height,
+        start_point=(start_x, start_y),
+    )
+    base_path_image = segmentation_overlay if segmentation_overlay is not None else image_rgb
+    path_overlay = create_path_overlay(base_path_image, path_result)
+    report = generate_report(targets, ranked_targets, segmentation_summary, path_result)
+    summary_text = path_summary_text(path_result, has_segmentation_mask)
 
     return (
         annotated_image,
         segmentation_overlay,
+        path_overlay,
         target_table_rows(targets),
         segmentation_summary_rows(segmentation_summary),
         ranking_table_rows(ranked_targets),
+        summary_text,
         report,
     )
 
@@ -260,12 +302,15 @@ with gr.Blocks() as app:
                     label="Optional Segmentation Mask Upload",
                     file_types=[".png", ".jpg", ".jpeg"],
                 )
+                start_x = gr.Number(label="Rescue Start X", value=20, precision=0)
+                start_y = gr.Number(label="Rescue Start Y (-1 means bottom default)", value=-1, precision=0)
                 conf_threshold = gr.Slider(label="Confidence Threshold", minimum=0.0, maximum=1.0, step=0.05, value=0.30)
                 output_model = gr.Dropdown(["yolov11n", "yolov11s", "yolov11m", "yolov11l"], label="Select Model", info="Select the YOLOv11 model variant to use.", value="yolov11m")
                 btn = gr.Button("Process Image", variant="primary")
             with gr.Column():
                 output_image = gr.Image(label="Processed Image")
                 output_segmentation_overlay = gr.Image(label="Segmentation Overlay")
+                output_path_overlay = gr.Image(label="Path Planning Overlay")
                 output_details = gr.Dataframe(
                     headers=["id", "class_name", "confidence", "bbox", "center", "area"],
                     label="Detection Details",
@@ -292,6 +337,11 @@ with gr.Blocks() as app:
                     label="Risk Ranking",
                     interactive=False,
                 )
+                output_path_summary = gr.Textbox(
+                    label="Path Planning Summary",
+                    lines=6,
+                    placeholder="Path planning summary will appear here...",
+                )
                 output_report = gr.Textbox(
                     label="Generated Rescue Report",
                     lines=14,
@@ -300,13 +350,15 @@ with gr.Blocks() as app:
 
         btn.click(
             fn=image_detection,
-            inputs=[image, segmentation_mask, conf_threshold, output_model],
+            inputs=[image, segmentation_mask, start_x, start_y, conf_threshold, output_model],
             outputs=[
                 output_image,
                 output_segmentation_overlay,
+                output_path_overlay,
                 output_details,
                 output_segmentation_summary,
                 output_ranking,
+                output_path_summary,
                 output_report,
             ],
         )
