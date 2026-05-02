@@ -24,8 +24,8 @@ MODELS_DIR = ROOT_DIR / "models"
 STATIC_VIDEO_PATH = ROOT_DIR / "static" / "video" / "rescuer.mp4"
 MODEL_CACHE = {}
 VIDEO_CLASS_MIN_CONF = {
-    "dog": 0.75,
-    "cat": 0.75,
+    "dog": 0.45,
+    "cat": 0.45,
 }
 
 
