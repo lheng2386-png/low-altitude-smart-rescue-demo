@@ -169,6 +169,15 @@ def _resolve_video_path(video_path):
     return str(video_path)
 
 
+def _create_video_writer(path, fps, width, height):
+    """Create a browser-friendly video writer with codec fallback."""
+    for fourcc_name in ("VP80", "VP90", "avc1", "mp4v"):
+        writer = cv2.VideoWriter(path, cv2.VideoWriter_fourcc(*fourcc_name), fps, (width, height))
+        if writer.isOpened():
+            return writer
+    return cv2.VideoWriter(path, cv2.VideoWriter_fourcc(*"mp4v"), fps, (width, height))
+
+
 def path_summary_text(path_result, has_segmentation_mask):
     if not path_result or not path_result.get("found"):
         return f"路径规划结果：{path_result.get('message', '当前未能生成有效路径。')}" if path_result else "路径规划结果：当前未能生成有效路径。"
@@ -268,9 +277,9 @@ def video_detection(video_path, conf_threshold, model_variant, frame_skip=15, ma
         cap.release()
         return None, "Unable to read video dimensions."
 
-    temp_video_fd, temp_video_path = tempfile.mkstemp(suffix=".mp4")
+    temp_video_fd, temp_video_path = tempfile.mkstemp(suffix=".webm")
     os.close(temp_video_fd)
-    out = cv2.VideoWriter(temp_video_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (width, height))
+    out = _create_video_writer(temp_video_path, fps, width, height)
     if not out.isOpened():
         cap.release()
         return None, "Unable to create output video writer."
@@ -296,14 +305,14 @@ def video_detection(video_path, conf_threshold, model_variant, frame_skip=15, ma
                 class_name = results[0].names[int(c)]
                 all_classes.add(class_name)
                 
-            last_annotated_frame = annotated_frame
+            last_annotated_frame = np.ascontiguousarray(annotated_frame)
         else:
             if last_annotated_frame is not None:
-                annotated_frame = last_annotated_frame
+                annotated_frame = last_annotated_frame.copy()
             else:
-                annotated_frame = frame
+                annotated_frame = np.ascontiguousarray(frame)
         
-        out.write(annotated_frame)
+        out.write(np.ascontiguousarray(annotated_frame))
         frame_count += 1
 
     cap.release()
