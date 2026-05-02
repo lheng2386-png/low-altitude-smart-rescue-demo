@@ -1,5 +1,5 @@
-# Urban Disaster Monitor Dataset (YOLOv11)
-Source: https://universe.roboflow.com/ufrnprojects-xlut9/urban-disaster-monitor
+# Low-Altitude Smart Rescue Dataset (YOLOv11)
+Source: local YOLO-format dataset included with this demo
 License: CC BY 4.0
 
 ## File Information
@@ -49,4 +49,3 @@ Each row in a label file represents one object:
 
 - Image and label files share the same base filename.
   - Example: `train/images/example.jpg` -> `train/labels/example.txt`
-

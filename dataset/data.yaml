@@ -7,7 +7,7 @@ names: ['cat', 'civilian', 'cow', 'dog', 'horse', 'rescuer']
 
 roboflow:
   workspace: ufrnprojects-xlut9
-  project: urban-disaster-monitor
+  project: low-altitude-smart-rescue-demo
   version: 4
   license: CC BY 4.0
-  url: https://universe.roboflow.com/ufrnprojects-xlut9/urban-disaster-monitor/dataset/4
+  url: local-dataset

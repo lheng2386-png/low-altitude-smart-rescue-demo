@@ -1,5 +1,5 @@
 
-urban-disaster-monitor - v4 Versao2.1
+low-altitude-smart-rescue-demo - v4 Version 2.1
 ==============================
 
 This dataset was exported via roboflow.com on October 7, 2025 at 5:00 PM GMT
@@ -29,5 +29,4 @@ The following augmentation was applied to create 2 versions of each source image
 * Random rotation of between -15 and +15 degrees
 * Random shear of between -10° to +10° horizontally and -10° to +10° vertically
 * Salt and pepper noise was applied to 0.89 percent of pixels
-
 
