@@ -1,10 +1,10 @@
-# Low-Altitude Smart Rescue Demo
+# AeroRescue-AI
 
-**低空智援：面向灾害救援的无人机智能感知与辅助决策系统**
+**面向低空应急救援的无人机多模态灾情识别与辅助决策系统**
 
-This repository is a competition-stage prototype for low-altitude UAV disaster rescue assistance. It starts from UAV-style images or videos, detects rescue-related targets with YOLOv11, converts detections into structured target records, estimates initial risk, ranks rescue priority, and generates a first-pass Chinese rescue report.
+This repository is a competition-stage prototype for low-altitude UAV disaster rescue assistance. It starts from UAV-style images or videos, detects rescue-related targets with YOLOv11, optionally reads RescueNet-style semantic segmentation masks, converts detections into structured target records, estimates risk, ranks rescue priority, and generates a first-pass Chinese rescue report.
 
-At the current stage, the project is deliberately kept as a lightweight Gradio demo. It does not integrate ARGUS, Detection-Models, RescueNet, FastAPI, React, Docker, route planning, or any large language model API yet.
+At the current stage, the project is deliberately kept as a lightweight Gradio demo. It does not integrate ARGUS, Detection-Models, FastAPI, React, Docker, route planning, or any large language model API yet. RescueNet is currently used as a semantic mask format and environmental-risk reference, not as an automatic segmentation model.
 
 <div align="center">
 
@@ -22,9 +22,11 @@ This demo focuses on the first usable loop:
 2. Run local YOLOv11 disaster target detection.
 3. Display bounding boxes, classes, confidence, and coordinates.
 4. Standardize each detection into a rescue target record.
-5. Calculate initial risk using class, confidence, and target area.
-6. Rank targets by rescue priority.
-7. Generate a template-based Chinese rescue report.
+5. Optionally upload a RescueNet-style segmentation mask.
+6. Summarize environmental risk areas such as water, blocked roads, and damaged buildings.
+7. Fuse target risk and environment risk.
+8. Rank targets by rescue priority.
+9. Generate a template-based Chinese rescue report.
 
 ## Current Capabilities
 
@@ -32,9 +34,11 @@ This demo focuses on the first usable loop:
 | --- | --- | --- |
 | Target detection | Ultralytics YOLOv11 local weights | Annotated image/video, class, confidence, bbox |
 | Target structuring | Detection result parser in `app/app.py` | `id`, `class_name`, `confidence`, `bbox`, `center`, `area` |
-| Risk scoring | `app/risk_engine.py` | `risk_score`, `risk_level`, `risk_reason` |
-| Priority ranking | `app/priority_ranker.py` | Ranked rescue target table |
-| Report generation | `app/report_generator.py` | Chinese first-pass rescue report |
+| Segmentation mask parsing | `app/segmentation_engine.py` | RescueNet-style mask, overlay, class area summary |
+| Environment risk | `app/environment_risk.py` | Water, blocked road, damaged building risk scores |
+| Risk scoring | `app/risk_engine.py` | Target score with optional environment enhancement |
+| Priority ranking | `app/priority_ranker.py` | Ranked rescue target table with environment context |
+| Report generation | `app/report_generator.py` | Chinese rescue report with optional segmentation summary |
 | Interface | Gradio | Upload, model selection, result visualization |
 
 Supported classes:
@@ -52,7 +56,7 @@ Distinguishing `civilian` from `rescuer` is important. Generic person detectors 
 
 ## Demo Preview
 
-The Gradio page supports image and video input. For image detection, the current interface returns an annotated image, a detection details table, a risk ranking table, and a generated Chinese rescue report.
+The Gradio page supports image and video input. For image detection, the current interface returns an annotated image, optional segmentation overlay, detection details table, segmentation summary table, risk ranking table, and generated Chinese rescue report.
 
 <div align="center">
 
@@ -122,9 +126,9 @@ The dataset also includes domestic and large animals, which are common in flood 
 
 </div>
 
-## Decision Layer
+## Segmentation And Decision Layer
 
-The second-stage decision layer turns raw detection boxes into rescue-oriented target records:
+The decision layer turns raw detection boxes into rescue-oriented target records:
 
 ```json
 {
@@ -137,7 +141,7 @@ The second-stage decision layer turns raw detection boxes into rescue-oriented t
 }
 ```
 
-Initial risk formula:
+Without segmentation mask, the system uses the second-stage target-only formula:
 
 ```text
 risk_score = class_weight * 70 + confidence * 20 + area_weight * 10
@@ -162,9 +166,19 @@ Risk levels:
 | 40-70 | Medium |
 | 70-100 | High |
 
-This is only an initial scoring rule. It currently uses target class, detection confidence, and bounding-box area. Later versions should include environmental risk from semantic segmentation, such as flood water, blocked roads, building damage, vehicle blockage, and passable areas.
+With a RescueNet-style segmentation mask, the system uses environment-enhanced scoring:
+
+```text
+base_target_score = class_weight * 55 + confidence * 15 + area_weight * 10
+final_risk_score = base_target_score + environment_score
+```
+
+The environment score ranges from 0 to 30. High-risk classes include `water`, `road_blocked`, `major_damage`, and `destroyed_building`. Medium-risk classes include `minor_damage`, `tree`, and `vehicle`. Low-risk classes include `road_clear`, `no_damage_building`, and `background`.
+
+Current segmentation support is mask-based. The repository does not include a pretrained RescueNet segmentation checkpoint, so the app does not pretend to automatically segment a raw image. Users can upload a RescueNet-style class-id or RGB mask to activate environmental risk fusion.
 
 See [SECOND_STEP_DECISION_LAYER.md](SECOND_STEP_DECISION_LAYER.md) for details.
+See [THIRD_STEP_SEGMENTATION_LAYER.md](THIRD_STEP_SEGMENTATION_LAYER.md) for the segmentation layer.
 
 ## Current Stage
 
@@ -176,12 +190,14 @@ Completed:
 - Detection details include class, confidence, bounding box, center point, and area.
 - Risk scoring and rescue priority ranking are available.
 - A Chinese rescue report is generated without calling any external API.
+- Optional RescueNet-style segmentation mask upload is available.
+- Segmentation overlay, area summary, and environment-enhanced risk ranking are available when a mask is uploaded.
 
 Not included yet:
 
 - ARGUS-style platform integration
 - Detection-Models comparison experiments
-- RescueNet semantic segmentation
+- Automatic RescueNet segmentation inference from raw images
 - Path planning
 - Full web application architecture
 - Automatic cloud deployment
@@ -193,6 +209,8 @@ Not included yet:
 ├── app
 │   ├── app.py
 │   ├── risk_engine.py
+│   ├── environment_risk.py
+│   ├── segmentation_engine.py
 │   ├── priority_ranker.py
 │   ├── report_generator.py
 │   ├── requirements.txt
@@ -206,7 +224,8 @@ Not included yet:
 ├── notebooks
 ├── static
 ├── FIRST_STEP_RUN.md
-└── SECOND_STEP_DECISION_LAYER.md
+├── SECOND_STEP_DECISION_LAYER.md
+└── THIRD_STEP_SEGMENTATION_LAYER.md
 ```
 
 ## Environment
@@ -247,7 +266,9 @@ If port `7860` is already occupied, stop the old process or change the Gradio po
 After uploading an image, the page returns:
 
 - Annotated image with detection boxes
+- Optional segmentation overlay
 - Detection details table
+- Segmentation summary table, if a mask is uploaded
 - Risk ranking table
 - Generated Chinese rescue report
 
@@ -260,9 +281,9 @@ If no target is detected, the app keeps the tables empty and reports:
 ## Roadmap
 
 1. Stabilize the current Gradio + YOLO detection and decision-layer demo.
-2. Add RescueNet semantic segmentation for environmental risk factors.
-3. Fuse target detection with semantic segmentation for stronger priority ranking.
-4. Add route planning based on target priority and passable areas.
+2. Keep improving RescueNet-style segmentation mask fusion and prepare segmentation model training.
+3. Add A* route planning based on target priority and passable areas.
+4. Fuse target detection, segmentation, and path cost into a stronger rescue decision layer.
 5. Upgrade from demo interface to a fuller web system inspired by ARGUS-style task management and report workflows.
 
 ## Deployment Note

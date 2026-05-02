@@ -7,6 +7,13 @@ from pathlib import Path
 
 from priority_ranker import rank_targets
 from report_generator import generate_report
+from environment_risk import CLASS_DISPLAY_NAMES
+from segmentation_engine import (
+    create_segmentation_overlay,
+    load_segmentation_mask,
+    resize_segmentation_mask,
+    summarize_segmentation,
+)
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
@@ -123,15 +130,28 @@ def ranking_table_rows(ranked_targets):
             target["bbox"],
             target["risk_score"],
             target["risk_level"],
+            target.get("environment_score", 0.0),
+            target.get("environment", "not_available"),
             target["reason"],
         ]
         for target in ranked_targets
     ]
 
 
-def image_detection(image, conf_threshold, model_variant):
+def segmentation_summary_rows(segmentation_summary):
+    return [
+        [
+            class_name,
+            CLASS_DISPLAY_NAMES.get(class_name, class_name),
+            round(float(ratio) * 100, 2),
+        ]
+        for class_name, ratio in segmentation_summary.items()
+    ]
+
+
+def image_detection(image, segmentation_mask_path, conf_threshold, model_variant):
     if image is None:
-        return None, [], [], "请先上传一张图像。"
+        return None, None, [], [], [], "请先上传一张图像。"
 
     image_width, image_height = image.size
     image_bgr = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
@@ -145,10 +165,27 @@ def image_detection(image, conf_threshold, model_variant):
     annotated_image = costum_bounding_box(image_rgb, results)
 
     targets = extract_targets(results)
-    ranked_targets = rank_targets(targets, image_width, image_height)
-    report = generate_report(targets, ranked_targets)
+    segmentation_mask = None
+    segmentation_overlay = None
+    segmentation_summary = {}
 
-    return annotated_image, target_table_rows(targets), ranking_table_rows(ranked_targets), report
+    if segmentation_mask_path:
+        segmentation_mask = load_segmentation_mask(segmentation_mask_path)
+        segmentation_mask = resize_segmentation_mask(segmentation_mask, image_width, image_height)
+        segmentation_overlay = create_segmentation_overlay(image_rgb, segmentation_mask)
+        segmentation_summary = summarize_segmentation(segmentation_mask)
+
+    ranked_targets = rank_targets(targets, image_width, image_height, segmentation_mask)
+    report = generate_report(targets, ranked_targets, segmentation_summary)
+
+    return (
+        annotated_image,
+        segmentation_overlay,
+        target_table_rows(targets),
+        segmentation_summary_rows(segmentation_summary),
+        ranking_table_rows(ranked_targets),
+        report,
+    )
 
 def video_detection(video_path, conf_threshold, model_variant, frame_skip=3):
     if video_path is None:
@@ -200,22 +237,33 @@ def video_detection(video_path, conf_threshold, model_variant, frame_skip=3):
 
 with gr.Blocks() as app:
     gr.HTML("""
-        <h1 style='text-align: center'>Low-Altitude Smart Rescue Demo</h1>
-        <p style='text-align: center'>YOLO disaster target detection with initial rescue risk ranking and report generation</p>
+        <h1 style='text-align: center'>AeroRescue-AI</h1>
+        <p style='text-align: center'>YOLO disaster target detection with optional RescueNet-style segmentation risk fusion</p>
     """)
 
     with gr.Tab("Image"):
         with gr.Row():
             with gr.Column():
                 image = gr.Image(label="Upload an Image", type="pil")
+                segmentation_mask = gr.Image(
+                    label="Optional Segmentation Mask Upload",
+                    type="filepath",
+                    image_mode="RGB",
+                )
                 conf_threshold = gr.Slider(label="Confidence Threshold", minimum=0.0, maximum=1.0, step=0.05, value=0.30)
                 output_model = gr.Dropdown(["yolov11n", "yolov11s", "yolov11m", "yolov11l"], label="Select Model", info="Select the YOLOv11 model variant to use.", value="yolov11m")
                 btn = gr.Button("Process Image", variant="primary")
             with gr.Column():
                 output_image = gr.Image(label="Processed Image")
+                output_segmentation_overlay = gr.Image(label="Segmentation Overlay")
                 output_details = gr.Dataframe(
                     headers=["id", "class_name", "confidence", "bbox", "center", "area"],
                     label="Detection Details",
+                    interactive=False,
+                )
+                output_segmentation_summary = gr.Dataframe(
+                    headers=["class_name", "display_name", "area_percent"],
+                    label="Segmentation Summary",
                     interactive=False,
                 )
                 output_ranking = gr.Dataframe(
@@ -227,6 +275,8 @@ with gr.Blocks() as app:
                         "bbox",
                         "risk_score",
                         "risk_level",
+                        "environment_score",
+                        "environment",
                         "reason",
                     ],
                     label="Risk Ranking",
@@ -240,8 +290,15 @@ with gr.Blocks() as app:
 
         btn.click(
             fn=image_detection,
-            inputs=[image, conf_threshold, output_model],
-            outputs=[output_image, output_details, output_ranking, output_report],
+            inputs=[image, segmentation_mask, conf_threshold, output_model],
+            outputs=[
+                output_image,
+                output_segmentation_overlay,
+                output_details,
+                output_segmentation_summary,
+                output_ranking,
+                output_report,
+            ],
         )
     
         gr.Examples(
