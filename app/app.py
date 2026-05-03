@@ -15,8 +15,10 @@ from segmentation_engine import (
     load_segmentation_mask,
     resize_segmentation_mask,
     summarize_segmentation,
+    validate_segmentation_mask,
 )
 from segmentation_model import (
+    get_default_segmentation_weights,
     get_segmentation_model_status,
     load_segmentation_model,
     predict_segmentation_mask,
@@ -29,10 +31,6 @@ MODELS_DIR = ROOT_DIR / "models"
 STATIC_VIDEO_PATH = ROOT_DIR / "static" / "video" / "rescuer.mp4"
 MODEL_CACHE = {}
 SEGMENTATION_MODEL_CACHE = {}
-SEGMENTATION_WEIGHT_CANDIDATES = [
-    ROOT_DIR / "checkpoints" / "segmentation_model.pth",
-    APP_DIR / "segmentation_weights" / "segmentation_model.pth",
-]
 VIDEO_CLASS_MIN_CONF = {
     "dog": 0.45,
     "cat": 0.45,
@@ -56,10 +54,7 @@ def get_model(model_variant):
 
 
 def get_segmentation_weights_path():
-    for weights_path in SEGMENTATION_WEIGHT_CANDIDATES:
-        if weights_path.exists():
-            return weights_path
-    return SEGMENTATION_WEIGHT_CANDIDATES[0]
+    return get_default_segmentation_weights()
 
 
 def get_auto_segmentation_model(weights_path):
@@ -188,6 +183,48 @@ def segmentation_summary_rows(segmentation_summary):
     ]
 
 
+def segmentation_validation_lines(validation):
+    return [
+        f"Mask validation result: {validation.get('message', 'Unknown validation result.')}",
+        f"Mask size: {validation.get('width', 0)}x{validation.get('height', 0)}",
+        f"Unique class ids: {validation.get('unique_class_ids', [])}",
+        f"Unknown class ids: {validation.get('unknown_class_ids', [])}",
+    ]
+
+
+def prepare_valid_segmentation_mask(mask, image_width, image_height, segmentation_status):
+    """Resize and validate a mask. Invalid masks fall back to no segmentation."""
+    if mask is None:
+        validation = validate_segmentation_mask(None)
+        segmentation_status.extend(segmentation_validation_lines(validation))
+        return None, {}
+
+    aligned_mask = resize_segmentation_mask(mask, image_width, image_height)
+    validation = validate_segmentation_mask(aligned_mask)
+    segmentation_status.extend(segmentation_validation_lines(validation))
+    if not validation.get("valid"):
+        segmentation_status.append("Invalid segmentation mask. Falling back to no segmentation mask.")
+        return None, {}
+
+    return aligned_mask, summarize_segmentation(aligned_mask)
+
+
+def gallery_image_items():
+    """Return local demo images only; no external image links are used."""
+    candidates = [
+        (ROOT_DIR / "static" / "images" / "capa1.webp", "Disaster response scenario"),
+        (ROOT_DIR / "static" / "images" / "capa2.webp", "Low-altitude rescue context"),
+        (ROOT_DIR / "static" / "images" / "app_gradio.png", "AeroRescue-AI interface"),
+        (ROOT_DIR / "static" / "images" / "230714-india-flooding-mb-0831-d3a66d.jpg", "Local demo input"),
+        (ROOT_DIR / "static" / "images" / "230714-india-flooding-mb-0831-d3a66d_annotated.webp", "Local detection output"),
+        (ROOT_DIR / "static" / "images" / "modelo-customizado.png", "Rescue-class detector output"),
+        (ROOT_DIR / "static" / "images" / "modelo-coco.png", "Generic detector comparison"),
+        (ROOT_DIR / "static" / "images" / "metricas0.5.png", "mAP@0.5 comparison"),
+        (ROOT_DIR / "static" / "images" / "metricas-classes.png", "Class-level metrics"),
+    ]
+    return [(str(path), caption) for path, caption in candidates if path.exists()]
+
+
 def _resolve_video_path(video_path):
     if video_path is None:
         return None
@@ -223,7 +260,7 @@ def path_summary_text(path_result, has_segmentation_mask):
         f"累计路径代价：{path_result.get('total_cost', 0.0):.2f}",
     ]
     if has_segmentation_mask:
-        summary.append("当前路径规划已结合 RescueNet-style segmentation mask 的环境代价。")
+        summary.append("当前路径规划已结合 segmentation mask 或自动分割结果的环境代价。")
     else:
         summary.append("当前未上传 segmentation mask，路径规划仅基于图像平面默认代价地图。")
     summary.append(f"说明：{path_result.get('message', 'A* 路径规划成功。')}")
@@ -257,10 +294,14 @@ def image_detection(image, segmentation_source, segmentation_mask_path, start_x,
                 if hasattr(segmentation_mask_path, "name")
                 else segmentation_mask_path
             )
-            segmentation_mask = load_segmentation_mask(mask_path)
-            segmentation_mask = resize_segmentation_mask(segmentation_mask, image_width, image_height)
             segmentation_status.append("Uploaded mask loaded successfully.")
-            segmentation_status.append(f"Mask validation result: aligned to {image_width}x{image_height}.")
+            loaded_mask = load_segmentation_mask(mask_path)
+            segmentation_mask, segmentation_summary = prepare_valid_segmentation_mask(
+                loaded_mask,
+                image_width,
+                image_height,
+                segmentation_status,
+            )
         else:
             segmentation_status.append("Uploaded Mask selected, but no mask file was uploaded. Falling back to no segmentation mask.")
     elif segmentation_source == "Auto Segmentation Model":
@@ -268,13 +309,21 @@ def image_detection(image, segmentation_source, segmentation_mask_path, start_x,
         model_status = get_segmentation_model_status(weights_path)
         if model_status["available"]:
             auto_model, load_status = get_auto_segmentation_model(weights_path)
+            segmentation_status.append(load_status["message"])
             if auto_model is not None:
-                segmentation_mask = predict_segmentation_mask(image, auto_model)
-                segmentation_mask = resize_segmentation_mask(segmentation_mask, image_width, image_height)
-                segmentation_status.append(load_status["message"])
-                segmentation_status.append("Auto segmentation prediction completed.")
+                predicted_mask = predict_segmentation_mask(image, auto_model)
+                if predicted_mask is None:
+                    segmentation_status.append("Auto segmentation prediction failed. Falling back to no segmentation mask.")
+                else:
+                    segmentation_status.append("Auto segmentation prediction completed.")
+                    segmentation_mask, segmentation_summary = prepare_valid_segmentation_mask(
+                        predicted_mask,
+                        image_width,
+                        image_height,
+                        segmentation_status,
+                    )
             else:
-                segmentation_status.append(load_status["message"])
+                segmentation_status.append("Auto segmentation model is unavailable. Falling back to no segmentation mask.")
         else:
             segmentation_status.append(
                 "Automatic segmentation weights not found. Falling back to no segmentation mask. "
@@ -286,7 +335,6 @@ def image_detection(image, segmentation_source, segmentation_mask_path, start_x,
     has_segmentation_mask = segmentation_mask is not None
     if has_segmentation_mask:
         segmentation_overlay = create_segmentation_overlay(image_rgb, segmentation_mask)
-        segmentation_summary = summarize_segmentation(segmentation_mask)
     else:
         segmentation_status.append("Risk scoring and path planning will use target-only/default-cost fallback.")
 
@@ -527,6 +575,56 @@ with gr.Blocks() as app:
             ],
             inputs=image,
             label="Example Images"
+        )
+
+    with gr.Tab("Demo Gallery"):
+        gr.Markdown(
+            """
+## AeroRescue-AI Demo Gallery
+
+**Workflow**
+
+UAV Image / Video  
+→ YOLOv11 Target Detection  
+→ Segmentation Source  
+→ Environment Risk Fusion  
+→ Rescue Priority Ranking  
+→ A* Image-plane Path Planning  
+→ Chinese Rescue Report
+
+**Current Capability Notes**
+
+- Uploaded Mask: available for class-id/RGB segmentation mask fusion.
+- Auto Segmentation Model: experimental and requires a local checkpoint.
+- None: available fallback with target-only risk scoring and default path cost.
+- Path Planning: image-plane reference path, not a real GPS route.
+            """
+        )
+
+        gallery_items = gallery_image_items()
+        if gallery_items:
+            gr.Gallery(
+                value=gallery_items,
+                label="Local AeroRescue-AI Demo Assets",
+                columns=3,
+                height=280,
+                allow_preview=True,
+            )
+        else:
+            gr.Markdown("TODO: add AeroRescue-AI generated demo output.")
+
+        gr.Markdown(
+            """
+## Segmentation Class Legend
+
+| ID | Class | Risk Meaning | Path Cost Meaning |
+| --- | --- | --- | --- |
+| 1 | water | High risk | Very high cost |
+| 7 | road_clear | Low risk | Low cost |
+| 8 | road_blocked | High risk | High cost |
+| 4 | major_damage | High risk | High cost |
+| 5 | destroyed_building | High risk | Very high cost |
+            """
         )
         
     with gr.Tab("Video"):

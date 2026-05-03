@@ -5,6 +5,7 @@ AeroRescue-AI uses semantic segmentation classes for disaster-scene environmenta
 ## Current Implemented
 
 - Uploaded mask parsing
+- Mask validation for class ids, unknown ids, and fallback behavior
 - RGB mask and class-id mask support
 - Palette-mode mask conversion through RGB color mapping
 - Segmentation overlay visualization
@@ -24,6 +25,16 @@ app/segmentation_weights/segmentation_model.pth
 ```
 
 If no checkpoint is found, the app does not generate a fake segmentation mask. It shows a clear status message and falls back to no segmentation mask.
+
+## Smoke Test
+
+Run the core smoke test without training, downloading data, loading YOLO weights, or starting Gradio:
+
+```bash
+python tests/smoke_test_core.py
+```
+
+The test covers segmentation mask validation, segmentation summary, overlay creation, path cost map generation, A* path planning, and missing-checkpoint fallback.
 
 ## Not Included By Default
 

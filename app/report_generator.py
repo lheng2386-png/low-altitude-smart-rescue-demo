@@ -9,7 +9,8 @@ def _segmentation_section(segmentation_summary, ranked_targets):
     if not segmentation_summary:
         return (
             "三、语义分割环境风险\n"
-            "当前未接入灾区语义分割结果，本报告仅基于目标检测结果生成。\n"
+            "当前未接入语义分割结果，环境风险与路径代价主要基于默认图像平面假设生成。"
+            "可通过上传 segmentation mask 或提供训练好的 segmentation checkpoint 启用环境风险融合。\n"
         )
 
     water_ratio = _percent(segmentation_summary, "water") + _percent(segmentation_summary, "pool")
@@ -31,6 +32,7 @@ def _segmentation_section(segmentation_summary, ranked_targets):
 
     return (
         "三、语义分割环境风险\n"
+        "当前报告已结合 segmentation mask 或自动分割结果进行环境风险融合。\n"
         f"水域/积水面积占比：{water_ratio:.1f}%。\n"
         f"道路阻断区域占比：{blocked_road_ratio:.1f}%。\n"
         f"建筑损毁区域占比：{damaged_building_ratio:.1f}%。\n"
@@ -71,8 +73,8 @@ def _path_section(segmentation_summary, path_result, ranked_targets):
         env_text = "当前路径规划已结合 segmentation mask 中的水域、道路阻断、建筑损毁等区域代价。"
     else:
         env_text = (
-            "当前未上传 segmentation mask，路径规划仅基于图像平面默认代价地图，"
-            "尚未考虑水域、道路阻断、建筑损毁等环境障碍。"
+            "当前未接入语义分割结果，路径规划仅基于图像平面默认代价地图，"
+            "尚未结合水域、道路阻断、建筑损毁等环境代价。"
         )
 
     return (
@@ -97,7 +99,8 @@ def generate_report(targets, ranked_targets, segmentation_summary=None, path_res
             f"{segmentation_text}\n"
             f"{path_text}\n"
             "初步建议：建议更换视角、提高图像清晰度或降低检测置信度阈值后复核。\n\n"
-            "当前版本局限说明：如未上传语义分割 mask，系统无法自动判断水域、道路阻断、建筑损毁等环境风险。"
+            "当前版本局限说明：当前路径规划为图像平面参考路径，不等同于真实 GPS 路线，"
+            "也未接入真实道路网络、无人机定位或飞控系统。"
         )
 
     civilian_count = sum(1 for target in targets if target["class_name"] == "civilian")
@@ -127,7 +130,7 @@ def generate_report(targets, ranked_targets, segmentation_summary=None, path_res
     if segmentation_summary:
         suggestions.append("规划现场行动时避开水域、道路阻断区域和严重损毁建筑附近区域。")
     else:
-        suggestions.append("当前未接入灾区语义分割结果，建议补充分割 mask 后复核环境风险。")
+        suggestions.append("当前未接入语义分割结果，建议补充分割 mask 或训练 checkpoint 后复核环境风险。")
 
     segmentation_text = _segmentation_section(segmentation_summary, ranked_targets)
     path_text = _path_section(segmentation_summary, path_result, ranked_targets)
@@ -146,5 +149,6 @@ def generate_report(targets, ranked_targets, segmentation_summary=None, path_res
         f"五、初步救援建议\n"
         + "\n".join(f"- {item}" for item in suggestions)
         + "\n\n六、当前版本局限说明\n"
-        "当前自动语义分割为可选实验功能，需要本地训练 checkpoint；未提供 checkpoint 时可上传 segmentation mask 完成环境风险融合。"
+        "当前自动语义分割为可选实验功能，需要本地训练 checkpoint；未提供 checkpoint 时可上传 segmentation mask 完成环境风险融合。\n"
+        "当前路径规划为图像平面参考路径，不等同于真实 GPS 路线，也未接入真实道路网络、无人机定位或飞控系统。"
     )

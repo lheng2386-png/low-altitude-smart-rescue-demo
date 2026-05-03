@@ -30,10 +30,13 @@ In flood, collapse, landslide, and post-disaster rescue scenes, UAV imagery can 
 | Rescue Priority Ranking | Done | Ranked target table with Chinese rescue reasons |
 | Report Generation | Done | Template-based Chinese rescue assistance report |
 | Uploaded Segmentation Mask | Done | Class-id/RGB mask parsing, overlay, area summary |
+| Mask Validation | Done | Validates class ids, shape, unknown ids, and fallback behavior |
 | Environment Risk Fusion | Done | Target risk enhanced by nearby environmental risk |
 | A* Path Planning | Done | Image-plane reference route to the highest-risk target |
 | Path Overlay | Done | Start point, target point, and planned path overlay |
 | Auto Segmentation Model | Experimental | Uses a local checkpoint if provided; otherwise falls back safely |
+| Demo Gallery | Done | Local project demo visuals and workflow summary in Gradio |
+| Core Smoke Test | Done | Lightweight no-download test for segmentation and path planning |
 | Video Tab | Basic Preview | Detection video output and detected class names |
 
 Current segmentation fusion, environment-enhanced risk ranking, report generation, and path planning are supported in the **Image Tab**. The **Video Tab** remains a lightweight detection preview and does not currently produce risk ranking, segmentation summaries, path planning, or rescue reports.
@@ -50,6 +53,48 @@ Current segmentation fusion, environment-enhanced risk ranking, report generatio
 | `cow` | Cow | Large animal rescue target |
 
 The detector separates `civilian` and `rescuer` so that people already participating in rescue work are not treated the same as possible trapped civilians.
+
+## Demo Gallery
+
+The project uses local assets stored under `static/images/` for README and Gradio gallery display.
+
+<div align="center">
+
+<img src="static/images/capa1.webp" alt="Disaster response scenario" width="780"/>
+
+</div>
+
+The Gradio interface keeps the current prototype lightweight while exposing the full Image Tab workflow.
+
+<div align="center">
+
+<img src="static/images/app_gradio.png" alt="AeroRescue-AI Gradio interface" width="850"/>
+
+</div>
+
+Example local detection preview:
+
+<div align="center">
+
+<img src="static/images/230714-india-flooding-mb-0831-d3a66d.jpg" alt="Local demo input" width="410"/>
+<img src="static/images/230714-india-flooding-mb-0831-d3a66d_annotated.webp" alt="Local detection output" width="410"/>
+
+</div>
+
+Model comparison and evaluation assets:
+
+<div align="center">
+
+<img src="static/images/modelo-customizado.png" alt="Rescue-class detector output" width="410"/>
+<img src="static/images/modelo-coco.png" alt="Generic detector comparison" width="410"/>
+
+</div>
+
+<div align="center">
+
+<img src="static/images/metricas0.5.png" alt="mAP@0.5 comparison" width="720"/>
+
+</div>
 
 ## Segmentation Integration
 
@@ -224,6 +269,12 @@ None mode:
 2. Upload an image.
 3. The app should skip segmentation and continue with target-only risk scoring and default-cost path planning.
 
+Core smoke test:
+
+```bash
+python tests/smoke_test_core.py
+```
+
 ## Train A Local Segmentation Model
 
 Prepare local data as described in [SEGMENTATION_DATASET_SETUP.md](SEGMENTATION_DATASET_SETUP.md), then run:
@@ -263,15 +314,19 @@ Completed in the current prototype:
 - Uploaded segmentation mask fusion
 - Optional auto segmentation checkpoint interface
 - A* image-plane path planning
+- Mask validation
+- Demo Gallery
+- Core smoke test
 
 Planned next:
 
-- Improve segmentation training and evaluation results
-- Improve passability constraints for path planning
+- Validate segmentation masks and improve fallback reliability
+- Prepare 3-5 complete demo cases
+- Improve Risk-Aware A* passability constraints
 - Add multi-target rescue sequence planning
 - Add model comparison experiments
-- Prepare a more complete web-platform architecture
+- Prepare presentation / demo video
 
 ## Image Policy
 
-The README and demo gallery should focus on AeroRescue-AI outputs. Do not copy external README images into this repository, do not use external image links, and do not present external images as project-generated results.
+The README and demo gallery focus on AeroRescue-AI project materials and local repository assets. Do not use external image links or present unrelated images as project-generated results.

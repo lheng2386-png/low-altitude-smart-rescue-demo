@@ -100,6 +100,66 @@ def resize_segmentation_mask(mask, width, height):
     return cv2.resize(mask.astype(np.uint8), (width, height), interpolation=cv2.INTER_NEAREST)
 
 
+def validate_segmentation_mask(mask):
+    """Validate class ids and shape for a class-id segmentation mask."""
+    try:
+        if mask is None:
+            return {
+                "valid": False,
+                "unique_class_ids": [],
+                "unknown_class_ids": [],
+                "height": 0,
+                "width": 0,
+                "message": "No segmentation mask is available.",
+            }
+
+        array = np.asarray(mask)
+        if array.ndim == 3:
+            array = array[:, :, 0]
+        height, width = array.shape[:2]
+        unique_class_ids = sorted(int(value) for value in np.unique(array))
+        valid_ids = set(RESCUENET_CLASSES.keys())
+        unknown_class_ids = [class_id for class_id in unique_class_ids if class_id not in valid_ids]
+
+        if unknown_class_ids:
+            return {
+                "valid": False,
+                "unique_class_ids": unique_class_ids,
+                "unknown_class_ids": unknown_class_ids,
+                "height": int(height),
+                "width": int(width),
+                "message": f"Segmentation mask contains unknown class ids: {unknown_class_ids}.",
+            }
+
+        if unique_class_ids == [0]:
+            return {
+                "valid": True,
+                "unique_class_ids": unique_class_ids,
+                "unknown_class_ids": [],
+                "height": int(height),
+                "width": int(width),
+                "message": "Mask contains only background; environment risk may be limited.",
+            }
+
+        return {
+            "valid": True,
+            "unique_class_ids": unique_class_ids,
+            "unknown_class_ids": [],
+            "height": int(height),
+            "width": int(width),
+            "message": "Segmentation mask is valid.",
+        }
+    except Exception as exc:
+        return {
+            "valid": False,
+            "unique_class_ids": [],
+            "unknown_class_ids": [],
+            "height": 0,
+            "width": 0,
+            "message": f"Segmentation mask validation failed: {exc}",
+        }
+
+
 def create_segmentation_overlay(image, mask, alpha=0.45):
     if image is None or mask is None:
         return None

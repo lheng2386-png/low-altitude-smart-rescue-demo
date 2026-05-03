@@ -22,6 +22,13 @@ SEGMENTATION_CLASS_NAMES = [
     "pool",
 ]
 
+APP_DIR = Path(__file__).resolve().parent
+ROOT_DIR = APP_DIR.parent
+DEFAULT_SEGMENTATION_WEIGHT_CANDIDATES = [
+    ROOT_DIR / "checkpoints" / "segmentation_model.pth",
+    APP_DIR / "segmentation_weights" / "segmentation_model.pth",
+]
+
 
 class DoubleConv(nn.Module):
     """Small convolution block used by the lightweight UNet."""
@@ -86,6 +93,14 @@ def _device(device=None):
     return torch.device("cpu")
 
 
+def get_default_segmentation_weights():
+    """Return the preferred local segmentation checkpoint path."""
+    for weights_path in DEFAULT_SEGMENTATION_WEIGHT_CANDIDATES:
+        if weights_path.exists():
+            return weights_path
+    return DEFAULT_SEGMENTATION_WEIGHT_CANDIDATES[0]
+
+
 def get_segmentation_model_status(weights_path):
     """Return whether an automatic segmentation checkpoint is available."""
     if weights_path is None:
@@ -112,27 +127,35 @@ def get_segmentation_model_status(weights_path):
 
 def load_segmentation_model(weights_path=None, device=None):
     """Load a lightweight 11-class segmentation model if weights exist."""
+    if weights_path is None:
+        weights_path = get_default_segmentation_weights()
+
     status = get_segmentation_model_status(weights_path)
     if not status["available"]:
         return None, status
 
-    run_device = _device(device)
-    model = LightweightUNet(num_classes=NUM_SEGMENTATION_CLASSES)
-    checkpoint = torch.load(status["path"], map_location=run_device)
+    try:
+        run_device = _device(device)
+        model = LightweightUNet(num_classes=NUM_SEGMENTATION_CLASSES)
+        checkpoint = torch.load(status["path"], map_location=run_device)
 
-    if isinstance(checkpoint, dict) and "model_state_dict" in checkpoint:
-        state_dict = checkpoint["model_state_dict"]
-    elif isinstance(checkpoint, dict) and "state_dict" in checkpoint:
-        state_dict = checkpoint["state_dict"]
-    else:
-        state_dict = checkpoint
+        if isinstance(checkpoint, dict) and "model_state_dict" in checkpoint:
+            state_dict = checkpoint["model_state_dict"]
+        elif isinstance(checkpoint, dict) and "state_dict" in checkpoint:
+            state_dict = checkpoint["state_dict"]
+        else:
+            state_dict = checkpoint
 
-    model.load_state_dict(state_dict)
-    model.to(run_device)
-    model.eval()
-    status["device"] = str(run_device)
-    status["message"] = f"Auto segmentation model loaded successfully from {status['path']} on {run_device}."
-    return model, status
+        model.load_state_dict(state_dict)
+        model.to(run_device)
+        model.eval()
+        status["device"] = str(run_device)
+        status["message"] = f"Auto segmentation model loaded successfully from {status['path']} on {run_device}."
+        return model, status
+    except Exception as exc:
+        status["available"] = False
+        status["message"] = f"Automatic segmentation checkpoint load failed: {exc}"
+        return None, status
 
 
 def _to_rgb_array(image):
@@ -161,14 +184,17 @@ def _preprocess(image, input_size):
 def predict_segmentation_mask(image, model, device=None, input_size=512):
     """Predict an 11-class class-id mask with a loaded segmentation model."""
     if model is None:
-        raise ValueError("Segmentation model is not loaded.")
+        return None
 
-    run_device = _device(device)
-    model.to(run_device)
-    model.eval()
+    try:
+        run_device = _device(device)
+        model.to(run_device)
+        model.eval()
 
-    tensor, original_width, original_height = _preprocess(image, input_size)
-    tensor = tensor.to(run_device)
-    logits = model(tensor)
-    pred = torch.argmax(logits, dim=1).squeeze(0).detach().cpu().numpy().astype(np.uint8)
-    return cv2.resize(pred, (original_width, original_height), interpolation=cv2.INTER_NEAREST)
+        tensor, original_width, original_height = _preprocess(image, input_size)
+        tensor = tensor.to(run_device)
+        logits = model(tensor)
+        pred = torch.argmax(logits, dim=1).squeeze(0).detach().cpu().numpy().astype(np.uint8)
+        return cv2.resize(pred, (original_width, original_height), interpolation=cv2.INTER_NEAREST)
+    except Exception:
+        return None

@@ -50,6 +50,7 @@ Class-id masks are recommended.
 - Each pixel value should be the class id.
 - Do not use JPG for class-id masks because compression can change pixel values.
 - RGB color masks can also be used if their colors match the project color mapping in `app/segmentation_engine.py`.
+- Masks are validated before environment risk fusion. Unknown class ids fall back to no segmentation instead of crashing the app.
 
 ## Class IDs
 
