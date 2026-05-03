@@ -409,7 +409,7 @@ python tests/smoke_test_core.py
 Expected output:
 
 ```text
-AeroRescue-AI TERP and path planning smoke test passed.
+AeroRescue-AI demo case and model comparison smoke test passed.
 ```
 
 ## Train A Local Segmentation Model
