@@ -202,3 +202,9 @@ app/models/
 runs/
 *.tmp
 app/venv/
+data/
+datasets/
+checkpoints/
+*.pth
+*.ckpt
+*.onnx

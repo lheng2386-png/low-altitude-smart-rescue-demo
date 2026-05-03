@@ -68,7 +68,7 @@ def _path_section(segmentation_summary, path_result, ranked_targets):
     )
 
     if segmentation_summary:
-        env_text = "当前路径规划已结合 RescueNet-style mask 中的水域、道路阻断、建筑损毁等区域代价。"
+        env_text = "当前路径规划已结合 segmentation mask 中的水域、道路阻断、建筑损毁等区域代价。"
     else:
         env_text = (
             "当前未上传 segmentation mask，路径规划仅基于图像平面默认代价地图，"
@@ -146,5 +146,5 @@ def generate_report(targets, ranked_targets, segmentation_summary=None, path_res
         f"五、初步救援建议\n"
         + "\n".join(f"- {item}" for item in suggestions)
         + "\n\n六、当前版本局限说明\n"
-        "当前版本不会自动生成语义分割结果；如需环境风险融合，需要上传 RescueNet 风格 segmentation mask。"
+        "当前自动语义分割为可选实验功能，需要本地训练 checkpoint；未提供 checkpoint 时可上传 segmentation mask 完成环境风险融合。"
     )

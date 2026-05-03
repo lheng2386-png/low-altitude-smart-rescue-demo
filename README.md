@@ -2,165 +2,113 @@
 
 **AeroRescue-AI：面向低空应急救援的无人机多模态灾情识别与辅助决策系统**
 
-This repository is a competition-stage prototype for low-altitude UAV disaster rescue assistance. It starts from UAV-style images or videos, detects rescue-related targets with YOLOv11, optionally reads RescueNet-style semantic segmentation masks, converts detections into structured target records, estimates risk, ranks rescue priority, and generates a first-pass Chinese rescue report.
+AeroRescue-AI is a competition-stage prototype for low-altitude UAV emergency rescue assistance. The current system is a local Gradio demo that connects disaster target detection, structured target analysis, risk scoring, rescue priority ranking, optional semantic segmentation fusion, A* image-plane path planning, and template-based Chinese rescue report generation.
 
-At the current stage, the project is deliberately kept as a lightweight Gradio demo. It does not integrate ARGUS, Detection-Models, FastAPI, React, Docker, route planning, or any large language model API yet. RescueNet is currently used as a semantic mask format and environmental-risk reference, not as an automatic segmentation model.
-
-Current segmentation mask fusion, environment-enhanced risk ranking, risk scoring, rescue priority ranking, and report generation are available in the Image Tab only. The Video Tab is currently a basic detection preview and does not yet produce segmentation summaries, risk ranking, or rescue reports.
-
-<div align="center">
-
-<img src="static/images/capa1.webp" alt="Flood rescue scenario" width="760"/>
-
-</div>
+The project is designed for a step-by-step competition workflow. It is not a full cloud platform, not a GIS navigation system, and not connected to any large language model API.
 
 ## Overview
 
-In flood, landslide, collapse, and post-disaster urban-rural rescue scenes, UAVs can quickly provide overhead visual information before rescuers fully enter the area. The challenge is turning these images into actionable rescue information: who or what was detected, where the target is, how confident the model is, and which target should be handled first.
+In flood, collapse, landslide, and post-disaster rescue scenes, UAV imagery can provide fast overhead awareness before rescue teams fully enter the area. AeroRescue-AI turns that visual input into a first-pass decision aid:
 
-This demo focuses on the first usable loop:
-
-1. Upload a disaster image or video in a Gradio interface.
-2. Run local YOLOv11 disaster target detection.
-3. Display bounding boxes, classes, confidence, and coordinates.
-4. Standardize each detection into a rescue target record.
-5. Optionally upload a RescueNet-style segmentation mask.
-6. Summarize environmental risk areas such as water, blocked roads, and damaged buildings.
-7. Fuse target risk and environment risk.
-8. Rank targets by rescue priority.
-9. Generate a template-based Chinese rescue report.
+1. Upload a UAV-style disaster image or video.
+2. Detect rescue-related targets with local YOLOv11 weights.
+3. Structure detections into target records with class, confidence, bbox, center, and area.
+4. Estimate target risk and rank rescue priority.
+5. Optionally parse a segmentation mask or run an experimental local segmentation checkpoint.
+6. Summarize environmental risk areas such as water, blocked roads, damaged buildings, vehicles, trees, and passable roads.
+7. Fuse target risk with environmental context.
+8. Plan a reference A* path from a rescue start point to the highest-risk target.
+9. Generate a Chinese rescue assistance report.
 
 ## Current Capabilities
 
-| Module | Current Implementation | Output |
+| Module | Status | Output |
 | --- | --- | --- |
-| Target detection | Ultralytics YOLOv11 local weights | Annotated image/video, class, confidence, bbox |
-| Target structuring | Detection result parser in `app/app.py` | `id`, `class_name`, `confidence`, `bbox`, `center`, `area` |
-| Segmentation mask parsing | `app/segmentation_engine.py` | RescueNet-style mask, overlay, class area summary |
-| Environment risk | `app/environment_risk.py` | Water, blocked road, damaged building risk scores |
-| Risk scoring | `app/risk_engine.py` | Target score with optional environment enhancement |
-| Priority ranking | `app/priority_ranker.py` | Ranked rescue target table with environment context |
-| Report generation | `app/report_generator.py` | Chinese rescue report with optional segmentation summary |
-| A* Path Planning | `app/path_planner.py` | Reference route from rescue start point to highest-risk target |
-| Path Overlay | `app/path_planner.py` | Draws start, goal, and planned path on the image |
-| Interface | Gradio | Upload, model selection, result visualization |
+| YOLOv11 Disaster Target Detection | Done | Annotated image/video, class, confidence, bbox |
+| Target Structuring | Done | `id`, `class_name`, `confidence`, `bbox`, `center`, `area` |
+| Risk Scoring | Done | Low / Medium / High risk levels |
+| Rescue Priority Ranking | Done | Ranked target table with Chinese rescue reasons |
+| Report Generation | Done | Template-based Chinese rescue assistance report |
+| Uploaded Segmentation Mask | Done | Class-id/RGB mask parsing, overlay, area summary |
+| Environment Risk Fusion | Done | Target risk enhanced by nearby environmental risk |
+| A* Path Planning | Done | Image-plane reference route to the highest-risk target |
+| Path Overlay | Done | Start point, target point, and planned path overlay |
+| Auto Segmentation Model | Experimental | Uses a local checkpoint if provided; otherwise falls back safely |
+| Video Tab | Basic Preview | Detection video output and detected class names |
 
-Supported classes:
+Current segmentation fusion, environment-enhanced risk ranking, report generation, and path planning are supported in the **Image Tab**. The **Video Tab** remains a lightweight detection preview and does not currently produce risk ranking, segmentation summaries, path planning, or rescue reports.
+
+## Detection Classes
 
 | Class | Meaning | Rescue Interpretation |
 | --- | --- | --- |
-| `civilian` | Civilian / possible trapped person | Highest priority visual target |
-| `rescuer` | Rescue worker | Helps reduce false alerts in areas already occupied by rescue teams |
+| `civilian` | Civilian / possible trapped person | Highest-priority rescue target |
+| `rescuer` | Rescue worker | Used to recognize existing rescue activity |
 | `dog` | Dog | Domestic animal rescue target |
 | `cat` | Cat | Domestic animal rescue target |
 | `horse` | Horse | Large animal rescue target |
 | `cow` | Cow | Large animal rescue target |
 
-Distinguishing `civilian` from `rescuer` is important. Generic person detectors usually merge both into a single `person` class, which can produce misleading rescue alerts when the scene already contains emergency teams.
+The detector separates `civilian` and `rescuer` so that people already participating in rescue work are not treated the same as possible trapped civilians.
 
-## Demo Preview
+## Segmentation Integration
 
-The Gradio page supports image and video input. For image detection, the current interface returns an annotated image, optional segmentation overlay, optional path overlay, detection details table, segmentation summary table, risk ranking table, path planning summary, and generated Chinese rescue report. The Video Tab currently returns a processed video preview and detected class names only.
+Level 1 Done:
 
-<div align="center">
+- Uploaded segmentation mask parsing
+- Class-id mask and RGB color mask support
+- Segmentation overlay
+- Environmental area summary
+- Environment-enhanced risk ranking
+- A* cost map generation from segmentation classes
 
-<img src="static/images/app_gradio.png" alt="Gradio app preview" width="850"/>
+Level 2 Experimental:
 
-</div>
+- Optional automatic segmentation inference if a trained checkpoint is available locally.
+- Supported checkpoint locations:
+  - `checkpoints/segmentation_model.pth`
+  - `app/segmentation_weights/segmentation_model.pth`
 
-Example detection material:
+Level 3 Planned:
 
-<div align="center">
+- Full local training and evaluation on disaster-scene segmentation data.
+- Report pixel accuracy, mean IoU, and per-class IoU.
+- Replace manual mask upload with validated automatic segmentation inference after a real checkpoint is trained.
 
-<img src="static/images/230714-india-flooding-mb-0831-d3a66d.jpg" alt="Original flood rescue image" width="410"/>
-<img src="static/images/230714-india-flooding-mb-0831-d3a66d_annotated.webp" alt="Annotated flood rescue image" width="410"/>
+The repository does **not** include a full segmentation dataset or a large pretrained segmentation checkpoint. If no checkpoint exists, `Auto Segmentation Model` will show a clear status message and fall back to no segmentation mask. It will not generate fake segmentation results.
 
-</div>
+Class-id masks should use PNG. JPG compression can change pixel values and break class-id semantics.
 
-## Dataset And Detection Model
+## Segmentation Classes
 
-The current detector is based on a YOLO-format disaster response dataset with six rescue-related classes. The dataset is organized into training, validation, and test splits:
+| ID | Class | Use In This System |
+| ---: | --- | --- |
+| 0 | `background` | Default unknown area |
+| 1 | `water` | High-risk flood/water area |
+| 2 | `no_damage_building` | Low-risk building region |
+| 3 | `minor_damage` | Medium-risk damaged building |
+| 4 | `major_damage` | High-risk damaged building |
+| 5 | `destroyed_building` | High-risk destroyed building |
+| 6 | `vehicle` | Medium-risk obstacle/vehicle area |
+| 7 | `road_clear` | Low-cost passable road |
+| 8 | `road_blocked` | High-cost blocked road |
+| 9 | `tree` | Medium-risk occlusion/vegetation area |
+| 10 | `pool` | High-risk water/pool area |
 
-| Split | Images | Labels |
-| --- | ---: | ---: |
-| Train | 2,674 | 2,674 |
-| Validation | 383 | 383 |
-| Test | 183 | 183 |
+## Risk Scoring
 
-Class annotation counts:
-
-| Class | Annotated Objects | Images Containing Class |
-| --- | ---: | ---: |
-| `civilian` | 3,150 | 1,060 |
-| `rescuer` | 1,074 | 397 |
-| `dog` | 531 | 373 |
-| `cat` | 637 | 207 |
-| `horse` | 811 | 279 |
-| `cow` | 749 | 180 |
-
-The model uses Ultralytics YOLOv11. YOLO is suitable for this first-stage demo because it provides fast single-stage object detection and directly outputs bounding boxes, class labels, and confidence scores.
-
-Available local model variants:
-
-| Variant | Expected Weight Path | Typical Use |
-| --- | --- | --- |
-| YOLOv11n | `models/yolov11n/best.pt` | Fastest lightweight demo |
-| YOLOv11s | `models/yolov11s/best.pt` | Balanced lightweight option |
-| YOLOv11m | `models/yolov11m/best.pt` | Higher capacity, slower than small models |
-| YOLOv11l | `models/yolov11l/best.pt` | Larger model, slower CPU inference |
-
-<div align="center">
-
-<img src="static/images/metricas0.5.png" alt="mAP@0.5 by model variant" width="720"/>
-
-</div>
-
-The trained variants show close mAP@0.5 performance, which makes the smaller models useful for a fast demo or hardware-constrained rescue scenarios. Additional model comparison notebooks are kept under `notebooks/`.
-
-## Why This Dataset Matters
-
-Large general-purpose datasets such as COCO do not separate `civilian` and `rescuer`; both are usually treated as `person`. In emergency imagery, that distinction matters. A scene with only rescue workers should not be treated the same as a scene with trapped civilians.
-
-The dataset also includes domestic and large animals, which are common in flood and rural-peripheral disaster scenes. This supports a broader rescue-assessment workflow than a person-only detector.
-
-<div align="center">
-
-<img src="static/images/modelo-customizado.png" alt="Custom model result" width="410"/>
-<img src="static/images/modelo-coco.png" alt="COCO model comparison" width="410"/>
-
-</div>
-
-## Segmentation And Decision Layer
-
-The decision layer turns raw detection boxes into rescue-oriented target records:
-
-```json
-{
-  "id": "T001",
-  "class_name": "civilian",
-  "confidence": 0.86,
-  "bbox": [x1, y1, x2, y2],
-  "center": [cx, cy],
-  "area": 12345.0
-}
-```
-
-Without segmentation mask, the system uses the second-stage target-only formula:
+Without segmentation mask, the system uses target-only scoring:
 
 ```text
 risk_score = class_weight * 70 + confidence * 20 + area_weight * 10
 ```
 
-Class weights:
+With segmentation mask, the system uses environment-enhanced scoring:
 
-| Class | Weight |
-| --- | ---: |
-| `civilian` | 1.00 |
-| `horse` | 0.65 |
-| `cow` | 0.65 |
-| `dog` | 0.55 |
-| `cat` | 0.55 |
-| `rescuer` | 0.15 |
+```text
+base_target_score = class_weight * 55 + confidence * 15 + area_weight * 10
+final_risk_score = base_target_score + environment_score
+```
 
 Risk levels:
 
@@ -170,43 +118,17 @@ Risk levels:
 | 40-70 | Medium |
 | 70-100 | High |
 
-With a RescueNet-style segmentation mask, the system uses environment-enhanced scoring:
+## A* Path Planning
 
-```text
-base_target_score = class_weight * 55 + confidence * 15 + area_weight * 10
-final_risk_score = base_target_score + environment_score
-```
+The Image Tab includes an image-plane A* path planning prototype.
 
-The environment score ranges from 0 to 30. High-risk classes include `water`, `road_blocked`, `major_damage`, and `destroyed_building`. Medium-risk classes include `minor_damage`, `tree`, and `vehicle`. Low-risk classes include `road_clear`, `no_damage_building`, and `background`.
+- If a segmentation mask is available, class ids are converted into a path cost map.
+- If no segmentation mask is available, the system uses a uniform default cost map.
+- The route starts from `Rescue Start X / Rescue Start Y`.
+- If `start_y = -1`, the app uses the lower-left default start point.
+- The goal is the highest-risk ranked target.
 
-Current third-step segmentation support is mask-based. It is not automatic semantic segmentation model inference. The repository does not include a pretrained RescueNet segmentation checkpoint, so the app does not pretend to automatically segment a raw image. Users can upload a RescueNet-style class-id or RGB mask to activate segmentation mask fusion and environmental risk fusion.
-
-For class-id masks, PNG is recommended. JPG compression can change pixel values and break class-id semantics.
-
-See [SECOND_STEP_DECISION_LAYER.md](SECOND_STEP_DECISION_LAYER.md) for details.
-See [THIRD_STEP_SEGMENTATION_LAYER.md](THIRD_STEP_SEGMENTATION_LAYER.md) for the segmentation layer.
-
-## Current Stage
-
-Completed:
-
-- Local Gradio demo can be started.
-- YOLO weights are loaded from `models/<variant>/best.pt`.
-- Image upload returns an annotated detection result.
-- Detection details include class, confidence, bounding box, center point, and area.
-- Risk scoring and rescue priority ranking are available.
-- A Chinese rescue report is generated without calling any external API.
-- Optional RescueNet-style segmentation mask upload is available.
-- Segmentation overlay, area summary, and environment-enhanced risk ranking are available when a mask is uploaded.
-- A* path planning and path overlay are available in the Image Tab.
-
-Not included yet:
-
-- ARGUS-style platform integration
-- Detection-Models comparison experiments
-- Automatic RescueNet segmentation inference from raw images
-- Full web application architecture
-- Automatic cloud deployment
+This is a reference path on the image plane. It is not a GPS route and does not use real road networks, drone flight control, or live map data.
 
 ## Repository Structure
 
@@ -217,22 +139,35 @@ Not included yet:
 │   ├── risk_engine.py
 │   ├── environment_risk.py
 │   ├── segmentation_engine.py
+│   ├── segmentation_model.py
 │   ├── priority_ranker.py
 │   ├── report_generator.py
 │   ├── path_planner.py
 │   ├── requirements.txt
 │   └── examples
+├── training
+│   ├── train_segmentation.py
+│   └── evaluate_segmentation.py
 ├── models
 │   ├── yolov11n
 │   ├── yolov11s
 │   ├── yolov11m
 │   └── yolov11l
-├── dataset
-├── notebooks
 ├── static
 ├── FIRST_STEP_RUN.md
 ├── SECOND_STEP_DECISION_LAYER.md
-└── THIRD_STEP_SEGMENTATION_LAYER.md
+├── THIRD_STEP_SEGMENTATION_LAYER.md
+├── FOURTH_STEP_PATH_PLANNING.md
+├── SEGMENTATION_DATASET_SETUP.md
+└── SEGMENTATION_INTEGRATION.md
+```
+
+Large local data and checkpoints should stay outside Git tracking:
+
+```text
+data/
+datasets/
+checkpoints/
 ```
 
 ## Environment
@@ -241,9 +176,9 @@ Recommended:
 
 - Python 3.10 to 3.12
 - macOS, Linux, or Windows
-- GPU is optional
+- GPU optional
 
-CPU inference works for image detection. Video detection can run on CPU, but it may be slow. The current local verification used Python 3.12.
+CPU inference works for images. Video processing on CPU can be slow, so the Video Tab provides frame skipping and a full-video/limited-frame option.
 
 ## Run Locally
 
@@ -260,50 +195,83 @@ pip install -r requirements.txt
 python app.py
 ```
 
-Open the local Gradio address:
+Open:
 
 ```text
 http://127.0.0.1:7860
 ```
 
-If port `7860` is already occupied, stop the old process or change the Gradio port in `app/app.py`.
+## Image Tab Testing
 
-## Expected App Outputs
+Uploaded Mask mode:
 
-After uploading an image, the page returns:
+1. Select `Segmentation Source = Uploaded Mask`.
+2. Upload an image.
+3. Upload `app/examples/masks/demo_rescuenet_mask.png`.
+4. Click `Process Image`.
+5. Check processed image, segmentation overlay, path overlay, detection details, segmentation summary, risk ranking, path summary, and rescue report.
 
-- Annotated image with detection boxes
-- Optional segmentation overlay
-- Optional path planning overlay
-- Detection details table
-- Segmentation summary table, if a mask is uploaded
-- Risk ranking table
-- Path planning summary
-- Generated Chinese rescue report
+Auto Segmentation Model mode without checkpoint:
 
-The Image Tab currently supports segmentation mask fusion, environment-enhanced risk ranking, A* path planning, and report generation. The Video Tab currently supports basic YOLO detection preview only. It does not yet support risk scoring, priority ranking, segmentation summary, path planning, or report generation.
+1. Select `Segmentation Source = Auto Segmentation Model`.
+2. Upload an image.
+3. Do not provide a checkpoint.
+4. The app should show a fallback status and continue with target-only/default-cost logic.
 
-If no target is detected, the app keeps the tables empty and reports:
+None mode:
 
-```text
-当前图像未检测到明确救援目标
+1. Select `Segmentation Source = None`.
+2. Upload an image.
+3. The app should skip segmentation and continue with target-only risk scoring and default-cost path planning.
+
+## Train A Local Segmentation Model
+
+Prepare local data as described in [SEGMENTATION_DATASET_SETUP.md](SEGMENTATION_DATASET_SETUP.md), then run:
+
+```bash
+python training/train_segmentation.py \
+  --data-root data/segmentation \
+  --epochs 20 \
+  --batch-size 4 \
+  --lr 1e-4 \
+  --input-size 512 \
+  --model unet \
+  --num-classes 11 \
+  --output checkpoints/segmentation_model.pth
 ```
 
-## Roadmap
+Evaluate:
 
-1. Stabilize the current Gradio + YOLO detection and decision-layer demo.
-2. Keep improving RescueNet-style segmentation mask fusion and prepare segmentation model training.
-3. Improve path planning with real passability constraints and multi-target routing.
-4. Fuse target detection, segmentation, and path cost into a stronger rescue decision layer.
-5. Add Detection-Models comparison experiments.
-6. Upgrade from demo interface to a fuller web system inspired by ARGUS-style task management and report workflows.
+```bash
+python training/evaluate_segmentation.py \
+  --data-root data/segmentation \
+  --split val \
+  --checkpoint checkpoints/segmentation_model.pth \
+  --save-overlays
+```
 
-## Deployment Note
+## Project Status
 
-The previous Hugging Face Space deployment workflow has been removed because it pointed to an old external Space and required a missing or unrelated secret. This repository is currently maintained as a local Gradio demo.
+Completed in the current prototype:
 
-Before enabling automatic deployment again, configure a new deployment target, repository secret, and workflow owned by this project.
+- Local Gradio app
+- Local YOLOv11 detection from `models/<variant>/best.pt`
+- Image detection details
+- Video detection preview
+- Risk scoring and priority ranking
+- Chinese rescue report generation
+- Uploaded segmentation mask fusion
+- Optional auto segmentation checkpoint interface
+- A* image-plane path planning
 
-## License And Attribution
+Planned next:
 
-This repository contains adapted open-source code, dataset structure, model artifacts, and documentation assets. Keep the license and citation files with the repository when redistributing or publishing the project.
+- Improve segmentation training and evaluation results
+- Improve passability constraints for path planning
+- Add multi-target rescue sequence planning
+- Add model comparison experiments
+- Prepare a more complete web-platform architecture
+
+## Image Policy
+
+The README and demo gallery should focus on AeroRescue-AI outputs. Do not copy external README images into this repository, do not use external image links, and do not present external images as project-generated results.

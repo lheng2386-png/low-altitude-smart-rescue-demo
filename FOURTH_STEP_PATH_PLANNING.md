@@ -92,5 +92,5 @@ This lets the A* route prefer clear roads and avoid water, blocked roads, and he
 
 - Improve path planning with more realistic passability constraints.
 - Add multi-target rescue routing.
-- Add Detection-Models comparison experiments.
-- Use ARGUS-style platform ideas later for task management and report workflows.
+- Add model comparison experiments.
+- Prepare a platform-style task management and report workflow.

@@ -16,6 +16,11 @@ from segmentation_engine import (
     resize_segmentation_mask,
     summarize_segmentation,
 )
+from segmentation_model import (
+    get_segmentation_model_status,
+    load_segmentation_model,
+    predict_segmentation_mask,
+)
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
@@ -23,6 +28,11 @@ APP_DIR = Path(__file__).resolve().parent
 MODELS_DIR = ROOT_DIR / "models"
 STATIC_VIDEO_PATH = ROOT_DIR / "static" / "video" / "rescuer.mp4"
 MODEL_CACHE = {}
+SEGMENTATION_MODEL_CACHE = {}
+SEGMENTATION_WEIGHT_CANDIDATES = [
+    ROOT_DIR / "checkpoints" / "segmentation_model.pth",
+    APP_DIR / "segmentation_weights" / "segmentation_model.pth",
+]
 VIDEO_CLASS_MIN_CONF = {
     "dog": 0.45,
     "cat": 0.45,
@@ -43,6 +53,21 @@ def get_model(model_variant):
     if model_variant not in MODEL_CACHE:
         MODEL_CACHE[model_variant] = YOLO(get_model_path(model_variant))
     return MODEL_CACHE[model_variant]
+
+
+def get_segmentation_weights_path():
+    for weights_path in SEGMENTATION_WEIGHT_CANDIDATES:
+        if weights_path.exists():
+            return weights_path
+    return SEGMENTATION_WEIGHT_CANDIDATES[0]
+
+
+def get_auto_segmentation_model(weights_path):
+    cache_key = str(weights_path)
+    if cache_key not in SEGMENTATION_MODEL_CACHE:
+        model, status = load_segmentation_model(weights_path)
+        SEGMENTATION_MODEL_CACHE[cache_key] = (model, status)
+    return SEGMENTATION_MODEL_CACHE[cache_key]
 
 
 def custom_bounding_box(image, results):
@@ -205,9 +230,9 @@ def path_summary_text(path_result, has_segmentation_mask):
     return "\n".join(summary)
 
 
-def image_detection(image, segmentation_mask_path, start_x, start_y, conf_threshold, model_variant):
+def image_detection(image, segmentation_source, segmentation_mask_path, start_x, start_y, conf_threshold, model_variant):
     if image is None:
-        return None, None, None, [], [], [], "", "请先上传一张图像。"
+        return None, None, None, "请先上传一张图像。", [], [], [], "", "请先上传一张图像。"
 
     image_width, image_height = image.size
     image_bgr = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
@@ -223,18 +248,47 @@ def image_detection(image, segmentation_mask_path, start_x, start_y, conf_thresh
     segmentation_mask = None
     segmentation_overlay = None
     segmentation_summary = {}
-    has_segmentation_mask = bool(segmentation_mask_path)
+    segmentation_status = []
 
-    if segmentation_mask_path:
-        mask_path = (
-            segmentation_mask_path.name
-            if hasattr(segmentation_mask_path, "name")
-            else segmentation_mask_path
-        )
-        segmentation_mask = load_segmentation_mask(mask_path)
-        segmentation_mask = resize_segmentation_mask(segmentation_mask, image_width, image_height)
+    if segmentation_source == "Uploaded Mask":
+        if segmentation_mask_path:
+            mask_path = (
+                segmentation_mask_path.name
+                if hasattr(segmentation_mask_path, "name")
+                else segmentation_mask_path
+            )
+            segmentation_mask = load_segmentation_mask(mask_path)
+            segmentation_mask = resize_segmentation_mask(segmentation_mask, image_width, image_height)
+            segmentation_status.append("Uploaded mask loaded successfully.")
+            segmentation_status.append(f"Mask validation result: aligned to {image_width}x{image_height}.")
+        else:
+            segmentation_status.append("Uploaded Mask selected, but no mask file was uploaded. Falling back to no segmentation mask.")
+    elif segmentation_source == "Auto Segmentation Model":
+        weights_path = get_segmentation_weights_path()
+        model_status = get_segmentation_model_status(weights_path)
+        if model_status["available"]:
+            auto_model, load_status = get_auto_segmentation_model(weights_path)
+            if auto_model is not None:
+                segmentation_mask = predict_segmentation_mask(image, auto_model)
+                segmentation_mask = resize_segmentation_mask(segmentation_mask, image_width, image_height)
+                segmentation_status.append(load_status["message"])
+                segmentation_status.append("Auto segmentation prediction completed.")
+            else:
+                segmentation_status.append(load_status["message"])
+        else:
+            segmentation_status.append(
+                "Automatic segmentation weights not found. Falling back to no segmentation mask. "
+                "Please train a segmentation model or upload a mask."
+            )
+    else:
+        segmentation_status.append("No segmentation selected.")
+
+    has_segmentation_mask = segmentation_mask is not None
+    if has_segmentation_mask:
         segmentation_overlay = create_segmentation_overlay(image_rgb, segmentation_mask)
         segmentation_summary = summarize_segmentation(segmentation_mask)
+    else:
+        segmentation_status.append("Risk scoring and path planning will use target-only/default-cost fallback.")
 
     ranked_targets = rank_targets(targets, image_width, image_height, segmentation_mask)
     if start_y is None or float(start_y) < 0:
@@ -258,6 +312,7 @@ def image_detection(image, segmentation_mask_path, start_x, start_y, conf_thresh
         annotated_image,
         segmentation_overlay,
         path_overlay,
+        "\n".join(segmentation_status),
         target_table_rows(targets),
         segmentation_summary_rows(segmentation_summary),
         ranking_table_rows(ranked_targets),
@@ -345,13 +400,18 @@ def video_detection(video_path, conf_threshold, model_variant, frame_skip=15, ma
 with gr.Blocks() as app:
     gr.HTML("""
         <h1 style='text-align: center'>AeroRescue-AI</h1>
-        <p style='text-align: center'>YOLO disaster target detection with optional RescueNet-style segmentation risk fusion</p>
+        <p style='text-align: center'>YOLO disaster target detection with optional segmentation risk fusion and A* image-plane path planning</p>
     """)
 
     with gr.Tab("Image"):
         with gr.Row():
             with gr.Column():
                 image = gr.Image(label="Upload an Image", type="pil")
+                segmentation_source = gr.Radio(
+                    ["Uploaded Mask", "Auto Segmentation Model", "None"],
+                    label="Segmentation Source",
+                    value="Uploaded Mask",
+                )
                 segmentation_mask = gr.File(
                     label="Optional Segmentation Mask Upload",
                     file_types=[".png", ".jpg", ".jpeg"],
@@ -365,6 +425,11 @@ with gr.Blocks() as app:
                 output_image = gr.Image(label="Processed Image")
                 output_segmentation_overlay = gr.Image(label="Segmentation Overlay")
                 output_path_overlay = gr.Image(label="Path Planning Overlay")
+                output_segmentation_status = gr.Textbox(
+                    label="Segmentation Source Status",
+                    lines=4,
+                    placeholder="Segmentation source status will appear here...",
+                )
                 output_details = gr.Dataframe(
                     headers=["id", "class_name", "confidence", "bbox", "center", "area"],
                     label="Detection Details",
@@ -404,11 +469,12 @@ with gr.Blocks() as app:
 
         btn.click(
             fn=image_detection,
-            inputs=[image, segmentation_mask, start_x, start_y, conf_threshold, output_model],
+            inputs=[image, segmentation_source, segmentation_mask, start_x, start_y, conf_threshold, output_model],
             outputs=[
                 output_image,
                 output_segmentation_overlay,
                 output_path_overlay,
+                output_segmentation_status,
                 output_details,
                 output_segmentation_summary,
                 output_ranking,

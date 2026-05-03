@@ -1,6 +1,6 @@
 # 第一阶段运行说明：AeroRescue-AI 灾害目标检测 Demo
 
-本阶段只跑通 AeroRescue-AI（面向低空应急救援的无人机多模态灾情识别与辅助决策系统）的 Gradio + YOLOv11 灾害目标检测 Demo，不接入 ARGUS、Detection-Models、RescueNet，也不重新训练模型。
+本阶段只跑通 AeroRescue-AI（面向低空应急救援的无人机多模态灾情识别与辅助决策系统）的 Gradio + YOLOv11 灾害目标检测 Demo，不接入外部平台化架构、模型对比模块或语义分割模块，也不重新训练模型。
 
 ## 环境建议
 
@@ -41,7 +41,7 @@ http://127.0.0.1:7860
 
 - 模型路径改为优先读取仓库本地 `models/<variant>/best.pt`。
 - 如果模型缺失，会明确提示应该放到哪个目录。
-- 移除运行时对 Hugging Face 模型下载的依赖。
+- 移除运行时对远程模型下载的依赖。
 - 视频示例改为使用仓库内 `static/video/rescuer.mp4`。
 - Gradio `allowed_paths` 改为基于当前项目目录，避免写死 Linux 用户路径。
 - 精简 `app/requirements.txt`，去掉 Linux CUDA 专用依赖，便于 Mac / Windows / Linux 安装。
