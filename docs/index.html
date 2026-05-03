@@ -6,40 +6,45 @@
     <title>AeroRescue-AI | 低空应急救援智能感知与辅助决策系统</title>
     <meta
       name="description"
-      content="AeroRescue-AI is a low-altitude UAV emergency rescue AI prototype with YOLO detection, TERP priority ranking, Risk-Aware A* path planning, and Chinese rescue reports."
+      content="AeroRescue-AI is a competition-stage prototype for low-altitude UAV emergency rescue. It connects target detection, segmentation, TERP, Risk-Aware A*, and Chinese reports."
     />
     <link rel="stylesheet" href="site.css" />
   </head>
   <body>
     <header class="topbar">
-      <nav class="nav" aria-label="Main navigation">
+      <div class="wrap nav">
         <div class="brand">AeroRescue-AI</div>
         <div class="nav-links">
-          <a href="#workflow">Workflow</a>
-          <a href="#innovation">Innovation</a>
-          <a href="#cases">Demo Cases</a>
-          <a href="#run">Run</a>
+          <a href="#workflow">WORKFLOW</a>
+          <a href="#innovation">CORE INNOVATION</a>
+          <a href="#cases">DEMO CASES</a>
+          <a href="#run">RUN LOCALLY</a>
         </div>
-      </nav>
+      </div>
     </header>
 
     <main>
       <section class="hero">
         <div class="wrap hero-grid">
           <div>
-            <p class="kicker">Competition Prototype · UAV Emergency Rescue AI</p>
+            <p class="kicker">LOW-ALTITUDE UAV EMERGENCY RESCUE PROTOTYPE</p>
             <h1>AeroRescue-AI</h1>
             <p class="subtitle">
-              面向低空应急救援的无人机多模态灾情识别与辅助决策系统。系统将目标检测、灾区环境理解、TERP 救援优先级、Risk-Aware A* 路径规划与中文报告生成连接成一个闭环。
+              面向低空应急救援的无人机多模态灾情识别与辅助决策系统。它把目标检测、灾区语义理解、TERP 救援优先级、Risk-Aware A* 路径规划和中文报告生成串成一个完整的竞赛展示闭环。
             </p>
             <div class="hero-actions">
-              <a class="button primary" href="https://github.com/lheng2386-png/low-altitude-smart-rescue-demo">GitHub Repository</a>
-              <a class="button" href="#cases">View Demo Cases</a>
-              <a class="button" href="#run">Run Locally</a>
+              <a class="button primary" href="https://github.com/lheng2386-png/low-altitude-smart-rescue-demo">GITHUB REPOSITORY</a>
+              <a class="button secondary" href="#cases">VIEW CASES</a>
+              <a class="button secondary" href="#run">RUN APP</a>
+            </div>
+            <div class="hero-meta">
+              <span class="status-pill">5 DEMO CASES</span>
+              <span class="mini-pill">11 SEGMENTATION CLASSES</span>
+              <span class="mini-pill">TERP + RISK-AWARE A*</span>
             </div>
           </div>
-          <div class="hero-image">
-            <img src="assets/aerorescue_gradio_interface.png" alt="AeroRescue-AI Gradio interface" />
+          <div class="hero-image" aria-label="AeroRescue-AI interface preview">
+            <img src="assets/aerorescue_gradio_interface.png" alt="AeroRescue-AI Gradio interface preview" />
           </div>
         </div>
       </section>
@@ -48,7 +53,9 @@
         <div class="wrap">
           <div class="section-head">
             <h2>System Workflow</h2>
-            <p class="section-note">从无人机图像/视频输入，到救援目标识别、环境风险融合、优先级排序、路径建议和救援报告。</p>
+            <p class="section-note">
+              从无人机图像/视频输入，到目标识别、环境风险理解、优先级排序、路径建议和中文救援报告。
+            </p>
           </div>
           <div class="flow">
             <div>UAV Image / Video</div>
@@ -65,32 +72,21 @@
         <div class="wrap">
           <div class="section-head">
             <h2>Core Innovation</h2>
-            <p class="section-note">不是停留在检测框展示，而是把感知结果转成可解释的救援辅助决策。</p>
+            <p class="section-note">黑底、强对比、少颜色，只让关键功能和关键状态跳出来。</p>
           </div>
           <div class="grid-3">
             <article class="panel">
-              <h3>TERP 联合优先级模型</h3>
-              <p>融合目标类别、检测置信度、目标尺度、环境风险和路径可达性，输出综合救援优先级。</p>
+              <h3>TERP Target-Environment-Route Priority Model</h3>
+              <p>融合目标类别、检测置信度、目标尺度、环境风险与路径可达性，给出综合救援优先级。</p>
             </article>
             <article class="panel">
-              <h3>Risk-Aware A* 路径规划</h3>
-              <p>对比普通 A* 与基于灾区 mask 代价地图的 Risk-Aware A*，降低路径经过高风险区域的比例。</p>
+              <h3>Risk-Aware A* Rescue Path Planning</h3>
+              <p>对比普通 A* 和分割代价地图 A*，尽量减少高风险区域经过比例。</p>
             </article>
             <article class="panel">
-              <h3>感知-决策-报告闭环</h3>
-              <p>将 YOLO 检测、segmentation mask、环境风险、路径规划和中文报告整合为可展示的竞赛原型。</p>
+              <h3>Detection-Segmentation-Decision-Report Loop</h3>
+              <p>把检测、环境理解、救援决策、路径和报告串联成一个可展示的竞赛闭环。</p>
             </article>
-          </div>
-        </div>
-      </section>
-
-      <section>
-        <div class="wrap">
-          <div class="grid-4">
-            <div class="metric"><strong>5</strong><span>Generated demo cases</span></div>
-            <div class="metric"><strong>11</strong><span>Segmentation class IDs</span></div>
-            <div class="metric"><strong>3</strong><span>Segmentation source modes</span></div>
-            <div class="metric"><strong>2</strong><span>Baseline vs Risk-Aware path plans</span></div>
           </div>
         </div>
       </section>
@@ -99,47 +95,49 @@
         <div class="wrap">
           <div class="section-head">
             <h2>Demo Cases</h2>
-            <p class="section-note">这些输出由本仓库脚本生成。demo mask 为 manually prepared demo mask，用于决策层展示，不是自动语义分割预测。</p>
+            <p class="section-note">
+              所有展示图片都来自本仓库生成结果。manual demo mask 仅用于决策层演示，不是自动分割预测。
+            </p>
           </div>
           <div class="case-grid">
             <article class="case-card">
-              <img src="assets/cases/case_01_flood_dual_path.png" alt="Flood civilian rescue dual path overlay" />
+              <img src="assets/cases/case_01_flood_dual_path.png" alt="Flood case dual path overlay" />
               <div class="case-body">
                 <h3>Case 1 · Flood Civilian Rescue</h3>
-                <p>展示 water risk、TERP 高优先级目标和 Risk-Aware A* 避开高风险积水区域。</p>
-                <div class="tag-row"><span class="tag">Water Risk</span><span class="tag">TERP</span><span class="tag">Path Comparison</span></div>
+                <p>water risk + TERP priority + Risk-Aware A* 避开高风险积水。</p>
+                <div class="tag-row"><span class="tag">WATER RISK</span><span class="tag">TERP</span><span class="tag">PATH COMPARISON</span></div>
               </div>
             </article>
             <article class="case-card">
               <img src="assets/cases/case_02_segmentation.png" alt="Building collapse segmentation overlay" />
               <div class="case-body">
                 <h3>Case 2 · Building Collapse</h3>
-                <p>展示 major_damage / destroyed_building 如何提升环境风险和救援报告警示。</p>
-                <div class="tag-row"><span class="tag">Damage Risk</span><span class="tag">Segmentation</span><span class="tag">Report</span></div>
+                <p>major_damage / destroyed_building 提升环境风险并影响报告建议。</p>
+                <div class="tag-row"><span class="tag">DAMAGE RISK</span><span class="tag">SEGMENTATION</span><span class="tag">REPORT</span></div>
               </div>
             </article>
             <article class="case-card">
               <img src="assets/cases/case_03_dual_path.png" alt="Road blocked dual path overlay" />
               <div class="case-body">
                 <h3>Case 3 · Road Blocked</h3>
-                <p>展示 road_blocked 代价地图，以及普通 A* 和 Risk-Aware A* 的路线差异。</p>
-                <div class="tag-row"><span class="tag">Blocked Road</span><span class="tag">A*</span><span class="tag">Detour</span></div>
+                <p>阻断道路提高代价，Risk-Aware A* 会尝试绕行。</p>
+                <div class="tag-row"><span class="tag">BLOCKED ROAD</span><span class="tag">A*</span><span class="tag">DETOUR</span></div>
               </div>
             </article>
             <article class="case-card">
               <img src="assets/cases/case_04_detection.png" alt="Multi-target detection overlay" />
               <div class="case-body">
                 <h3>Case 4 · Multi-target Priority</h3>
-                <p>展示多个 civilian / animal / rescuer 场景下，TERP 如何综合排序。</p>
-                <div class="tag-row"><span class="tag">Multi-target</span><span class="tag">Ranking</span><span class="tag">Decision</span></div>
+                <p>展示 civilian、animal、rescuer 的 TERP 排序区别。</p>
+                <div class="tag-row"><span class="tag">MULTI-TARGET</span><span class="tag">RANKING</span><span class="tag">DECISION</span></div>
               </div>
             </article>
             <article class="case-card">
               <img src="assets/cases/case_05_input.jpg" alt="No target fallback input" />
               <div class="case-body">
                 <h3>Case 5 · No Target / Fallback</h3>
-                <p>展示无明确救援目标时，系统不会编造目标或路径，并生成安全 fallback 报告。</p>
-                <div class="tag-row"><span class="tag">Fallback</span><span class="tag">No Target</span><span class="tag">Safety</span></div>
+                <p>无明确目标时，系统不乱生成路径，直接输出安全 fallback 报告。</p>
+                <div class="tag-row"><span class="tag">FALLBACK</span><span class="tag">NO TARGET</span><span class="tag">SAFETY</span></div>
               </div>
             </article>
           </div>
@@ -150,12 +148,21 @@
         <div class="wrap">
           <div class="section-head">
             <h2>Current Capabilities</h2>
-            <p class="section-note">当前是本地 Gradio 原型与静态展示网站，不是完整云平台。</p>
+            <p class="section-note">页面只展示 AeroRescue-AI 自己的流程和输出，不把它写成外部仓库集合。</p>
           </div>
           <div class="grid-3">
-            <article class="panel"><h3>Image Tab</h3><p>完整支持检测、mask 融合、TERP、路径规划、路径对比和中文报告。</p></article>
-            <article class="panel"><h3>Video Tab</h3><p>保留轻量 YOLO 检测预览，支持 frame skip 与有限帧处理。</p></article>
-            <article class="panel"><h3>Demo Gallery</h3><p>展示完整工作流、核心创新、参考项目和生成的 demo case outputs。</p></article>
+            <article class="panel">
+              <h3>Image Tab</h3>
+              <p>完整支持检测、mask 融合、TERP、路径对比和中文报告。</p>
+            </article>
+            <article class="panel">
+              <h3>Video Tab</h3>
+              <p>保留轻量检测预览，适合演示速度和视频输入能力。</p>
+            </article>
+            <article class="panel">
+              <h3>Demo Gallery</h3>
+              <p>展示 5 个完整 demo case，便于答辩和视频制作。</p>
+            </article>
           </div>
         </div>
       </section>
@@ -164,9 +171,11 @@
         <div class="wrap">
           <div class="section-head">
             <h2>Run Locally</h2>
-            <p class="section-note">交互式 AI Demo 仍然需要本地 Python / Gradio 环境。GitHub Pages 静态站只负责展示项目与案例。</p>
+            <p class="section-note">
+              交互式能力仍在本地 Gradio 中运行。这个静态站主要用于 GitHub Pages 演示与评审预览。
+            </p>
           </div>
-          <div class="panel">
+          <div class="code-panel">
             <pre><code>git clone https://github.com/lheng2386-png/low-altitude-smart-rescue-demo.git
 cd low-altitude-smart-rescue-demo/app
 python3 -m venv venv
@@ -175,16 +184,14 @@ pip install -r requirements.txt
 python app.py</code></pre>
           </div>
           <p class="warning">
-            当前路径规划为图像平面参考路径，不等同于真实 GPS 路线；系统未接入真实道路网络、无人机定位或飞控系统。手工 demo mask 仅用于决策层展示，不是自动分割预测。
+            当前路径规划是图像平面参考路径，不等同于真实 GPS 路线，也未接入真实道路网络、无人机定位或飞控系统。手工 demo mask 仅用于决策层展示，不是自动分割结果。
           </p>
         </div>
       </section>
     </main>
 
     <footer class="footer">
-      <div class="wrap">
-        AeroRescue-AI · Low-altitude UAV emergency rescue decision-support prototype.
-      </div>
+      <div class="wrap">AeroRescue-AI · competition-stage UAV emergency rescue prototype.</div>
     </footer>
   </body>
 </html>
