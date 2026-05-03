@@ -8,7 +8,7 @@ def _percent(summary, class_name):
 def _segmentation_section(segmentation_summary, ranked_targets):
     if not segmentation_summary:
         return (
-            "三、语义分割环境风险\n"
+            "四、语义分割环境风险\n"
             "当前未接入语义分割结果，环境风险与路径代价主要基于默认图像平面假设生成。"
             "可通过上传 segmentation mask 或提供训练好的 segmentation checkpoint 启用环境风险融合。\n"
         )
@@ -31,7 +31,7 @@ def _segmentation_section(segmentation_summary, ranked_targets):
         )
 
     return (
-        "三、语义分割环境风险\n"
+        "四、语义分割环境风险\n"
         "当前报告已结合 segmentation mask 或自动分割结果进行环境风险融合。\n"
         f"水域/积水面积占比：{water_ratio:.1f}%。\n"
         f"道路阻断区域占比：{blocked_road_ratio:.1f}%。\n"
@@ -40,22 +40,41 @@ def _segmentation_section(segmentation_summary, ranked_targets):
     )
 
 
+def _terp_section(terp_rankings):
+    if not terp_rankings:
+        return (
+            "二、TERP 联合优先级评估\n"
+            "当前未生成 TERP 排名，可能是未检测到明确目标或路径评估输入不足。\n"
+        )
+
+    top = terp_rankings[0]
+    return (
+        "二、TERP 联合优先级评估\n"
+        "TERP 将目标类别、检测置信度、目标尺度、环境风险和路径可达性融合为综合救援优先级。\n"
+        f"最高 TERP 目标：{top['target_id']}（{top['class_name']}），"
+        f"TERP 分数 {top['terp_score']:.2f}，等级 {top['terp_level']}。\n"
+        f"目标风险项：{top['target_score']:.2f}；环境风险项：{top['environment_score']:.2f}；"
+        f"路径可达性风险项：{top['accessibility_score']:.2f}。\n"
+        f"排序原因：{top['reason']}\n"
+    )
+
+
 def _path_section(segmentation_summary, path_result, ranked_targets):
     if not ranked_targets:
         return (
-            "四、路径规划建议\n"
+            "五、路径规划建议\n"
             "当前图像未检测到明确救援目标，无法规划路径。\n"
         )
 
     if not path_result:
         return (
-            "四、路径规划建议\n"
+            "五、路径规划建议\n"
             "当前未能生成有效路径，原因：路径规划模块未返回结果。\n"
         )
 
     if not path_result.get("found"):
         return (
-            "四、路径规划建议\n"
+            "五、路径规划建议\n"
             f"当前未能生成有效路径，原因：{path_result.get('message', '未知原因')}。\n"
             "建议检查起点位置、目标检测结果或上传更准确的 segmentation mask 后重试。\n"
         )
@@ -78,7 +97,7 @@ def _path_section(segmentation_summary, path_result, ranked_targets):
         )
 
     return (
-        "四、路径规划建议\n"
+        "五、路径规划建议\n"
         f"系统以起点 S({start[0]}, {start[1]}) 为救援出发点，以 {top_target_text} 为目标点，"
         "基于当前通行代价地图使用 A* 算法生成参考救援路径。\n"
         f"路径长度为 {path_result.get('path_length', 0)} 个像素点，累计路径代价为 {path_result.get('total_cost', 0.0):.2f}。\n"
@@ -87,17 +106,46 @@ def _path_section(segmentation_summary, path_result, ranked_targets):
     )
 
 
-def generate_report(targets, ranked_targets, segmentation_summary=None, path_result=None):
+def _path_comparison_section(path_comparison, segmentation_summary):
+    if not path_comparison:
+        return (
+            "六、路径规划对比\n"
+            "当前未生成 baseline A* 与 Risk-Aware A* 对比结果。\n"
+        )
+
+    if segmentation_summary:
+        prefix = "当前已基于 segmentation mask 或自动分割结果进行路径环境风险对比。"
+    else:
+        prefix = "当前无法进行完整环境风险路径对比，因为未接入有效语义分割结果。"
+
+    return (
+        "六、路径规划对比\n"
+        f"{prefix}\n"
+        f"Baseline A*：长度 {path_comparison.get('baseline_length', 0)}，"
+        f"累计代价 {path_comparison.get('baseline_cost', 0.0):.2f}，"
+        f"高风险区域比例 {path_comparison.get('baseline_environment_risk', 0.0) * 100:.2f}%。\n"
+        f"Risk-Aware A*：长度 {path_comparison.get('risk_aware_length', 0)}，"
+        f"累计代价 {path_comparison.get('risk_aware_cost', 0.0):.2f}，"
+        f"高风险区域比例 {path_comparison.get('risk_aware_environment_risk', 0.0) * 100:.2f}%。\n"
+        f"路径环境风险降低：{path_comparison.get('risk_reduction', 0.0) * 100:.2f}%。\n"
+        f"说明：{path_comparison.get('message', '')}\n"
+    )
+
+
+def generate_report(targets, ranked_targets, segmentation_summary=None, path_result=None, terp_rankings=None, path_comparison=None):
     segmentation_summary = segmentation_summary or {}
+    terp_rankings = terp_rankings or []
 
     if not targets:
         segmentation_text = _segmentation_section(segmentation_summary, [])
         path_text = _path_section(segmentation_summary, path_result, [])
+        path_comparison_text = _path_comparison_section(path_comparison, segmentation_summary)
         return (
             "AeroRescue-AI 灾情识别与救援辅助报告\n\n"
             "当前图像未检测到明确救援目标。\n\n"
             f"{segmentation_text}\n"
             f"{path_text}\n"
+            f"{path_comparison_text}\n"
             "初步建议：建议更换视角、提高图像清晰度或降低检测置信度阈值后复核。\n\n"
             "当前版本局限说明：当前路径规划为图像平面参考路径，不等同于真实 GPS 路线，"
             "也未接入真实道路网络、无人机定位或飞控系统。"
@@ -133,7 +181,9 @@ def generate_report(targets, ranked_targets, segmentation_summary=None, path_res
         suggestions.append("当前未接入语义分割结果，建议补充分割 mask 或训练 checkpoint 后复核环境风险。")
 
     segmentation_text = _segmentation_section(segmentation_summary, ranked_targets)
+    terp_text = _terp_section(terp_rankings)
     path_text = _path_section(segmentation_summary, path_result, ranked_targets)
+    path_comparison_text = _path_comparison_section(path_comparison, segmentation_summary)
 
     return (
         "AeroRescue-AI 灾情识别与救援辅助报告\n\n"
@@ -141,14 +191,16 @@ def generate_report(targets, ranked_targets, segmentation_summary=None, path_res
         f"本次识别目标总数：{len(targets)}。\n"
         f"civilian 数量：{civilian_count}；rescuer 数量：{rescuer_count}；"
         f"animal 数量：{animal_count}。\n\n"
-        f"二、风险概况\n"
+        f"{terp_text}\n"
+        f"三、风险概况\n"
         f"高风险目标数量：{high_risk_count}；中风险目标数量：{medium_risk_count}。\n"
         f"最高风险目标：{top_target_text}\n\n"
         f"{segmentation_text}\n"
         f"{path_text}\n"
-        f"五、初步救援建议\n"
+        f"{path_comparison_text}\n"
+        f"七、初步救援建议\n"
         + "\n".join(f"- {item}" for item in suggestions)
-        + "\n\n六、当前版本局限说明\n"
+        + "\n\n八、当前版本局限说明\n"
         "当前自动语义分割为可选实验功能，需要本地训练 checkpoint；未提供 checkpoint 时可上传 segmentation mask 完成环境风险融合。\n"
         "当前路径规划为图像平面参考路径，不等同于真实 GPS 路线，也未接入真实道路网络、无人机定位或飞控系统。"
     )

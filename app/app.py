@@ -10,12 +10,19 @@ from priority_ranker import rank_targets
 from report_generator import generate_report
 from environment_risk import CLASS_DISPLAY_NAMES
 from path_planner import create_path_overlay, plan_rescue_path
+from path_planner import (
+    compare_path_plans,
+    create_dual_path_overlay,
+    plan_baseline_path,
+    plan_risk_aware_path,
+)
 from segmentation_engine import (
     create_segmentation_overlay,
     load_segmentation_mask,
     resize_segmentation_mask,
     summarize_segmentation,
     validate_segmentation_mask,
+    get_environment_context_for_target,
 )
 from segmentation_model import (
     get_default_segmentation_weights,
@@ -23,6 +30,7 @@ from segmentation_model import (
     load_segmentation_model,
     predict_segmentation_mask,
 )
+from terp_engine import rank_targets_by_terp
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
@@ -172,6 +180,23 @@ def ranking_table_rows(ranked_targets):
     ]
 
 
+def terp_table_rows(terp_rankings):
+    return [
+        [
+            target["rank"],
+            target["target_id"],
+            target["class_name"],
+            target["terp_score"],
+            target["terp_level"],
+            target["target_score"],
+            target["environment_score"],
+            target["accessibility_score"],
+            target["reason"],
+        ]
+        for target in terp_rankings
+    ]
+
+
 def segmentation_summary_rows(segmentation_summary):
     return [
         [
@@ -267,9 +292,36 @@ def path_summary_text(path_result, has_segmentation_mask):
     return "\n".join(summary)
 
 
+def path_comparison_text(comparison):
+    if not comparison:
+        return "路径对比结果：当前无法生成路径对比。"
+
+    lines = [
+        "A* 路径对比：",
+        f"Baseline 路径长度：{comparison.get('baseline_length', 0)}",
+        f"Baseline 累计代价：{comparison.get('baseline_cost', 0.0):.2f}",
+        f"Risk-Aware 路径长度：{comparison.get('risk_aware_length', 0)}",
+        f"Risk-Aware 累计代价：{comparison.get('risk_aware_cost', 0.0):.2f}",
+        f"Baseline 高风险区域比例：{comparison.get('baseline_environment_risk', 0.0) * 100:.2f}%",
+        f"Risk-Aware 高风险区域比例：{comparison.get('risk_aware_environment_risk', 0.0) * 100:.2f}%",
+        f"路径环境风险降低：{comparison.get('risk_reduction', 0.0) * 100:.2f}%",
+        f"说明：{comparison.get('message', '')}",
+    ]
+    return "\n".join(lines)
+
+
+def _target_route_item(target):
+    return {
+        "target_id": target.get("id"),
+        "class_name": target.get("class_name"),
+        "center": target.get("center"),
+        "bbox": target.get("bbox"),
+    }
+
+
 def image_detection(image, segmentation_source, segmentation_mask_path, start_x, start_y, conf_threshold, model_variant):
     if image is None:
-        return None, None, None, "请先上传一张图像。", [], [], [], "", "请先上传一张图像。"
+        return None, None, None, "请先上传一张图像。", [], [], [], [], "", "", "请先上传一张图像。"
 
     image_width, image_height = image.size
     image_bgr = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
@@ -344,17 +396,51 @@ def image_detection(image, segmentation_source, segmentation_mask_path, start_x,
     if start_x is None:
         start_x = 20
 
-    path_result = plan_rescue_path(
+    baseline_path_result = plan_baseline_path(
+        ranked_targets,
+        image_width,
+        image_height,
+        start_point=(start_x, start_y),
+    )
+    path_result = plan_risk_aware_path(
         ranked_targets,
         segmentation_mask,
         image_width,
         image_height,
         start_point=(start_x, start_y),
     )
+    path_comparison = compare_path_plans(baseline_path_result, path_result, segmentation_mask)
+
+    environment_contexts = {}
+    target_path_results = {}
+    for target in targets:
+        target_id = target.get("id")
+        if segmentation_mask is not None:
+            environment_contexts[target_id] = get_environment_context_for_target(target, segmentation_mask)
+        target_path_results[target_id] = plan_risk_aware_path(
+            [_target_route_item(target)],
+            segmentation_mask,
+            image_width,
+            image_height,
+            start_point=(start_x, start_y),
+        )
+
+    terp_rankings = rank_targets_by_terp(
+        targets,
+        image_width,
+        image_height,
+        environment_contexts=environment_contexts,
+        path_results=target_path_results,
+    )
+
     base_path_image = segmentation_overlay if segmentation_overlay is not None else image_rgb
-    path_overlay = create_path_overlay(base_path_image, path_result)
-    report = generate_report(targets, ranked_targets, segmentation_summary, path_result)
+    if baseline_path_result and baseline_path_result.get("found") and path_result and path_result.get("found"):
+        path_overlay = create_dual_path_overlay(base_path_image, baseline_path_result, path_result)
+    else:
+        path_overlay = create_path_overlay(base_path_image, path_result)
+    report = generate_report(targets, ranked_targets, segmentation_summary, path_result, terp_rankings, path_comparison)
     summary_text = path_summary_text(path_result, has_segmentation_mask)
+    comparison_text = path_comparison_text(path_comparison)
 
     return (
         annotated_image,
@@ -364,7 +450,9 @@ def image_detection(image, segmentation_source, segmentation_mask_path, start_x,
         target_table_rows(targets),
         segmentation_summary_rows(segmentation_summary),
         ranking_table_rows(ranked_targets),
+        terp_table_rows(terp_rankings),
         summary_text,
+        comparison_text,
         report,
     )
 
@@ -504,10 +592,30 @@ with gr.Blocks() as app:
                     label="Risk Ranking",
                     interactive=False,
                 )
+                output_terp_ranking = gr.Dataframe(
+                    headers=[
+                        "rank",
+                        "target_id",
+                        "class_name",
+                        "terp_score",
+                        "terp_level",
+                        "target_score",
+                        "environment_score",
+                        "accessibility_score",
+                        "reason",
+                    ],
+                    label="TERP Ranking",
+                    interactive=False,
+                )
                 output_path_summary = gr.Textbox(
                     label="Path Planning Summary",
                     lines=6,
                     placeholder="Path planning summary will appear here...",
+                )
+                output_path_comparison = gr.Textbox(
+                    label="A* Path Comparison",
+                    lines=6,
+                    placeholder="Baseline vs Risk-Aware A* comparison will appear here...",
                 )
                 output_report = gr.Textbox(
                     label="Generated Rescue Report",
@@ -526,7 +634,9 @@ with gr.Blocks() as app:
                 output_details,
                 output_segmentation_summary,
                 output_ranking,
+                output_terp_ranking,
                 output_path_summary,
+                output_path_comparison,
                 output_report,
             ],
         )
@@ -588,8 +698,9 @@ UAV Image / Video
 → YOLOv11 Target Detection  
 → Segmentation Source  
 → Environment Risk Fusion  
+→ TERP Priority Model  
 → Rescue Priority Ranking  
-→ A* Image-plane Path Planning  
+→ Baseline A* / Risk-Aware A* Path Planning  
 → Chinese Rescue Report
 
 **Current Capability Notes**
@@ -597,7 +708,17 @@ UAV Image / Video
 - Uploaded Mask: available for class-id/RGB segmentation mask fusion.
 - Auto Segmentation Model: experimental and requires a local checkpoint.
 - None: available fallback with target-only risk scoring and default path cost.
+- TERP: combines target, environment, and route accessibility priority.
+- Risk-Aware A*: compares uniform-cost baseline routing against segmentation-cost routing.
 - Path Planning: image-plane reference path, not a real GPS route.
+
+**Demo Cases Plan**
+
+- Case 1 Flood Civilian Rescue: water risk + TERP + Risk-Aware A*.
+- Case 2 Building Collapse: major damage / destroyed building risk.
+- Case 3 Road Blocked: blocked-road cost map and path detour.
+- Case 4 Multi-target Priority: TERP ranking across people, animals, and rescuers.
+- Case 5 No Target / Low Confidence: safe no-target report behavior.
             """
         )
 

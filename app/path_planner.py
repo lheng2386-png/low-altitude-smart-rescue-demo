@@ -1,4 +1,4 @@
-"""A* rescue path planning on RescueNet-style cost maps."""
+"""A* rescue path planning on segmentation-derived cost maps."""
 
 from heapq import heappop, heappush
 
@@ -34,7 +34,7 @@ def _as_rgb_array(image):
 
 
 def build_cost_map(segmentation_mask, image_width, image_height):
-    """Build a traversal-cost map from an optional RescueNet-style mask."""
+    """Build a traversal-cost map from an optional segmentation mask."""
     default_cost = PATH_COSTS[0]
     cost_map = np.full((int(image_height), int(image_width)), default_cost, dtype=np.float32)
 
@@ -53,6 +53,11 @@ def build_cost_map(segmentation_mask, image_width, image_height):
         cost_map[mask == class_id] = cost
 
     return cost_map
+
+
+def build_uniform_cost_map(image_width, image_height, cost=3.0):
+    """Build a baseline traversal-cost map that ignores environmental risk."""
+    return np.full((int(image_height), int(image_width)), float(cost), dtype=np.float32)
 
 
 def clamp_point(point, width, height):
@@ -190,6 +195,162 @@ def plan_rescue_path(ranked_targets, segmentation_mask, image_width, image_heigh
         }
     )
     return result
+
+
+def _plan_with_cost_map(ranked_targets, cost_map, image_width, image_height, start_point=None, mode="risk_aware"):
+    if not ranked_targets:
+        return {
+            "found": False,
+            "start": None,
+            "goal": None,
+            "target_id": None,
+            "target_class": None,
+            "path": [],
+            "total_cost": 0.0,
+            "path_length": 0,
+            "mode": mode,
+            "message": "当前未检测到明确救援目标，无法规划路径。",
+        }
+
+    target = ranked_targets[0]
+    goal = get_target_point(target)
+    if start_point is None:
+        start_point = (20, int(image_height) - 20)
+
+    start = clamp_point(start_point, image_width, image_height)
+    goal = clamp_point(goal, image_width, image_height)
+    result = astar(cost_map, start, goal)
+    result.update(
+        {
+            "start": [int(start[0]), int(start[1])],
+            "goal": [int(goal[0]), int(goal[1])],
+            "target_id": target.get("target_id") or target.get("id"),
+            "target_class": target.get("class_name"),
+            "mode": mode,
+        }
+    )
+    return result
+
+
+def plan_baseline_path(ranked_targets, image_width, image_height, start_point=None):
+    """Plan a baseline A* path on a uniform cost map."""
+    cost_map = build_uniform_cost_map(image_width, image_height)
+    return _plan_with_cost_map(
+        ranked_targets,
+        cost_map,
+        image_width,
+        image_height,
+        start_point=start_point,
+        mode="baseline",
+    )
+
+
+def plan_risk_aware_path(ranked_targets, segmentation_mask, image_width, image_height, start_point=None):
+    """Plan a risk-aware A* path using segmentation-derived costs."""
+    cost_map = build_cost_map(segmentation_mask, image_width, image_height)
+    return _plan_with_cost_map(
+        ranked_targets,
+        cost_map,
+        image_width,
+        image_height,
+        start_point=start_point,
+        mode="risk_aware",
+    )
+
+
+def path_environment_risk(path_result, segmentation_mask):
+    """Estimate how much of a path crosses high-risk segmentation classes."""
+    if segmentation_mask is None or not path_result or not path_result.get("found"):
+        return {
+            "risk_ratio": 0.0,
+            "class_counts": {},
+            "high_risk_counts": {},
+            "message": "No segmentation mask or valid path is available.",
+        }
+
+    mask = np.asarray(segmentation_mask)
+    height, width = mask.shape[:2]
+    path = path_result.get("path") or []
+    if not path:
+        return {
+            "risk_ratio": 0.0,
+            "class_counts": {},
+            "high_risk_counts": {},
+            "message": "Path is empty.",
+        }
+
+    counts = {}
+    for x, y in path:
+        x = int(max(0, min(width - 1, round(float(x)))))
+        y = int(max(0, min(height - 1, round(float(y)))))
+        class_id = int(mask[y, x])
+        counts[class_id] = counts.get(class_id, 0) + 1
+
+    high_risk_ids = {1, 4, 5, 8, 10}
+    high_risk_counts = {class_id: count for class_id, count in counts.items() if class_id in high_risk_ids}
+    high_risk_total = sum(high_risk_counts.values())
+    risk_ratio = high_risk_total / max(len(path), 1)
+    return {
+        "risk_ratio": round(float(risk_ratio), 4),
+        "class_counts": counts,
+        "high_risk_counts": high_risk_counts,
+        "message": "Path environment risk calculated.",
+    }
+
+
+def compare_path_plans(baseline_result, risk_aware_result, segmentation_mask):
+    """Compare baseline A* against risk-aware A*."""
+    baseline_risk = path_environment_risk(baseline_result, segmentation_mask)
+    risk_aware_risk = path_environment_risk(risk_aware_result, segmentation_mask)
+
+    if segmentation_mask is None:
+        message = "No segmentation mask, path comparison is limited; baseline and risk-aware routes use equivalent assumptions."
+    elif not baseline_result or not baseline_result.get("found") or not risk_aware_result or not risk_aware_result.get("found"):
+        message = "Path comparison is limited because one or both paths were not found."
+    else:
+        message = "Risk-aware A* compared against baseline A* using segmentation-derived environment risk."
+
+    baseline_environment_risk = float(baseline_risk.get("risk_ratio", 0.0))
+    risk_aware_environment_risk = float(risk_aware_risk.get("risk_ratio", 0.0))
+    risk_reduction = round(max(0.0, baseline_environment_risk - risk_aware_environment_risk), 4)
+
+    return {
+        "baseline_length": int((baseline_result or {}).get("path_length", 0)),
+        "baseline_cost": float((baseline_result or {}).get("total_cost", 0.0)),
+        "risk_aware_length": int((risk_aware_result or {}).get("path_length", 0)),
+        "risk_aware_cost": float((risk_aware_result or {}).get("total_cost", 0.0)),
+        "baseline_environment_risk": baseline_environment_risk,
+        "risk_aware_environment_risk": risk_aware_environment_risk,
+        "risk_reduction": risk_reduction,
+        "message": message,
+    }
+
+
+def create_dual_path_overlay(image, baseline_result, risk_aware_result):
+    """Draw baseline and risk-aware routes on one image."""
+    if image is None:
+        return None
+
+    overlay = _as_rgb_array(image).copy()
+
+    def _draw_path(path_result, color, label):
+        if not path_result or not path_result.get("found"):
+            return
+        path = path_result.get("path") or []
+        for index in range(1, len(path)):
+            pt1 = tuple(int(value) for value in path[index - 1])
+            pt2 = tuple(int(value) for value in path[index])
+            cv2.line(overlay, pt1, pt2, color, 2, cv2.LINE_AA)
+        if path:
+            start = tuple(int(value) for value in path_result.get("start", path[0]))
+            goal = tuple(int(value) for value in path_result.get("goal", path[-1]))
+            cv2.circle(overlay, start, 6, (0, 200, 0), -1)
+            cv2.circle(overlay, goal, 6, (220, 0, 0), -1)
+            cv2.putText(overlay, label, (goal[0] + 8, goal[1] + 14), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2, cv2.LINE_AA)
+
+    _draw_path(baseline_result, (255, 160, 0), "B")
+    _draw_path(risk_aware_result, (0, 220, 255), "R")
+    return overlay
 
 
 def create_path_overlay(image, path_result):

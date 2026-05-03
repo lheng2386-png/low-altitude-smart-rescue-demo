@@ -2,7 +2,7 @@
 
 **AeroRescue-AI：面向低空应急救援的无人机多模态灾情识别与辅助决策系统**
 
-AeroRescue-AI is a competition-stage prototype for low-altitude UAV emergency rescue assistance. The current system is a local Gradio demo that connects disaster target detection, structured target analysis, risk scoring, rescue priority ranking, optional semantic segmentation fusion, A* image-plane path planning, and template-based Chinese rescue report generation.
+AeroRescue-AI is a competition-stage prototype for low-altitude UAV emergency rescue assistance. The current system is a local Gradio demo that connects disaster target detection, structured target analysis, segmentation source selection, TERP rescue priority modeling, Risk-Aware A* image-plane path planning, and template-based Chinese rescue report generation.
 
 The project is designed for a step-by-step competition workflow. It is not a full cloud platform, not a GIS navigation system, and not connected to any large language model API.
 
@@ -11,14 +11,28 @@ The project is designed for a step-by-step competition workflow. It is not a ful
 In flood, collapse, landslide, and post-disaster rescue scenes, UAV imagery can provide fast overhead awareness before rescue teams fully enter the area. AeroRescue-AI turns that visual input into a first-pass decision aid:
 
 1. Upload a UAV-style disaster image or video.
-2. Detect rescue-related targets with local YOLOv11 weights.
-3. Structure detections into target records with class, confidence, bbox, center, and area.
-4. Estimate target risk and rank rescue priority.
-5. Optionally parse a segmentation mask or run an experimental local segmentation checkpoint.
-6. Summarize environmental risk areas such as water, blocked roads, damaged buildings, vehicles, trees, and passable roads.
-7. Fuse target risk with environmental context.
-8. Plan a reference A* path from a rescue start point to the highest-risk target.
-9. Generate a Chinese rescue assistance report.
+2. Run YOLOv11 target detection.
+3. Select a segmentation source: uploaded mask, experimental local checkpoint, or no segmentation fallback.
+4. Apply the TERP priority model.
+5. Compare baseline A* with Risk-Aware A* image-plane path planning.
+6. Generate a Chinese rescue assistance report.
+
+```text
+UAV image/video
+→ YOLOv11 target detection
+→ segmentation source
+→ TERP priority model
+→ Risk-Aware A* path planning
+→ Chinese rescue report
+```
+
+## Core Innovation
+
+| Innovation | Description |
+| --- | --- |
+| Target-Environment-Route Priority Model, TERP | Fuses target class, confidence, bbox scale, environment risk, and route accessibility into a rescue priority score |
+| Risk-Aware A* image-plane rescue path planning | Compares uniform-cost baseline A* with segmentation-cost A* to reduce high-risk path exposure |
+| Detection-Segmentation-Decision-Report closed loop | Connects UAV image/video input, target detection, segmentation fusion, priority ranking, path planning, and Chinese report generation |
 
 ## Current Capabilities
 
@@ -28,14 +42,18 @@ In flood, collapse, landslide, and post-disaster rescue scenes, UAV imagery can 
 | Target Structuring | Done | `id`, `class_name`, `confidence`, `bbox`, `center`, `area` |
 | Risk Scoring | Done | Low / Medium / High risk levels |
 | Rescue Priority Ranking | Done | Ranked target table with Chinese rescue reasons |
+| TERP Priority Model | Done | Target-environment-route priority score and level |
 | Report Generation | Done | Template-based Chinese rescue assistance report |
 | Uploaded Segmentation Mask | Done | Class-id/RGB mask parsing, overlay, area summary |
 | Mask Validation | Done | Validates class ids, shape, unknown ids, and fallback behavior |
 | Environment Risk Fusion | Done | Target risk enhanced by nearby environmental risk |
 | A* Path Planning | Done | Image-plane reference route to the highest-risk target |
+| Risk-Aware A* Path Planning | Done | Segmentation-cost route planning |
+| Baseline vs Risk-Aware A* Comparison | Done | Path length, path cost, high-risk area ratio, risk reduction |
 | Path Overlay | Done | Start point, target point, and planned path overlay |
 | Auto Segmentation Model | Experimental | Uses a local checkpoint if provided; otherwise falls back safely |
 | Demo Gallery | Done | Local project demo visuals and workflow summary in Gradio |
+| Demo Cases Plan | Done | 3-5 competition scenario case structure |
 | Core Smoke Test | Done | Lightweight no-download test for segmentation and path planning |
 | Video Tab | Basic Preview | Detection video output and detected class names |
 
@@ -163,12 +181,37 @@ Risk levels:
 | 40-70 | Medium |
 | 70-100 | High |
 
+## TERP Priority Model
+
+TERP means **Target-Environment-Route Priority Model**.
+
+Chinese name:
+
+**目标—环境—可达性联合救援优先级评估模型**
+
+```text
+target_score = class_weight * 45 + confidence * 15 + area_weight * 10
+environment_score = 0-20
+accessibility_score = 0-20
+terp_score = target_score + environment_score + accessibility_score
+```
+
+TERP levels:
+
+| Score Range | Level |
+| --- | --- |
+| 0-40 | Low |
+| 40-70 | Medium |
+| 70-90 | High |
+| 90+ | Critical |
+
 ## A* Path Planning
 
-The Image Tab includes an image-plane A* path planning prototype.
+The Image Tab includes baseline A* and Risk-Aware A* image-plane path planning.
 
-- If a segmentation mask is available, class ids are converted into a path cost map.
-- If no segmentation mask is available, the system uses a uniform default cost map.
+- Baseline A* uses a uniform cost map.
+- Risk-Aware A* uses segmentation class costs.
+- If no segmentation mask is available, the comparison is limited and both routes use default assumptions.
 - The route starts from `Rescue Start X / Rescue Start Y`.
 - If `start_y = -1`, the app uses the lower-left default start point.
 - The goal is the highest-risk ranked target.
@@ -193,6 +236,10 @@ This is a reference path on the image plane. It is not a GPS route and does not 
 ├── training
 │   ├── train_segmentation.py
 │   └── evaluate_segmentation.py
+├── tests
+│   └── smoke_test_core.py
+├── demo_cases
+│   └── README.md
 ├── models
 │   ├── yolov11n
 │   ├── yolov11s
@@ -204,7 +251,8 @@ This is a reference path on the image plane. It is not a GPS route and does not 
 ├── THIRD_STEP_SEGMENTATION_LAYER.md
 ├── FOURTH_STEP_PATH_PLANNING.md
 ├── SEGMENTATION_DATASET_SETUP.md
-└── SEGMENTATION_INTEGRATION.md
+├── SEGMENTATION_INTEGRATION.md
+└── TERP_AND_PATH_PLANNING.md
 ```
 
 Large local data and checkpoints should stay outside Git tracking:
@@ -275,6 +323,12 @@ Core smoke test:
 python tests/smoke_test_core.py
 ```
 
+Expected output:
+
+```text
+AeroRescue-AI TERP and path planning smoke test passed.
+```
+
 ## Train A Local Segmentation Model
 
 Prepare local data as described in [SEGMENTATION_DATASET_SETUP.md](SEGMENTATION_DATASET_SETUP.md), then run:
@@ -310,17 +364,30 @@ Completed in the current prototype:
 - Image detection details
 - Video detection preview
 - Risk scoring and priority ranking
+- TERP priority model
 - Chinese rescue report generation
 - Uploaded segmentation mask fusion
 - Optional auto segmentation checkpoint interface
 - A* image-plane path planning
+- Baseline vs Risk-Aware A* comparison
 - Mask validation
 - Demo Gallery
+- Demo cases plan
 - Core smoke test
+
+## Roadmap
+
+- Step 1 Detection Demo: done
+- Step 2 Decision Layer: done
+- Step 3 Segmentation Integration: done
+- Step 4 Path Planning: done
+- Step 5 TERP + Risk-Aware A*: done in current prototype
+- Step 6 Demo Cases and video: next
+- Step 7 Model comparison and report: planned
+- Step 8 Platform architecture: planned
 
 Planned next:
 
-- Validate segmentation masks and improve fallback reliability
 - Prepare 3-5 complete demo cases
 - Improve Risk-Aware A* passability constraints
 - Add multi-target rescue sequence planning

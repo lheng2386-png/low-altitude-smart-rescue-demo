@@ -24,6 +24,8 @@ def rank_targets(targets, image_width, image_height, segmentation_mask=None):
                 "class_name": target["class_name"],
                 "confidence": target["confidence"],
                 "bbox": target["bbox"],
+                "center": target.get("center"),
+                "area": target.get("area", 0.0),
                 "risk_score": risk["risk_score"],
                 "risk_level": risk["risk_level"],
                 "environment_score": round(
