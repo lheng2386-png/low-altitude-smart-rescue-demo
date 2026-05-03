@@ -24,6 +24,7 @@ from segmentation_engine import (  # noqa: E402
     validate_segmentation_mask,
 )
 from segmentation_model import get_segmentation_model_status  # noqa: E402
+from scene_applicability_gate import evaluate_scene_applicability  # noqa: E402
 from terp_engine import calculate_terp, rank_targets_by_terp  # noqa: E402
 from scripts.generate_demo_cases import _manual_demo_mask  # noqa: E402
 from model_comparison.evaluate_detection_models import load_registry  # noqa: E402
@@ -90,7 +91,7 @@ def main():
     no_mask_baseline = plan_baseline_path(ranked_targets, 64, 64, start_point=(4, 60))
     no_mask_risk_aware = plan_risk_aware_path(ranked_targets, None, 64, 64, start_point=(4, 60))
     no_mask_comparison = compare_path_plans(no_mask_baseline, no_mask_risk_aware, None)
-    assert "No segmentation mask" in no_mask_comparison["message"]
+    assert "语义分割掩码" in no_mask_comparison["message"]
 
     terp = calculate_terp(
         ranked_targets[0],
@@ -135,6 +136,11 @@ def main():
         path_results={"T001": risk_aware, "T002": baseline},
     )
     assert multi_ranking[0]["terp_score"] >= multi_ranking[1]["terp_score"]
+
+    gate_full = evaluate_scene_applicability(ranked_targets, segmentation_mask=mask, segmentation_source="uploaded")
+    assert gate_full["allow_environment_fusion"] is True
+    gate_no_target = evaluate_scene_applicability([], segmentation_mask=mask, segmentation_source="uploaded")
+    assert gate_no_target["allow_path_planning"] is False
 
     generated_mask = _manual_demo_mask(64, 64, "road_blocked")
     generated_validation = validate_segmentation_mask(generated_mask)

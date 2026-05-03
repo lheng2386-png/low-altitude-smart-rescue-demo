@@ -1,2 +1,8 @@
-model_name,weights_path,input_size,precision,recall,map50,fps,cpu_latency_ms,model_size_mb,status,notes
+model_name,source,result_type,precision,recall,map50,fps,latency_ms,notes,status
+YOLOv11n,AeroRescue-AI,reproduced_pending,,,,,,pending local evaluation,pending
+YOLOv11s,AeroRescue-AI,reproduced_pending,,,,,,pending local evaluation,pending
+YOLOv11m,AeroRescue-AI,reproduced_pending,,,,,,pending local evaluation,pending
+YOLOv11l,AeroRescue-AI,reproduced_pending,,,,,,pending local evaluation,pending
+Faster R-CNN,Detection-Models,reference,,,,,,reference benchmark asset available,reference_not_reproduced
+DINO,Detection-Models,reference,,,,,,reference architecture and comparison assets available,reference_not_reproduced
 TODO,TODO,TODO,TODO,TODO,TODO,TODO,TODO,TODO,not_run,Do not fill metrics until experiments are actually executed.

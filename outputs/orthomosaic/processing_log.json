@@ -1,0 +1,9 @@
+{
+  "image_count": 1,
+  "has_gps": false,
+  "stitcher_attempted": false,
+  "feature_matching_attempted": false,
+  "stitch_success": false,
+  "fallback_reason": "单张图像仅生成预览。",
+  "output_path": "/Users/Apple/Documents/New project 2/urban-disaster-monitor/outputs/orthomosaic/orthomosaic_result.jpg"
+}

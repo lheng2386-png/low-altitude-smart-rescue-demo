@@ -57,14 +57,13 @@ def evaluate_registry(registry_path: Path, image_folder: Path, output_csv: Path,
         weights_path = ROOT_DIR / item.get("weights", "")
         row = {
             "model_name": item.get("name", "unknown"),
-            "weights_path": item.get("weights", ""),
-            "input_size": "",
+            "source": "AeroRescue-AI" if item.get("type") == "ultralytics_yolo" else "Detection-Models reference",
+            "result_type": "local_inference_summary" if item.get("type") == "ultralytics_yolo" else "reference_structure",
             "precision": "",
             "recall": "",
             "map50": "",
             "fps": "",
-            "cpu_latency_ms": "",
-            "model_size_mb": _model_size_mb(weights_path),
+            "latency_ms": "",
             "status": "",
             "notes": "",
         }
@@ -104,7 +103,7 @@ def evaluate_registry(registry_path: Path, image_folder: Path, output_csv: Path,
             elapsed = max(time.perf_counter() - start, 1e-6)
             fps = len(images) / elapsed
             row["fps"] = round(fps, 2)
-            row["cpu_latency_ms"] = round((elapsed / max(len(images), 1)) * 1000, 2)
+            row["latency_ms"] = round((elapsed / max(len(images), 1)) * 1000, 2)
             row["status"] = "inference_summary_only"
             row["notes"] = f"Ran {len(images)} images and produced {detections} detections. Labels were not evaluated, so mAP/precision/recall are blank."
         except Exception as exc:

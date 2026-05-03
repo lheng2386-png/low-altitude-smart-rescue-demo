@@ -1,0 +1,9 @@
+{
+  "max_temperature": 80.0,
+  "mean_temperature": 65.74,
+  "hotspot_count": 158,
+  "hotspot_area_ratio": 0.0509,
+  "risk_level": "High",
+  "risk_explanation": "疑似高温热点范围较大，建议优先复核火源、被困人员或危险热源。",
+  "is_simulated_temperature": true
+}

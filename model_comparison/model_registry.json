@@ -25,14 +25,24 @@
   },
   {
     "name": "faster_rcnn_optional",
-    "type": "future_detector",
+    "type": "copied_reference_structure",
     "weights": "model_comparison/checkpoints/faster_rcnn.pth",
-    "status": "planned_local_experiment"
+    "reference_code": "integrated_modules/detection_models/code/faster_rcnn_predict.py",
+    "reference_assets": [
+      "static/images/reference/detection_models/faster_rcnn_map.png",
+      "static/images/reference/detection_models/faster_rcnn_architecture.png"
+    ],
+    "status": "reference_structure_available_reproduction_pending"
   },
   {
-    "name": "detr_optional",
-    "type": "future_detector",
-    "weights": "model_comparison/checkpoints/detr.pth",
-    "status": "planned_local_experiment"
+    "name": "dino_optional",
+    "type": "copied_reference_structure",
+    "weights": "model_comparison/checkpoints/dino.pth",
+    "reference_code": "integrated_modules/detection_models/code/dino_inference.py",
+    "reference_assets": [
+      "static/images/reference/detection_models/dino_framework.png",
+      "static/images/reference/detection_models/dino_sota_table.png"
+    ],
+    "status": "reference_structure_available_reproduction_pending"
   }
 ]

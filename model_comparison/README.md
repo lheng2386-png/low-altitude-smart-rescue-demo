@@ -1,10 +1,23 @@
-# Model Comparison Scaffold
+# Model Comparison Module
 
-This directory prepares the detection-model comparison stage for AeroRescue-AI. It follows the idea of comparing multiple post-disaster UAV detection models, but it does not include fabricated metrics.
+This module is no longer an empty scaffold. It contains copied reference assets, copied detector code structures, a local registry, and a clear separation between reference results and AeroRescue-AI reproduced results.
 
-## Why Compare Models
+## What Is Included
 
-The current AeroRescue-AI prototype uses YOLOv11 weights stored under `models/`. For a competition report, later experiments can compare accuracy, speed, model size, and CPU latency across lightweight and larger detectors.
+| Item | Location | Status |
+| --- | --- | --- |
+| YOLOv11 local variants | `models/yolov11*/best.pt` | available if weights exist |
+| Local evaluator | `evaluate_detection_models.py` | implemented for inference summaries |
+| Model registry | `model_registry.json` | implemented |
+| Results table | `results_template.csv` | includes pending and reference rows |
+| Reference result notes | `reference_results.md` | implemented |
+| Faster R-CNN reference figures | `static/images/reference/detection_models/` | copied |
+| DINO reference figures | `static/images/reference/detection_models/` | copied |
+| Copied reference code | `integrated_modules/detection_models/code/` | copied |
+
+## Result Policy
+
+Reference rows are marked `reference_not_reproduced`. They are useful for report structure and benchmark planning, but they are not presented as AeroRescue-AI reproduced metrics.
 
 ## Candidate Models
 
@@ -12,27 +25,24 @@ The current AeroRescue-AI prototype uses YOLOv11 weights stored under `models/`.
 - YOLOv11s
 - YOLOv11m
 - YOLOv11l
-- Optional Faster R-CNN
-- Optional RetinaNet
-- Optional DETR
+- Faster R-CNN
+- DINO
+- DETR-family models
 
-Only models with local weights should be evaluated. This scaffold does not download weights or datasets.
+## Metrics For Future Reproduction
 
-## Metrics
-
-- `mAP@0.5`
 - Precision
 - Recall
+- mAP@0.5
 - FPS
+- CPU latency
 - Model size
-- CPU inference time
 
-`results_template.csv` is only a template. It is not a final result table.
-
-## Run A Lightweight Inference Summary
+## Run Local Inference Summary
 
 ```bash
 python model_comparison/evaluate_detection_models.py --image-folder app/examples --max-images 5
 ```
 
-If labels are unavailable, the script only reports inference summaries and does not compute mAP.
+If labels are unavailable, the script reports inference summaries only and does not compute mAP.
+

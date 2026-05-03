@@ -265,7 +265,7 @@ def path_environment_risk(path_result, segmentation_mask):
             "risk_ratio": 0.0,
             "class_counts": {},
             "high_risk_counts": {},
-            "message": "No segmentation mask or valid path is available.",
+            "message": "当前没有可用的语义分割掩码或有效路径。",
         }
 
     mask = np.asarray(segmentation_mask)
@@ -276,7 +276,7 @@ def path_environment_risk(path_result, segmentation_mask):
             "risk_ratio": 0.0,
             "class_counts": {},
             "high_risk_counts": {},
-            "message": "Path is empty.",
+            "message": "路径为空。",
         }
 
     counts = {}
@@ -294,7 +294,7 @@ def path_environment_risk(path_result, segmentation_mask):
         "risk_ratio": round(float(risk_ratio), 4),
         "class_counts": counts,
         "high_risk_counts": high_risk_counts,
-        "message": "Path environment risk calculated.",
+        "message": "路径环境风险已计算。",
     }
 
 
@@ -304,11 +304,11 @@ def compare_path_plans(baseline_result, risk_aware_result, segmentation_mask):
     risk_aware_risk = path_environment_risk(risk_aware_result, segmentation_mask)
 
     if segmentation_mask is None:
-        message = "No segmentation mask, path comparison is limited; baseline and risk-aware routes use equivalent assumptions."
+        message = "当前没有语义分割掩码，路径对比仅作演示，普通 A* 与风险感知 A* 使用近似假设。"
     elif not baseline_result or not baseline_result.get("found") or not risk_aware_result or not risk_aware_result.get("found"):
-        message = "Path comparison is limited because one or both paths were not found."
+        message = "由于一条或两条路径未能生成，路径对比结果有限。"
     else:
-        message = "Risk-aware A* compared against baseline A* using segmentation-derived environment risk."
+        message = "已基于语义分割环境风险对比普通 A* 与风险感知 A*。"
 
     baseline_environment_risk = float(baseline_risk.get("risk_ratio", 0.0))
     risk_aware_environment_risk = float(risk_aware_risk.get("risk_ratio", 0.0))

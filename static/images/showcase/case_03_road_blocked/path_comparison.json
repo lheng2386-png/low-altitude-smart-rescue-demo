@@ -6,5 +6,5 @@
   "baseline_environment_risk": 0.2608,
   "risk_aware_environment_risk": 0.0,
   "risk_reduction": 0.2608,
-  "message": "Risk-aware A* compared against baseline A* using segmentation-derived environment risk."
+  "message": "已基于语义分割环境风险对比普通 A* 与风险感知 A*。"
 }

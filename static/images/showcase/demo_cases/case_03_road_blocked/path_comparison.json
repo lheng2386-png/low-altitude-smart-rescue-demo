@@ -1,0 +1,10 @@
+{
+  "baseline_length": 395,
+  "baseline_cost": 1579.65,
+  "risk_aware_length": 619,
+  "risk_aware_cost": 1405.56,
+  "baseline_environment_risk": 0.2608,
+  "risk_aware_environment_risk": 0.0,
+  "risk_reduction": 0.2608,
+  "message": "Risk-aware A* compared against baseline A* using segmentation-derived environment risk."
+}

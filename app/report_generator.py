@@ -2,6 +2,17 @@ from environment_risk import CLASS_DISPLAY_NAMES, CLASS_DISPLAY_NAMES_EN
 
 
 ANIMAL_CLASSES = {"dog", "cat", "horse", "cow"}
+TARGET_CLASS_DISPLAY_NAMES = {
+    "civilian": "平民",
+    "rescuer": "救援人员",
+    "dog": "犬",
+    "cat": "猫",
+    "horse": "马",
+    "cow": "牛",
+    "person": "平民",
+    "people": "平民",
+    "rescuers": "救援人员",
+}
 
 TEXT = {
     "zh": {
@@ -17,23 +28,23 @@ TEXT = {
         "limitations": "八、当前版本局限说明",
         "segmentation_empty": (
             "当前未接入语义分割结果，环境风险与路径代价主要基于默认图像平面假设生成。"
-            "可通过上传 segmentation mask 或提供训练好的 segmentation checkpoint 启用环境风险融合。"
+            "可通过上传语义分割掩码或提供训练好的语义分割权重文件启用环境风险融合。"
         ),
-        "segmentation_enabled": "当前报告已结合 segmentation mask 或自动分割结果进行环境风险融合。",
+        "segmentation_enabled": "当前报告已结合语义分割掩码或自动分割结果进行环境风险融合。",
         "path_plane_limit": (
             "当前路径规划为图像平面参考路径，不等同于真实 GPS 路线，也未接入真实道路网络、无人机定位或飞控系统。"
         ),
         "path_missing": "当前未能生成有效路径，原因：路径规划模块未返回结果。",
-        "path_unreachable": "当前未能生成有效路径，原因：{reason}。建议检查起点位置、目标检测结果或上传更准确的 segmentation mask 后重试。",
+        "path_unreachable": "当前未能生成有效路径，原因：{reason}。建议检查起点位置、目标检测结果或上传更准确的语义分割掩码后重试。",
         "path_no_target": "当前图像未检测到明确救援目标，无法规划路径。",
         "path_no_segmentation": "当前未接入语义分割结果，路径规划仅基于图像平面默认代价地图，尚未结合水域、道路阻断、建筑损毁等环境代价。",
-        "path_with_segmentation": "当前路径规划已结合 segmentation mask 中的水域、道路阻断、建筑损毁等区域代价。",
+        "path_with_segmentation": "当前路径规划已结合语义分割掩码中的水域、道路阻断、建筑损毁等区域代价。",
         "comparison_no_segmentation": "当前无法进行完整环境风险路径对比，因为未接入有效语义分割结果。",
-        "comparison_with_segmentation": "当前已基于 segmentation mask 或自动分割结果进行路径环境风险对比。",
+        "comparison_with_segmentation": "当前已基于语义分割掩码或自动分割结果进行路径环境风险对比。",
         "top_target_none": "暂无。",
         "top_target_template": "{target_id}（{class_name}），风险分数 {risk_score:.2f}，风险等级 {risk_level}。",
         "top_terp_template": "{target_id}（{class_name}），TERP 分数 {terp_score:.2f}，等级 {terp_level}。",
-        "counts": "本次识别目标总数：{total}。\ncivilian 数量：{civilian}；rescuer 数量：{rescuer}；animal 数量：{animal}。",
+        "counts": "本次识别目标总数：{total}。\n平民数量：{civilian}；救援人员数量：{rescuer}；动物数量：{animal}。",
         "risk_counts": "高风险目标数量：{high}；中风险目标数量：{medium}。",
         "top_risk_target": "最高风险目标：{text}",
         "top_terp_target": "最高 TERP 目标：{text}",
@@ -43,7 +54,7 @@ TEXT = {
         "unknown_target_reason": "检测到未知救援相关目标，建议人工复核。",
         "no_segmentation_path_report": "当前未接入语义分割结果，本报告仅基于目标检测结果生成。",
         "limitations_detail": (
-            "当前自动语义分割为可选实验功能，需要本地训练 checkpoint；未提供 checkpoint 时可上传 segmentation mask 完成环境风险融合。\n"
+            "当前自动语义分割为可选实验功能，需要本地训练权重文件；未提供权重文件时可上传语义分割掩码完成环境风险融合。\n"
             "当前路径规划为图像平面参考路径，不等同于真实 GPS 路线，也未接入真实道路网络、无人机定位或飞控系统。"
         ),
         "suggestions_items": [
@@ -133,11 +144,38 @@ def _level_text(level, language):
 def _class_display_name(class_name, language):
     if _lang(language) == "en":
         return class_name
-    return CLASS_DISPLAY_NAMES.get(class_name, class_name)
+    return TARGET_CLASS_DISPLAY_NAMES.get(class_name, CLASS_DISPLAY_NAMES.get(class_name, class_name))
 
 
 def _format_suggestions(language, items):
     return "\n".join(f"- {item}" for item in items)
+
+
+def _percent(summary, class_name):
+    return float((summary or {}).get(class_name, 0.0)) * 100.0
+
+
+def _zh_internal_message(message):
+    if not message:
+        return ""
+    replacements = {
+        "A* path planning succeeded.": "A* 路径规划成功。",
+        "No target is available for path planning.": "当前没有可用于路径规划的目标。",
+        "Path comparison is limited because one or both paths were not found.": "由于一条或两条路径未能生成，路径对比结果有限。",
+        "No segmentation mask, path comparison is limited; baseline and risk-aware routes use equivalent assumptions.": "当前没有语义分割掩码，路径对比仅作演示，普通路径和风险感知路径使用近似假设。",
+        "Risk-aware path reduces high-risk exposure compared with baseline.": "与普通 A* 相比，风险感知 A* 降低了高风险区域暴露。",
+        "Risk-aware path does not reduce high-risk exposure in this case.": "本案例中风险感知 A* 未明显降低高风险区域暴露。",
+    }
+    text = str(message)
+    for source, target in replacements.items():
+        text = text.replace(source, target)
+    text = text.replace("baseline", "普通 A*")
+    text = text.replace("Baseline", "普通 A*")
+    text = text.replace("Risk-Aware", "风险感知")
+    text = text.replace("risk-aware", "风险感知")
+    text = text.replace("segmentation mask", "语义分割掩码")
+    text = text.replace("automatic segmentation", "自动语义分割")
+    return text
 
 
 def _segmentation_section(segmentation_summary, ranked_targets, language):
@@ -207,7 +245,7 @@ def _terp_section(terp_rankings, language):
         target_id=top["target_id"],
         class_name=CLASS_DISPLAY_NAMES_EN.get(top["class_name"], top["class_name"])
         if _lang(language) == "en"
-        else CLASS_DISPLAY_NAMES.get(top["class_name"], top["class_name"]),
+        else _class_display_name(top["class_name"], language),
         terp_score=top["terp_score"],
         terp_level=_level_text(top["terp_level"], language),
     )
@@ -239,13 +277,15 @@ def _path_section(segmentation_summary, path_result, ranked_targets, language):
 
     if not path_result.get("found"):
         reason = path_result.get("message", "Unknown")
+        if _lang(language) == "zh":
+            reason = _zh_internal_message(reason)
         return (
             f"{_t(language, 'path')}\n"
             + (
                 f"No valid path could be generated because {reason}.\n"
                 "Please check the start point, detection results, or upload a more accurate segmentation mask and try again.\n"
                 if _lang(language) == "en"
-                else f"当前未能生成有效路径，原因：{reason}。\n建议检查起点位置、目标检测结果或上传更准确的 segmentation mask 后重试。\n"
+                else f"当前未能生成有效路径，原因：{reason}。\n建议检查起点位置、目标检测结果或上传更准确的语义分割掩码后重试。\n"
             )
         )
 
@@ -254,7 +294,7 @@ def _path_section(segmentation_summary, path_result, ranked_targets, language):
     top_target_text = (
         f"{top_target['target_id']} ({top_target['class_name']})"
         if _lang(language) == "en"
-        else f"{top_target['target_id']}（{CLASS_DISPLAY_NAMES.get(top_target['class_name'], top_target['class_name'])}）"
+        else f"{top_target['target_id']}（{_class_display_name(top_target['class_name'], language)}）"
     )
 
     env_text = _t(language, "path_with_segmentation") if segmentation_summary else _t(language, "path_no_segmentation")
@@ -284,7 +324,7 @@ def _path_comparison_section(path_comparison, segmentation_summary, language):
             + (
                 "No baseline vs. Risk-Aware A* comparison is available yet.\n"
                 if _lang(language) == "en"
-                else "当前未生成 baseline A* 与 Risk-Aware A* 对比结果。\n"
+                else "当前未生成普通 A* 与风险感知 A* 对比结果。\n"
             )
         )
 
@@ -303,14 +343,14 @@ def _path_comparison_section(path_comparison, segmentation_summary, language):
             f"Explanation: {path_comparison.get('message', '')}\n"
             if _lang(language) == "en"
             else (
-                f"Baseline A*：长度 {path_comparison.get('baseline_length', 0)}，"
+                f"普通 A*：长度 {path_comparison.get('baseline_length', 0)}，"
                 f"累计代价 {path_comparison.get('baseline_cost', 0.0):.2f}，"
                 f"高风险区域比例 {path_comparison.get('baseline_environment_risk', 0.0) * 100:.2f}%。\n"
-                f"Risk-Aware A*：长度 {path_comparison.get('risk_aware_length', 0)}，"
+                f"风险感知 A*：长度 {path_comparison.get('risk_aware_length', 0)}，"
                 f"累计代价 {path_comparison.get('risk_aware_cost', 0.0):.2f}，"
                 f"高风险区域比例 {path_comparison.get('risk_aware_environment_risk', 0.0) * 100:.2f}%。\n"
                 f"路径环境风险降低：{path_comparison.get('risk_reduction', 0.0) * 100:.2f}%。\n"
-                f"说明：{path_comparison.get('message', '')}\n"
+                f"说明：{_zh_internal_message(path_comparison.get('message', ''))}\n"
             )
         )
     )
@@ -350,7 +390,7 @@ def generate_report(targets, ranked_targets, segmentation_summary=None, path_res
         class_display = (
             CLASS_DISPLAY_NAMES_EN.get(top_target["class_name"], top_target["class_name"])
             if _lang(language) == "en"
-            else CLASS_DISPLAY_NAMES.get(top_target["class_name"], top_target["class_name"])
+            else _class_display_name(top_target["class_name"], language)
         )
         top_target_text = _t(language, "top_target_template").format(
             target_id=top_target["target_id"],
@@ -382,7 +422,7 @@ def generate_report(targets, ranked_targets, segmentation_summary=None, path_res
         if segmentation_summary:
             suggestions.append(_t(language, "suggestions_items")[4])
         else:
-            suggestions.append("当前未接入语义分割结果，建议补充分割 mask 或训练 checkpoint 后复核环境风险。")
+            suggestions.append("当前未接入语义分割结果，建议补充分割掩码或训练权重文件后复核环境风险。")
 
     segmentation_text = _segmentation_section(segmentation_summary, ranked_targets, language)
     terp_text = _terp_section(terp_rankings, language)

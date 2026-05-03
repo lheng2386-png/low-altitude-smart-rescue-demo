@@ -1,0 +1,10 @@
+{
+  "video_name": "rescuer.mp4",
+  "frame_count": 489,
+  "keyframe_count": 4,
+  "feature_count": 7200,
+  "match_count": 360,
+  "point_cloud_path": "/Users/Apple/Documents/New project 2/urban-disaster-monitor/outputs/reconstruction/point_cloud.ply",
+  "trajectory_path": "/Users/Apple/Documents/New project 2/urban-disaster-monitor/outputs/reconstruction/camera_trajectory.jpg",
+  "status": "completed_lightweight_reconstruction_preview"
+}

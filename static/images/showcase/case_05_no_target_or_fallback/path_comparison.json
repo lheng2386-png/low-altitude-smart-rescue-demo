@@ -6,5 +6,5 @@
   "baseline_environment_risk": 0.0,
   "risk_aware_environment_risk": 0.0,
   "risk_reduction": 0.0,
-  "message": "Path comparison is limited because one or both paths were not found."
+  "message": "由于一条或两条路径未能生成，路径对比结果有限。"
 }
