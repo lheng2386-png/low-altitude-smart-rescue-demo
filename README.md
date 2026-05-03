@@ -99,6 +99,20 @@ The detector separates `civilian` and `rescuer` so that people already participa
 
 The project uses local assets stored under `static/images/`, `static/images/reference/`, and `static/images/showcase/` for README and Gradio gallery display.
 
+## Demo Website
+
+A static competition showcase website is available under `docs/`.
+
+To publish it with GitHub Pages:
+
+1. Open the repository Settings on GitHub.
+2. Go to Pages.
+3. Set source to `Deploy from a branch`.
+4. Select branch `main` and folder `/docs`.
+5. Save and wait for GitHub Pages to publish.
+
+The static site introduces AeroRescue-AI, shows the workflow, core innovations, generated demo cases, and local run commands. It is a presentation website only; the interactive AI demo still runs through the local Gradio app.
+
 <div align="center">
 
 <img src="static/images/capa1.webp" alt="Disaster response scenario" width="780"/>
