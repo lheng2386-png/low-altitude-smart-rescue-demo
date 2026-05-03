@@ -38,7 +38,7 @@ def _target_score(target, image_width, image_height):
     return round(class_weight * 45.0 + confidence * 15.0 + area_weight * 10.0, 2)
 
 
-def calculate_terp(target, image_width, image_height, environment_context=None, path_result=None):
+def calculate_terp(target, image_width, image_height, environment_context=None, path_result=None, language="zh"):
     """Calculate Target-Environment-Route Priority for one target."""
     target_score = _target_score(target, image_width, image_height)
     environment_score = 0.0
@@ -53,25 +53,47 @@ def calculate_terp(target, image_width, image_height, environment_context=None, 
 
     class_name = normalize_class_name(target.get("class_name", ""))
     if path_result and not path_result.get("found"):
-        route_reason = "当前目标路径不可达或未找到稳定路径，可达性风险较高。"
+        route_reason = (
+            "Current target path is not reachable or no stable path was found, so accessibility risk is high."
+            if language == "en"
+            else "当前目标路径不可达或未找到稳定路径，可达性风险较高。"
+        )
     elif accessibility_score > 10:
-        route_reason = "通往该目标的参考路径代价较高，建议现场复核绕行条件。"
+        route_reason = (
+            "The reference route to this target is relatively costly, so field detour conditions should be checked."
+            if language == "en"
+            else "通往该目标的参考路径代价较高，建议现场复核绕行条件。"
+        )
     elif path_result:
-        route_reason = "通往该目标的参考路径可达性相对较好。"
+        route_reason = (
+            "The reference route to this target is relatively accessible."
+            if language == "en"
+            else "通往该目标的参考路径可达性相对较好。"
+        )
     else:
-        route_reason = "当前未接入路径结果，可达性暂按默认值处理。"
+        route_reason = (
+            "No path result is connected yet, so accessibility falls back to a default value."
+            if language == "en"
+            else "当前未接入路径结果，可达性暂按默认值处理。"
+        )
 
     if environment_context:
         env_reason = environment_context.get("environment_reason", "")
     else:
-        env_reason = "当前未接入语义分割环境结果。"
+        env_reason = "No segmentation-based environment result is connected yet." if language == "en" else "当前未接入语义分割环境结果。"
 
-    reason = (
-        f"TERP 综合目标类型、检测置信度、目标尺度、环境风险和路径可达性。"
-        f"{env_reason}{route_reason}"
+    intro = (
+        "TERP combines target type, detection confidence, target scale, environmental risk, and route accessibility. "
+        if language == "en"
+        else "TERP 综合目标类型、检测置信度、目标尺度、环境风险和路径可达性。"
     )
+    reason = f"{intro}{env_reason}{route_reason}"
     if class_name == "civilian" and terp_level in {"High", "Critical"}:
-        reason += "疑似被困平民且综合优先级较高，建议优先核查。"
+        reason += (
+            "The target appears to be a trapped civilian and has a high overall priority. Prioritize verification."
+            if language == "en"
+            else "疑似被困平民且综合优先级较高，建议优先核查。"
+        )
 
     return {
         "target_id": target.get("id") or target.get("target_id"),
@@ -85,7 +107,7 @@ def calculate_terp(target, image_width, image_height, environment_context=None, 
     }
 
 
-def rank_targets_by_terp(targets, image_width, image_height, environment_contexts=None, path_results=None):
+def rank_targets_by_terp(targets, image_width, image_height, environment_contexts=None, path_results=None, language="zh"):
     """Rank targets with TERP while preserving original target ids."""
     if not targets:
         return []
@@ -101,6 +123,7 @@ def rank_targets_by_terp(targets, image_width, image_height, environment_context
             image_height,
             environment_context=environment_contexts.get(target_id),
             path_result=path_results.get(target_id),
+            language=language,
         )
         results.append(terp)
 

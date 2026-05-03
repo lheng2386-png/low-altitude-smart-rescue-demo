@@ -6,7 +6,7 @@ def _rescue_reason(target, risk, environment_context):
     return risk["risk_reason"]
 
 
-def rank_targets(targets, image_width, image_height, segmentation_mask=None):
+def rank_targets(targets, image_width, image_height, segmentation_mask=None, language="zh"):
     if not targets:
         return []
 
@@ -15,9 +15,9 @@ def rank_targets(targets, image_width, image_height, segmentation_mask=None):
     for target in targets:
         environment_context = None
         if segmentation_mask is not None:
-            environment_context = get_environment_context_for_target(target, segmentation_mask)
+            environment_context = get_environment_context_for_target(target, segmentation_mask, language=language)
 
-        risk = calculate_risk(target, image_width, image_height, environment_context)
+        risk = calculate_risk(target, image_width, image_height, environment_context, language=language)
         ranked_targets.append(
             {
                 "target_id": target["id"],

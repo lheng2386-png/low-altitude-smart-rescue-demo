@@ -46,6 +46,20 @@ CLASS_DISPLAY_NAMES = {
     "pool": "水池/积水",
 }
 
+CLASS_DISPLAY_NAMES_EN = {
+    "background": "background",
+    "water": "water",
+    "no_damage_building": "no_damage_building",
+    "minor_damage": "minor_damage",
+    "major_damage": "major_damage",
+    "destroyed_building": "destroyed_building",
+    "vehicle": "vehicle",
+    "road_clear": "road_clear",
+    "road_blocked": "road_blocked",
+    "tree": "tree",
+    "pool": "pool",
+}
+
 
 def get_environment_risk_score(class_name):
     return ENVIRONMENT_RISK_SCORES.get(class_name, 0.0)
@@ -59,9 +73,10 @@ def get_environment_risk_level(class_name):
     return "Low"
 
 
-def describe_environment_classes(class_names):
+def describe_environment_classes(class_names, language="zh"):
     if not class_names:
-        return "未发现明显环境风险"
+        return "No obvious environmental risk detected." if language == "en" else "未发现明显环境风险"
 
-    labels = [CLASS_DISPLAY_NAMES.get(class_name, class_name) for class_name in class_names]
-    return "、".join(labels)
+    display_map = CLASS_DISPLAY_NAMES_EN if language == "en" else CLASS_DISPLAY_NAMES
+    labels = [display_map.get(class_name, class_name) for class_name in class_names]
+    return ", ".join(labels) if language == "en" else "、".join(labels)

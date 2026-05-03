@@ -6,6 +6,7 @@ from PIL import Image
 
 from environment_risk import (
     CLASS_DISPLAY_NAMES,
+    CLASS_DISPLAY_NAMES_EN,
     get_environment_risk_score,
     describe_environment_classes,
 )
@@ -224,7 +225,7 @@ def _target_neighborhood(target, mask, scale=0.35):
     return mask[top:bottom, left:right]
 
 
-def get_environment_context_for_target(target, mask):
+def get_environment_context_for_target(target, mask, language="zh"):
     if mask is None:
         return {
             "near_water": False,
@@ -232,7 +233,11 @@ def get_environment_context_for_target(target, mask):
             "near_destroyed_building": False,
             "dominant_area_class": "unknown",
             "environment_risk_score": 0.0,
-            "environment_reason": "当前未接入灾区语义分割结果。",
+            "environment_reason": (
+                "No disaster-scene segmentation is connected yet."
+                if language == "en"
+                else "当前未接入灾区语义分割结果。"
+            ),
         }
 
     region = _target_neighborhood(target, mask)
@@ -254,15 +259,27 @@ def get_environment_context_for_target(target, mask):
     environment_risk_score = round(max(dominant_score, nearby_score), 2)
 
     if risk_classes:
-        environment_reason = (
-            f"目标附近存在{describe_environment_classes(sorted(risk_classes))}，"
-            f"主导环境为{CLASS_DISPLAY_NAMES.get(dominant_class, dominant_class)}。"
-        )
+        if language == "en":
+            environment_reason = (
+                f"The target neighborhood contains {describe_environment_classes(sorted(risk_classes), language='en')}, "
+                f"and the dominant area class is {CLASS_DISPLAY_NAMES_EN.get(dominant_class, dominant_class)}."
+            )
+        else:
+            environment_reason = (
+                f"目标附近存在{describe_environment_classes(sorted(risk_classes))}，"
+                f"主导环境为{CLASS_DISPLAY_NAMES.get(dominant_class, dominant_class)}。"
+            )
     else:
-        environment_reason = (
-            f"目标附近主导环境为{CLASS_DISPLAY_NAMES.get(dominant_class, dominant_class)}，"
-            "未发现明显高风险环境因素。"
-        )
+        if language == "en":
+            environment_reason = (
+                f"The dominant area class around the target is {CLASS_DISPLAY_NAMES_EN.get(dominant_class, dominant_class)}, "
+                "and no obvious high-risk environmental factors were found."
+            )
+        else:
+            environment_reason = (
+                f"目标附近主导环境为{CLASS_DISPLAY_NAMES.get(dominant_class, dominant_class)}，"
+                "未发现明显高风险环境因素。"
+            )
 
     return {
         "near_water": near_water,
