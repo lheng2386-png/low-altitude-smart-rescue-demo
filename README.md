@@ -33,6 +33,25 @@ UAV image/video
 | Target-Environment-Route Priority Model, TERP | Fuses target class, confidence, bbox scale, environment risk, and route accessibility into a rescue priority score |
 | Risk-Aware A* image-plane rescue path planning | Compares uniform-cost baseline A* with segmentation-cost A* to reduce high-risk path exposure |
 | Detection-Segmentation-Decision-Report closed loop | Connects UAV image/video input, target detection, segmentation fusion, priority ranking, path planning, and Chinese report generation |
+| Reference-inspired UAV rescue platform workflow | Uses public UAV rescue, disaster detection, survivor detection, and segmentation projects as design references while keeping AeroRescue-AI as the main system |
+
+## Reference Repositories
+
+AeroRescue-AI uses public open-source projects as reference material for system design, detection presentation, segmentation classes, and future model comparison workflows. The main prototype remains an AeroRescue-AI detection-segmentation-decision-report system.
+
+| Reference | Use In AeroRescue-AI |
+| --- | --- |
+| ARGUS | UAV rescue platform workflow, task/report/map-style system expression |
+| urban-disaster-monitor | YOLOv11 disaster target detection and Gradio-style demo reference |
+| Post-Disaster-Dataset / Detection-Models | Post-disaster survivor detection and model comparison experiment structure |
+| RescueNet | Post-disaster UAV semantic segmentation class and mask visualization reference |
+
+Reference and showcase assets can be organized under:
+
+- `static/images/reference/`
+- `static/images/showcase/`
+
+These images are used as prototype presentation material for the current competition-stage system.
 
 ## Current Capabilities
 
@@ -74,7 +93,7 @@ The detector separates `civilian` and `rescuer` so that people already participa
 
 ## Demo Gallery
 
-The project uses local assets stored under `static/images/` for README and Gradio gallery display.
+The project uses local assets stored under `static/images/`, `static/images/reference/`, and `static/images/showcase/` for README and Gradio gallery display.
 
 <div align="center">
 
@@ -86,7 +105,7 @@ The Gradio interface keeps the current prototype lightweight while exposing the 
 
 <div align="center">
 
-<img src="static/images/app_gradio.png" alt="AeroRescue-AI Gradio interface" width="850"/>
+<img src="static/images/showcase/aerorescue_gradio_interface.png" alt="AeroRescue-AI Gradio interface" width="850"/>
 
 </div>
 
@@ -94,8 +113,8 @@ Example local detection preview:
 
 <div align="center">
 
-<img src="static/images/230714-india-flooding-mb-0831-d3a66d.jpg" alt="Local demo input" width="410"/>
-<img src="static/images/230714-india-flooding-mb-0831-d3a66d_annotated.webp" alt="Local detection output" width="410"/>
+<img src="static/images/showcase/flood_demo_input.jpg" alt="Local demo input" width="410"/>
+<img src="static/images/showcase/flood_demo_detection.webp" alt="Local detection output" width="410"/>
 
 </div>
 
@@ -103,14 +122,14 @@ Model comparison and evaluation assets:
 
 <div align="center">
 
-<img src="static/images/modelo-customizado.png" alt="Rescue-class detector output" width="410"/>
+<img src="static/images/reference/detection_result_reference.png" alt="Rescue-class detector reference output" width="410"/>
 <img src="static/images/modelo-coco.png" alt="Generic detector comparison" width="410"/>
 
 </div>
 
 <div align="center">
 
-<img src="static/images/metricas0.5.png" alt="mAP@0.5 comparison" width="720"/>
+<img src="static/images/reference/detection_metrics_reference.png" alt="Detection metrics reference" width="720"/>
 
 </div>
 
@@ -231,6 +250,7 @@ This is a reference path on the image plane. It is not a GPS route and does not 
 │   ├── priority_ranker.py
 │   ├── report_generator.py
 │   ├── path_planner.py
+│   ├── terp_engine.py
 │   ├── requirements.txt
 │   └── examples
 ├── training
@@ -246,6 +266,9 @@ This is a reference path on the image plane. It is not a GPS route and does not 
 │   ├── yolov11m
 │   └── yolov11l
 ├── static
+│   └── images
+│       ├── reference
+│       └── showcase
 ├── FIRST_STEP_RUN.md
 ├── SECOND_STEP_DECISION_LAYER.md
 ├── THIRD_STEP_SEGMENTATION_LAYER.md

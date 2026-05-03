@@ -235,8 +235,13 @@ def prepare_valid_segmentation_mask(mask, image_width, image_height, segmentatio
 
 
 def gallery_image_items():
-    """Return local demo images only; no external image links are used."""
+    """Return available local demo and reference images."""
     candidates = [
+        (ROOT_DIR / "static" / "images" / "showcase" / "aerorescue_gradio_interface.png", "AeroRescue-AI Gradio interface"),
+        (ROOT_DIR / "static" / "images" / "showcase" / "flood_demo_input.jpg", "Flood demo input"),
+        (ROOT_DIR / "static" / "images" / "showcase" / "flood_demo_detection.webp", "Flood demo detection preview"),
+        (ROOT_DIR / "static" / "images" / "reference" / "detection_result_reference.png", "Detection reference asset"),
+        (ROOT_DIR / "static" / "images" / "reference" / "detection_metrics_reference.png", "Detection metrics reference asset"),
         (ROOT_DIR / "static" / "images" / "capa1.webp", "Disaster response scenario"),
         (ROOT_DIR / "static" / "images" / "capa2.webp", "Low-altitude rescue context"),
         (ROOT_DIR / "static" / "images" / "app_gradio.png", "AeroRescue-AI interface"),
@@ -711,6 +716,20 @@ UAV Image / Video
 - TERP: combines target, environment, and route accessibility priority.
 - Risk-Aware A*: compares uniform-cost baseline routing against segmentation-cost routing.
 - Path Planning: image-plane reference path, not a real GPS route.
+
+**Core Innovations**
+
+- TERP Target-Environment-Route Priority Model.
+- Risk-Aware A* image-plane rescue path planning.
+- Detection-Segmentation-Decision-Report closed loop.
+- Reference-inspired UAV rescue platform workflow.
+
+**Reference Projects Used In This Prototype**
+
+- ARGUS: UAV rescue platform workflow and report-style system reference.
+- urban-disaster-monitor: YOLOv11 disaster target detection and Gradio-style demo reference.
+- Post-Disaster-Dataset / Detection-Models: survivor detection and model comparison structure reference.
+- RescueNet: post-disaster UAV semantic segmentation class reference.
 
 **Demo Cases Plan**
 
