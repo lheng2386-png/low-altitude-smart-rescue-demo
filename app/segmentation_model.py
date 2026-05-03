@@ -25,6 +25,8 @@ SEGMENTATION_CLASS_NAMES = [
 APP_DIR = Path(__file__).resolve().parent
 ROOT_DIR = APP_DIR.parent
 DEFAULT_SEGMENTATION_WEIGHT_CANDIDATES = [
+    ROOT_DIR / "outputs" / "segmentation_training" / "checkpoints" / "best.pth",
+    ROOT_DIR / "outputs" / "segmentation_training" / "checkpoints" / "latest.pth",
     ROOT_DIR / "checkpoints" / "segmentation_model.pth",
     APP_DIR / "segmentation_weights" / "segmentation_model.pth",
 ]
@@ -137,7 +139,7 @@ def load_segmentation_model(weights_path=None, device=None):
     try:
         run_device = _device(device)
         model = LightweightUNet(num_classes=NUM_SEGMENTATION_CLASSES)
-        checkpoint = torch.load(status["path"], map_location=run_device)
+        checkpoint = torch.load(status["path"], map_location=run_device, weights_only=False)
 
         if isinstance(checkpoint, dict) and "model_state_dict" in checkpoint:
             state_dict = checkpoint["model_state_dict"]

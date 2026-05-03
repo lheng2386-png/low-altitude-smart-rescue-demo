@@ -1,0 +1,1 @@
+"""AeroRescue-AI application modules."""

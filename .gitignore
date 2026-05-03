@@ -208,3 +208,16 @@ checkpoints/
 *.pth
 *.ckpt
 *.onnx
+
+# Runtime outputs
+outputs/*
+!outputs/.gitkeep
+!outputs/*/
+!outputs/*/.gitkeep
+*.tif
+*.tiff
+*.laz
+*.las
+*.ply
+*.obj
+*.mtl

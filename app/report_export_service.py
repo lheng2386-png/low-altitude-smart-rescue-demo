@@ -37,6 +37,36 @@ def _file_index():
     return "\n".join(lines)
 
 
+def _thermal_truthfulness_summary(thermal_result_text):
+    try:
+        data = json.loads(thermal_result_text)
+    except Exception:
+        return "热红外模块尚未执行或结果不是 JSON。"
+
+    mode = data.get("thermal_mode", "unknown")
+    is_real = bool(data.get("is_real_temperature_measurement"))
+    note = data.get("truthfulness_note", "")
+    if mode == "simulated_thermal":
+        return "该结果为普通图像灰度热点分析，不是真实热红外测温。\n" + note
+    if mode == "radiometric_thermal" and is_real:
+        stats = data.get("statistics", {})
+        return (
+            "该结果来自 radiometric thermal 文件解析出的 temperature matrix。\n"
+            f"file_type: {data.get('file_type', '')}\n"
+            f"parser: {data.get('parser', '')}\n"
+            f"max_temperature: {stats.get('max_temperature')}\n"
+            f"mean_temperature: {stats.get('mean_temperature')}\n"
+            f"hotspot_threshold: {stats.get('hotspot_threshold')}\n"
+            f"hotspot_area_ratio: {stats.get('hotspot_area_ratio')}\n"
+            f"{note}"
+        )
+    if mode == "radiometric_thermal":
+        return f"Radiometric Thermal 解析失败：{data.get('error', '')}\n未解析出真实 temperature matrix，不能自动 fallback 成假温度。\n{note}"
+    if mode == "infrared_detection":
+        return "红外目标检测不等于真实温度测量。\n" + note
+    return note or "未提供热红外真实性说明。"
+
+
 def export_final_report():
     """Export final markdown and HTML reports from existing module outputs."""
     orthomosaic_log = _read(OUTPUT_ROOT / "orthomosaic" / "processing_log.json")
@@ -55,6 +85,8 @@ def export_final_report():
 ```
 
 ## 热红外分析结果
+
+{_thermal_truthfulness_summary(thermal_result)}
 
 ```json
 {thermal_result}
@@ -88,4 +120,3 @@ def export_final_report():
     html_path.write_text(html_body, encoding="utf-8")
     status = "综合报告已生成。未执行的模块已在报告中标记为“该模块尚未执行”。"
     return status, str(md_path), str(html_path), md
-

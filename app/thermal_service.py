@@ -4,6 +4,8 @@ from pathlib import Path
 import cv2
 import numpy as np
 
+from radiometric_thermal_service import analyze_radiometric_thermal
+
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 OUTPUT_DIR = ROOT_DIR / "outputs" / "thermal"
@@ -22,8 +24,8 @@ def _as_path(file_obj):
     return str(file_obj)
 
 
-def analyze_thermal(image_file):
-    """Analyze RGB/gray/thermal-like imagery and save thermal outputs."""
+def analyze_simulated_thermal(image_file):
+    """Analyze RGB/gray imagery as simulated hotspots, not real temperature."""
     path = _as_path(image_file)
     if not path:
         return None, None, "未上传图像。", "{}"
@@ -80,6 +82,7 @@ def analyze_thermal(image_file):
     cv2.imwrite(str(overlay_path), overlay)
 
     result = {
+        "thermal_mode": "simulated_thermal",
         "max_temperature": round(max_temp, 2),
         "mean_temperature": round(mean_temp, 2),
         "hotspot_count": hotspot_count,
@@ -87,8 +90,54 @@ def analyze_thermal(image_file):
         "risk_level": risk,
         "risk_explanation": explanation,
         "is_simulated_temperature": is_simulated,
+        "is_real_temperature_measurement": False,
+        "truthfulness_note": "该结果由普通图像灰度归一化生成，不代表真实温度测量。",
     }
     result_path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
-    status = "热红外/红外分析完成。当前为模拟热红外分析，温度矩阵由图像灰度归一化生成。"
+    status = "模拟热红外分析完成。当前结果由图像灰度归一化生成，不代表真实热红外测温。"
     return str(heatmap_path), str(overlay_path), status, json.dumps(result, ensure_ascii=False, indent=2)
 
+
+def analyze_real_radiometric_thermal(image_file, threshold_celsius=None):
+    """Analyze a FLIR/DJI radiometric file without falling back to fake temperatures."""
+    result = analyze_radiometric_thermal(
+        _as_path(image_file),
+        threshold_celsius=threshold_celsius,
+        output_dir=OUTPUT_DIR,
+    )
+    result_path = OUTPUT_DIR / "thermal_result.json"
+    result_path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
+    status = (
+        "真实 Radiometric Thermal 解析完成，已生成真实 temperature matrix。"
+        if result.get("success") and result.get("is_real_temperature_measurement")
+        else f"真实 Radiometric Thermal 解析失败：{result.get('error', 'unknown error')}。系统不会用灰度值伪造温度。"
+    )
+    return (
+        result.get("heatmap_path") or None,
+        result.get("overlay_path") or None,
+        status,
+        json.dumps(result, ensure_ascii=False, indent=2),
+    )
+
+
+def analyze_infrared_detection_placeholder(image_file):
+    """Reserve an infrared object-detection path without claiming temperature measurement."""
+    result = {
+        "thermal_mode": "infrared_detection",
+        "success": False,
+        "is_real_temperature_measurement": False,
+        "truthfulness_note": "红外目标检测不等于真实温度测量。本模式当前仅预留，后续可接 HIT-UAV 等红外目标检测数据与模型。",
+        "error": "Infrared Detection is a placeholder in this version.",
+    }
+    status = "红外目标检测模式当前仅预留：它用于红外图像下的目标检测，不等于真实测温。"
+    return None, None, status, json.dumps(result, ensure_ascii=False, indent=2)
+
+
+def analyze_thermal(image_file, mode="Simulated Thermal / 模拟热红外", threshold_celsius=None):
+    """Compatibility dispatcher for Gradio and existing tests."""
+    mode_text = str(mode or "Simulated Thermal")
+    if mode_text.startswith("Radiometric"):
+        return analyze_real_radiometric_thermal(image_file, threshold_celsius=threshold_celsius)
+    if mode_text.startswith("Infrared"):
+        return analyze_infrared_detection_placeholder(image_file)
+    return analyze_simulated_thermal(image_file)

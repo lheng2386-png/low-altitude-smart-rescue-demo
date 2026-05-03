@@ -64,7 +64,6 @@ See:
 | Report Module | Implemented | Chinese rescue assistance report |
 | Platform Mockup Module | Integrated | Mission dashboard, report center, case archive design |
 | Model Comparison Module | Integrated | Reference benchmark assets and reproducible evaluation scaffold |
-| ARGUS Five-Capability Fusion | Implemented with adaptive fallbacks | Orthomosaic preview, thermal/IR hotspot analysis, target detection, 360° reconstruction preview, local LLM scene description |
 
 ## Detection Gallery
 
@@ -143,27 +142,7 @@ Mission Dashboard
 → Case Archive
 ```
 
-<div align="center">
-
-<img src="static/images/reference/argus/argus_title_logo.png" alt="Platform reference logo asset" width="520"/>
-
-</div>
-
 The current product is a platform-inspired prototype. It does not claim to run a full cloud platform.
-
-## ARGUS-Style Five-Capability Fusion
-
-The Gradio app includes an `ARGUS 融合功能` tab with five source-level replicated capabilities:
-
-| Capability | Current AeroRescue-AI Behavior |
-| --- | --- |
-| UAV orthomosaic generation | Multi-image stitching preview with WebODM/OpenDroneMap integration boundary |
-| Thermal / infrared analysis | Heatmap overlay and hotspot region detection |
-| Target detection | Existing YOLOv11 image/video detection with Chinese UI and decision-layer fusion |
-| 360° video / 3D reconstruction | Keyframe extraction and StellaVSLAM readiness check |
-| Local LLM scene description | Ollama vision-model call with clear fallback when local model is unavailable |
-
-See `ARGUS_FULL_REPLICATION.md` for copied source files and active integration points.
 
 ## AeroRescue-AI Innovations
 

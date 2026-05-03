@@ -1,0 +1,21 @@
+data_root: data/segmentation
+num_classes: 11
+class_names:
+  0: Background
+  1: Water
+  2: Building-No-Damage
+  3: Building-Medium-Damage
+  4: Building-Major-Damage
+  5: Building-Total-Destruction
+  6: Vehicle
+  7: Road-Clear
+  8: Road-Blocked
+  9: Tree
+  10: Pool
+img_size: 512
+batch_size: 4
+lr: 0.001
+epochs: 30
+num_workers: 2
+output_dir: outputs/segmentation_training
+model_name: lightweight_unet

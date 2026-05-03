@@ -1,4 +1,5 @@
 from environment_risk import CLASS_DISPLAY_NAMES, CLASS_DISPLAY_NAMES_EN
+from segmentation_source_metadata import build_segmentation_source_metadata
 
 
 ANIMAL_CLASSES = {"dog", "cat", "horse", "cow"}
@@ -24,8 +25,10 @@ TEXT = {
         "segmentation": "四、语义分割环境风险",
         "path": "五、路径规划建议",
         "comparison": "六、路径规划对比",
-        "suggestions": "七、初步救援建议",
-        "limitations": "八、当前版本局限说明",
+        "reliability": "七、路径规划可靠性说明",
+        "damage": "八、灾损评估与救援入口",
+        "suggestions": "九、初步救援建议",
+        "limitations": "十、当前版本局限说明",
         "segmentation_empty": (
             "当前未接入语义分割结果，环境风险与路径代价主要基于默认图像平面假设生成。"
             "可通过上传语义分割掩码或提供训练好的语义分割权重文件启用环境风险融合。"
@@ -77,8 +80,10 @@ TEXT = {
         "segmentation": "4. Segmentation-Based Environmental Risk",
         "path": "5. Path Planning Recommendation",
         "comparison": "6. Path Planning Comparison",
-        "suggestions": "7. Initial Rescue Suggestions",
-        "limitations": "8. Current Limitations",
+        "reliability": "7. Path Planning Reliability",
+        "damage": "8. Damage Assessment and Rescue Entry",
+        "suggestions": "9. Initial Rescue Suggestions",
+        "limitations": "10. Current Limitations",
         "segmentation_empty": (
             "No segmentation result is connected yet, so environmental risk and path cost are mainly estimated from the default image-plane assumption. "
             "You can upload a segmentation mask or provide a trained segmentation checkpoint to enable environment-risk fusion."
@@ -178,9 +183,26 @@ def _zh_internal_message(message):
     return text
 
 
-def _segmentation_section(segmentation_summary, ranked_targets, language):
+def _segmentation_source_section(segmentation_source_metadata, language):
+    if not segmentation_source_metadata:
+        return ""
+    metadata = segmentation_source_metadata
+    if isinstance(segmentation_source_metadata, str):
+        metadata = build_segmentation_source_metadata(segmentation_source_metadata)
+    lines = [
+        "分割来源：{}".format(metadata.get("source_label", "Unknown")) if _lang(language) == "zh" else "Segmentation source: {}".format(metadata.get("source_label", "Unknown")),
+        "是否为模型自动预测：{}".format("是" if metadata.get("is_model_prediction") else "否") if _lang(language) == "zh" else "Is model prediction: {}".format("Yes" if metadata.get("is_model_prediction") else "No"),
+        "Checkpoint 路径：{}".format(metadata.get("checkpoint_path") or "未使用") if _lang(language) == "zh" else "Checkpoint path: {}".format(metadata.get("checkpoint_path") or "not used"),
+        "真实性说明：{}".format(metadata.get("truthfulness_note", "")) if _lang(language) == "zh" else "Truthfulness note: {}".format(metadata.get("truthfulness_note", "")),
+    ]
+    return "\n".join(lines)
+
+
+def _segmentation_section(segmentation_summary, ranked_targets, language, segmentation_source_metadata=None):
     if not segmentation_summary:
-        return f"{_t(language, 'segmentation')}\n{_t(language, 'segmentation_empty')}\n"
+        section = f"{_t(language, 'segmentation')}\n{_t(language, 'segmentation_empty')}\n"
+        source_text = _segmentation_source_section(segmentation_source_metadata, language)
+        return section + (source_text + "\n" if source_text else "")
 
     water_ratio = _percent(segmentation_summary, "water") + _percent(segmentation_summary, "pool")
     blocked_road_ratio = _percent(segmentation_summary, "road_blocked")
@@ -210,7 +232,7 @@ def _segmentation_section(segmentation_summary, ranked_targets, language):
             )
         )
 
-    return (
+    section = (
         f"{_t(language, 'segmentation')}\n"
         f"{_t(language, 'segmentation_enabled')}\n"
         + (
@@ -227,6 +249,10 @@ def _segmentation_section(segmentation_summary, ranked_targets, language):
             )
         )
     )
+    source_text = _segmentation_source_section(segmentation_source_metadata, language)
+    if source_text:
+        section += "\n" + source_text + "\n"
+    return section
 
 
 def _terp_section(terp_rankings, language):
@@ -356,16 +382,133 @@ def _path_comparison_section(path_comparison, segmentation_summary, language):
     )
 
 
-def generate_report(targets, ranked_targets, segmentation_summary=None, path_result=None, terp_rankings=None, path_comparison=None, language="zh"):
+def _path_reliability_section(damage_assessment, language):
+    reliability = (damage_assessment or {}).get("path_planning_reliability", {})
+    if not reliability:
+        return (
+            f"{_t(language, 'reliability')}\n"
+            + (
+                "No path-planning reliability metadata is available.\n"
+                if _lang(language) == "en"
+                else "当前没有路径规划可靠性元数据。\n"
+            )
+        )
+
+    if _lang(language) == "en":
+        return (
+            f"{_t(language, 'reliability')}\n"
+            "Path type: image-plane reference path, not real GPS navigation.\n"
+            "Scene Mode method: rule-based assessment, not a trained scene-classification model.\n"
+            f"Reliability level: {reliability.get('reliability_level', 'unknown')}.\n"
+            f"Mask source: {reliability.get('mask_source', 'unknown')}.\n"
+            f"Mask dependency: {'yes' if reliability.get('mask_dependency') else 'no'}.\n"
+            f"Mask risk note: {reliability.get('mask_risk_note', '')}\n"
+            f"Human review required: {'yes' if reliability.get('human_review_required') else 'no'}.\n"
+            f"Reliability note: {reliability.get('reliability_note', '')}\n"
+        )
+
+    return (
+        f"{_t(language, 'reliability')}\n"
+        "当前路径为图像平面参考路径，不是真实 GPS 导航。\n"
+        "Scene Mode 为基于目标框面积、segmentation mask、Road-Clear 面积比例和边界道路连通性的规则判断，不是训练出的场景分类模型。\n"
+        f"当前可靠性等级：{reliability.get('reliability_level', 'unknown')}。\n"
+        f"Mask 来源：{reliability.get('mask_source', 'unknown')}。\n"
+        f"Mask 依赖：{'是' if reliability.get('mask_dependency') else '否'}。\n"
+        f"Mask 风险说明：{reliability.get('mask_risk_note', '')}\n"
+        f"是否建议人工复核：{'是' if reliability.get('human_review_required') else '否'}。\n"
+        f"可靠性说明：{reliability.get('reliability_note', '')}\n"
+    )
+
+
+def _damage_assessment_section(damage_assessment, language, segmentation_source_metadata=None):
+    if not damage_assessment:
+        return (
+            f"{_t(language, 'damage')}\n"
+            + (
+                "No damage-assessment result is available. Path planning is kept conservative when scene context is insufficient.\n"
+                if _lang(language) == "en"
+                else "当前没有灾损评估结果。当场景上下文不足时，系统会保守关闭路径规划。\n"
+            )
+        )
+
+    building = damage_assessment.get("building_damage", {})
+    road = damage_assessment.get("road_stats", {})
+    entry = damage_assessment.get("entry", {})
+    scene_mode = damage_assessment.get("scene_mode", "Unknown")
+    scene_reason = damage_assessment.get("scene_mode_reason", "")
+    path_enabled = bool(damage_assessment.get("path_planning_enabled"))
+    path_reason = damage_assessment.get("path_planning_reason", "")
+    path_gate = damage_assessment.get("path_planning_gate", {})
+    force_path = bool(damage_assessment.get("force_path_planning") or path_gate.get("force_path_planning"))
+    start_source = damage_assessment.get("path_start_source") or path_gate.get("start_source", "")
+    source_text = _segmentation_source_section(segmentation_source_metadata, language)
+
+    if _lang(language) == "en":
+        entry_text = (
+            f"Rescue entry found at ({entry.get('entry_point_x')}, {entry.get('entry_point_y')}). "
+            "The entry is selected from a Road-Clear connected component near the image boundary, not from an arbitrary corner."
+            if entry.get("entry_found")
+            else f"No reliable rescue entry was generated. Reason: {entry.get('entry_reason') or path_reason}"
+        )
+        section = (
+            f"{_t(language, 'damage')}\n"
+            f"Overall damage level: {damage_assessment.get('overall_damage_level', 'Unknown')}.\n"
+            f"Building damage areas: no damage {building.get('no_damage_area', 0)} px; "
+            f"medium damage {building.get('medium_damage_area', 0)} px; "
+            f"major damage {building.get('major_damage_area', 0)} px; "
+            f"total destruction {building.get('total_destruction_area', 0)} px.\n"
+            f"Road state: clear-road ratio {road.get('road_clear_ratio', 0.0) * 100:.2f}%; "
+            f"blocked-road ratio {road.get('road_blocked_ratio', 0.0) * 100:.2f}%.\n"
+            f"Scene mode: {scene_mode}. Reason: {scene_reason}\n"
+            f"Path planning enabled: {'yes' if path_enabled else 'no'}. {path_reason}\n"
+            f"Path start source: {start_source or 'not enabled'}.\n"
+            f"{entry_text}\n"
+        )
+        if force_path:
+            section += "Warning: this route was generated in force-debug mode and has limited reliability.\n"
+        if source_text:
+            section += f"{source_text}\n"
+        return section
+
+    entry_text = (
+        f"已找到救援入口：({entry.get('entry_point_x')}, {entry.get('entry_point_y')})。"
+        "入口来自靠近图像边界的 Road-Clear 可通行道路连通区域，不是手动任意角落起点。"
+        if entry.get("entry_found")
+        else f"未生成可靠救援入口。原因：{entry.get('entry_reason') or path_reason}"
+    )
+    section = (
+        f"{_t(language, 'damage')}\n"
+        f"整体灾损等级：{damage_assessment.get('overall_damage_level', 'Unknown')}。\n"
+        f"建筑损毁统计：无损 {building.get('no_damage_area', 0)} 像素；"
+        f"中度损毁 {building.get('medium_damage_area', 0)} 像素；"
+        f"严重损毁 {building.get('major_damage_area', 0)} 像素；"
+        f"完全毁坏 {building.get('total_destruction_area', 0)} 像素。\n"
+        f"道路状态：可通行道路比例 {road.get('road_clear_ratio', 0.0) * 100:.2f}%；"
+        f"阻断道路比例 {road.get('road_blocked_ratio', 0.0) * 100:.2f}%。\n"
+        f"场景模式：{scene_mode}。原因：{scene_reason}\n"
+        f"路径规划启用：{'是' if path_enabled else '否'}。{path_reason}\n"
+        f"路径起点来源：{start_source or '未启用'}。\n"
+        f"{entry_text}\n"
+    )
+    if force_path:
+        section += "警告：该路径为强制调试模式生成，可靠性有限。\n"
+    if source_text:
+        section += f"{source_text}\n"
+    return section
+
+
+def generate_report(targets, ranked_targets, segmentation_summary=None, path_result=None, terp_rankings=None, path_comparison=None, damage_assessment=None, segmentation_source_metadata=None, language="zh"):
     segmentation_summary = segmentation_summary or {}
     terp_rankings = terp_rankings or []
     language = _lang(language)
 
     if not targets:
-        segmentation_text = _segmentation_section(segmentation_summary, [], language)
+        segmentation_text = _segmentation_section(segmentation_summary, [], language, segmentation_source_metadata)
         terp_text = _terp_section([], language)
         path_text = _path_section(segmentation_summary, path_result, [], language)
         path_comparison_text = _path_comparison_section(path_comparison, segmentation_summary, language)
+        reliability_text = _path_reliability_section(damage_assessment, language)
+        damage_text = _damage_assessment_section(damage_assessment, language, segmentation_source_metadata)
         return (
             f"{_t(language, 'title')}\n\n"
             + f"{_t(language, 'no_target')}\n\n"
@@ -373,6 +516,8 @@ def generate_report(targets, ranked_targets, segmentation_summary=None, path_res
             + f"{terp_text}\n"
             + f"{path_text}\n"
             + f"{path_comparison_text}\n"
+            + f"{reliability_text}\n"
+            + f"{damage_text}\n"
             + (
                 f"Initial recommendation: {'; '.join(_t(language, 'fallback_suggestions'))}\n\n"
                 if language == "en"
@@ -424,10 +569,12 @@ def generate_report(targets, ranked_targets, segmentation_summary=None, path_res
         else:
             suggestions.append("当前未接入语义分割结果，建议补充分割掩码或训练权重文件后复核环境风险。")
 
-    segmentation_text = _segmentation_section(segmentation_summary, ranked_targets, language)
+    segmentation_text = _segmentation_section(segmentation_summary, ranked_targets, language, segmentation_source_metadata)
     terp_text = _terp_section(terp_rankings, language)
     path_text = _path_section(segmentation_summary, path_result, ranked_targets, language)
     path_comparison_text = _path_comparison_section(path_comparison, segmentation_summary, language)
+    reliability_text = _path_reliability_section(damage_assessment, language)
+    damage_text = _damage_assessment_section(damage_assessment, language, segmentation_source_metadata)
 
     return (
         f"{_t(language, 'title')}\n\n"
@@ -442,6 +589,8 @@ def generate_report(targets, ranked_targets, segmentation_summary=None, path_res
         + f"{segmentation_text}\n"
         + f"{path_text}\n"
         + f"{path_comparison_text}\n"
+        + f"{reliability_text}\n"
+        + f"{damage_text}\n"
         + f"{_t(language, 'suggestions')}\n"
         + _format_suggestions(language, suggestions)
         + "\n\n"
