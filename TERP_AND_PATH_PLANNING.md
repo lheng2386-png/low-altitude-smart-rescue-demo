@@ -79,6 +79,29 @@ The comparison module reports:
 
 If no segmentation mask is available, the comparison is limited because both routes are based on default image-plane assumptions.
 
+## TERP In Demo Cases
+
+The five competition demo cases use TERP in different ways:
+
+| Case | TERP Focus |
+| --- | --- |
+| Flood Civilian Rescue | Civilian class priority plus nearby water risk |
+| Building Collapse | Environment score from major or destroyed building regions |
+| Road Blocked | Accessibility score from high-cost blocked-road routing |
+| Multi-target Priority | Ranking across civilians, animals, and rescuers |
+| No Target / Fallback | Safe reporting when no target is detected |
+
+## Explaining Path Comparison Figures
+
+Demo case outputs may include `risk_aware_path_overlay.png` and `dual_path_overlay.png`.
+
+- Baseline A* is the uniform-cost image-plane route. It is useful as a simple comparison, but it does not represent a real safest route.
+- Risk-Aware A* uses segmentation-derived costs to prefer lower-risk regions when a mask is available.
+- `path_risk_reduction` means the reduction in the ratio of path pixels crossing high-risk classes such as water, road blocked, major damage, destroyed building, or pool.
+- A longer Risk-Aware path can still be better in the prototype if it reduces high-risk area exposure.
+
+These overlays are competition explanation tools. They are not GPS routes and should not be described as autonomous UAV navigation outputs.
+
 ## Current Limitations
 
 - Current path planning is image-plane only.

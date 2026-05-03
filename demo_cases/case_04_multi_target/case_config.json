@@ -1,0 +1,13 @@
+{
+  "case_id": "case_04_multi_target",
+  "title": "Multi-target Priority",
+  "scenario": "Multiple people, animals, or rescuers",
+  "image_candidates": [
+    "app/examples/imagem_058-copia-_png.rf.22689b7c998b76dd1af82e218bb0ad7c.jpg",
+    "app/examples/images219_jpg.rf.793784542da37f5a78a3837688314c97.jpg",
+    "static/images/showcase/flood_demo_input.jpg"
+  ],
+  "mask_type": "mixed_environment",
+  "conf_threshold": 0.25,
+  "start_point": [20, -1]
+}

@@ -1,0 +1,2 @@
+rank,target_id,class_name,target_score,environment_score,accessibility_score,terp_score,terp_level,reason
+1,T001,civilian,56.52,20.0,1.32,77.84,High,TERP 综合目标类型、检测置信度、目标尺度、环境风险和路径可达性。目标附近存在完全毁坏建筑，主导环境为完全毁坏建筑。通往该目标的参考路径可达性相对较好。疑似被困平民且综合优先级较高，建议优先核查。

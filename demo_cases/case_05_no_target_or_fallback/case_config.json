@@ -1,0 +1,13 @@
+{
+  "case_id": "case_05_no_target_or_fallback",
+  "title": "No Target Or Fallback",
+  "scenario": "No clear rescue target or missing automatic segmentation checkpoint",
+  "image_candidates": [
+    "static/images/logo.jpg",
+    "static/images/app_gradio.png",
+    "static/images/showcase/flood_demo_input.jpg"
+  ],
+  "mask_type": "background_only",
+  "conf_threshold": 0.99,
+  "start_point": [20, -1]
+}

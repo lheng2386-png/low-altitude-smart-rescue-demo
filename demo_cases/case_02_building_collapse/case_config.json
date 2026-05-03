@@ -1,0 +1,13 @@
+{
+  "case_id": "case_02_building_collapse",
+  "title": "Building Collapse",
+  "scenario": "Post-disaster damaged building or debris region",
+  "image_candidates": [
+    "app/examples/Flood-46_jpg.rf.1b3bd9e0e51798a4f61a51de0a694c6d.jpg",
+    "app/examples/Flood-25_jpg.rf.92d30a193fb4f368a8d92f65f9669244.jpg",
+    "static/images/showcase/flood_demo_input.jpg"
+  ],
+  "mask_type": "building_damage",
+  "conf_threshold": 0.3,
+  "start_point": [20, -1]
+}

@@ -255,6 +255,29 @@ def gallery_image_items():
     return [(str(path), caption) for path, caption in candidates if path.exists()]
 
 
+def demo_case_gallery_items():
+    """Return generated demo case showcase images when available."""
+    showcase_dir = ROOT_DIR / "static" / "images" / "showcase"
+    preferred_names = [
+        "input.jpg",
+        "detection_overlay.png",
+        "segmentation_overlay.png",
+        "risk_aware_path_overlay.png",
+        "dual_path_overlay.png",
+    ]
+    items = []
+    for case_dir in sorted(showcase_dir.glob("case_*")):
+        if not case_dir.is_dir():
+            continue
+        case_label = case_dir.name.replace("_", " ").title()
+        for name in preferred_names:
+            path = case_dir / name
+            if path.exists():
+                caption = f"{case_label}: {name.replace('_', ' ').replace('.png', '').replace('.jpg', '')}"
+                items.append((str(path), caption))
+    return items
+
+
 def _resolve_video_path(video_path):
     if video_path is None:
         return None
@@ -731,13 +754,15 @@ UAV Image / Video
 - Post-Disaster-Dataset / Detection-Models: survivor detection and model comparison structure reference.
 - RescueNet: post-disaster UAV semantic segmentation class reference.
 
-**Demo Cases Plan**
+**Demo Cases**
 
 - Case 1 Flood Civilian Rescue: water risk + TERP + Risk-Aware A*.
 - Case 2 Building Collapse: major damage / destroyed building risk.
 - Case 3 Road Blocked: blocked-road cost map and path detour.
 - Case 4 Multi-target Priority: TERP ranking across people, animals, and rescuers.
 - Case 5 No Target / Low Confidence: safe no-target report behavior.
+
+Run `python scripts/generate_demo_cases.py` from the repository root to create complete local showcase outputs.
             """
         )
 
@@ -752,6 +777,18 @@ UAV Image / Video
             )
         else:
             gr.Markdown("TODO: add AeroRescue-AI generated demo output.")
+
+        case_gallery_items = demo_case_gallery_items()
+        if case_gallery_items:
+            gr.Gallery(
+                value=case_gallery_items,
+                label="Generated Demo Case Outputs",
+                columns=4,
+                height=360,
+                allow_preview=True,
+            )
+        else:
+            gr.Markdown("Run `python scripts/generate_demo_cases.py` to generate complete demo case outputs.")
 
         gr.Markdown(
             """

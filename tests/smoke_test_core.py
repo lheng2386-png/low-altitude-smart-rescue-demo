@@ -1,10 +1,13 @@
 import sys
+import subprocess
 from pathlib import Path
 
 import numpy as np
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 APP_DIR = ROOT_DIR / "app"
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
 if str(APP_DIR) not in sys.path:
     sys.path.insert(0, str(APP_DIR))
 
@@ -22,6 +25,8 @@ from segmentation_engine import (  # noqa: E402
 )
 from segmentation_model import get_segmentation_model_status  # noqa: E402
 from terp_engine import calculate_terp, rank_targets_by_terp  # noqa: E402
+from scripts.generate_demo_cases import _manual_demo_mask  # noqa: E402
+from model_comparison.evaluate_detection_models import load_registry  # noqa: E402
 
 
 def main():
@@ -106,10 +111,52 @@ def main():
     )
     assert terp_ranking[0]["target_id"] == "T001"
 
+    multi_targets = [
+        ranked_targets[0],
+        {
+            "id": "T002",
+            "target_id": "T002",
+            "class_name": "rescuer",
+            "center": [12, 12],
+            "bbox": [8, 8, 16, 16],
+            "confidence": 0.88,
+            "area": 64.0,
+            "risk_score": 20.0,
+        },
+    ]
+    multi_ranking = rank_targets_by_terp(
+        multi_targets,
+        64,
+        64,
+        environment_contexts={
+            "T001": {"environment_risk_score": 18.0, "environment_reason": "目标附近存在水域。"},
+            "T002": {"environment_risk_score": 0.0, "environment_reason": "环境风险较低。"},
+        },
+        path_results={"T001": risk_aware, "T002": baseline},
+    )
+    assert multi_ranking[0]["terp_score"] >= multi_ranking[1]["terp_score"]
+
+    generated_mask = _manual_demo_mask(64, 64, "road_blocked")
+    generated_validation = validate_segmentation_mask(generated_mask)
+    assert generated_validation["valid"] is True
+    assert 8 in generated_validation["unique_class_ids"]
+
+    registry = load_registry(ROOT_DIR / "model_comparison" / "model_registry.json")
+    assert any(item["name"] == "yolov11n" for item in registry)
+
     missing_status = get_segmentation_model_status(ROOT_DIR / "checkpoints" / "missing_smoke_test.pth")
     assert missing_status["available"] is False
 
-    print("AeroRescue-AI TERP and path planning smoke test passed.")
+    help_result = subprocess.run(
+        [sys.executable, str(ROOT_DIR / "scripts" / "generate_demo_cases.py"), "--help"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert help_result.returncode == 0
+    assert "Generate AeroRescue-AI offline showcase demo cases" in help_result.stdout
+
+    print("AeroRescue-AI demo case and model comparison smoke test passed.")
 
 
 if __name__ == "__main__":

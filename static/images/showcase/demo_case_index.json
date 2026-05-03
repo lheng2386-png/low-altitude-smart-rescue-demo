@@ -1,0 +1,181 @@
+[
+  {
+    "case_id": "case_01_flood",
+    "title": "Flood Civilian Rescue",
+    "status": "generated",
+    "input": "app/examples/230714-india-flooding-mb-0831-d3a66d_jpg.rf.3e607c4f8f121834224f95ab0d44ddd6.jpg",
+    "target_count": 7,
+    "mask_validation": {
+      "valid": true,
+      "unique_class_ids": [
+        0,
+        1,
+        7,
+        8
+      ],
+      "unknown_class_ids": [],
+      "height": 640,
+      "width": 640,
+      "message": "Segmentation mask is valid."
+    },
+    "detection_message": "Loaded YOLO weights: models/yolov11m/best.pt; detected 7 targets.",
+    "manual_mask": true,
+    "auto_segmentation_checkpoint_used": false,
+    "artifacts": [
+      "input.jpg",
+      "demo_mask.png",
+      "detection_overlay.png",
+      "segmentation_overlay.png",
+      "risk_aware_path_overlay.png",
+      "dual_path_overlay.png",
+      "target_table.csv",
+      "terp_ranking.csv",
+      "path_comparison.json",
+      "rescue_report.txt",
+      "case_summary.md"
+    ]
+  },
+  {
+    "case_id": "case_02_building_collapse",
+    "title": "Building Collapse",
+    "status": "generated",
+    "input": "app/examples/Flood-46_jpg.rf.1b3bd9e0e51798a4f61a51de0a694c6d.jpg",
+    "target_count": 1,
+    "mask_validation": {
+      "valid": true,
+      "unique_class_ids": [
+        0,
+        4,
+        5,
+        7
+      ],
+      "unknown_class_ids": [],
+      "height": 640,
+      "width": 640,
+      "message": "Segmentation mask is valid."
+    },
+    "detection_message": "Loaded YOLO weights: models/yolov11m/best.pt; detected 1 targets.",
+    "manual_mask": true,
+    "auto_segmentation_checkpoint_used": false,
+    "artifacts": [
+      "input.jpg",
+      "demo_mask.png",
+      "detection_overlay.png",
+      "segmentation_overlay.png",
+      "risk_aware_path_overlay.png",
+      "dual_path_overlay.png",
+      "target_table.csv",
+      "terp_ranking.csv",
+      "path_comparison.json",
+      "rescue_report.txt",
+      "case_summary.md"
+    ]
+  },
+  {
+    "case_id": "case_03_road_blocked",
+    "title": "Road Blocked",
+    "status": "generated",
+    "input": "app/examples/Flood-30_jpg.rf.a9d21f122ddb98ee863989f552c0adc4.jpg",
+    "target_count": 3,
+    "mask_validation": {
+      "valid": true,
+      "unique_class_ids": [
+        0,
+        1,
+        7,
+        8
+      ],
+      "unknown_class_ids": [],
+      "height": 640,
+      "width": 640,
+      "message": "Segmentation mask is valid."
+    },
+    "detection_message": "Loaded YOLO weights: models/yolov11m/best.pt; detected 3 targets.",
+    "manual_mask": true,
+    "auto_segmentation_checkpoint_used": false,
+    "artifacts": [
+      "input.jpg",
+      "demo_mask.png",
+      "detection_overlay.png",
+      "segmentation_overlay.png",
+      "risk_aware_path_overlay.png",
+      "dual_path_overlay.png",
+      "target_table.csv",
+      "terp_ranking.csv",
+      "path_comparison.json",
+      "rescue_report.txt",
+      "case_summary.md"
+    ]
+  },
+  {
+    "case_id": "case_04_multi_target",
+    "title": "Multi-target Priority",
+    "status": "generated",
+    "input": "app/examples/imagem_058-copia-_png.rf.22689b7c998b76dd1af82e218bb0ad7c.jpg",
+    "target_count": 5,
+    "mask_validation": {
+      "valid": true,
+      "unique_class_ids": [
+        0,
+        1,
+        4,
+        6,
+        7,
+        9
+      ],
+      "unknown_class_ids": [],
+      "height": 640,
+      "width": 640,
+      "message": "Segmentation mask is valid."
+    },
+    "detection_message": "Loaded YOLO weights: models/yolov11m/best.pt; detected 5 targets.",
+    "manual_mask": true,
+    "auto_segmentation_checkpoint_used": false,
+    "artifacts": [
+      "input.jpg",
+      "demo_mask.png",
+      "detection_overlay.png",
+      "segmentation_overlay.png",
+      "risk_aware_path_overlay.png",
+      "dual_path_overlay.png",
+      "target_table.csv",
+      "terp_ranking.csv",
+      "path_comparison.json",
+      "rescue_report.txt",
+      "case_summary.md"
+    ]
+  },
+  {
+    "case_id": "case_05_no_target_or_fallback",
+    "title": "No Target Or Fallback",
+    "status": "generated",
+    "input": "static/images/logo.jpg",
+    "target_count": 0,
+    "mask_validation": {
+      "valid": true,
+      "unique_class_ids": [
+        0
+      ],
+      "unknown_class_ids": [],
+      "height": 364,
+      "width": 873,
+      "message": "Mask contains only background; environment risk may be limited."
+    },
+    "detection_message": "Loaded YOLO weights: models/yolov11m/best.pt; detected 0 targets.",
+    "manual_mask": true,
+    "auto_segmentation_checkpoint_used": false,
+    "artifacts": [
+      "input.jpg",
+      "demo_mask.png",
+      "detection_overlay.png",
+      "segmentation_overlay.png",
+      "risk_aware_path_overlay.png",
+      "dual_path_overlay.png",
+      "target_table.csv",
+      "terp_ranking.csv",
+      "path_comparison.json",
+      "rescue_report.txt",
+      "case_summary.md"
+    ]
+  }
+]

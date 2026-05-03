@@ -1,0 +1,38 @@
+[
+  {
+    "name": "yolov11n",
+    "type": "ultralytics_yolo",
+    "weights": "models/yolov11n/best.pt",
+    "status": "available_if_weights_exist"
+  },
+  {
+    "name": "yolov11s",
+    "type": "ultralytics_yolo",
+    "weights": "models/yolov11s/best.pt",
+    "status": "available_if_weights_exist"
+  },
+  {
+    "name": "yolov11m",
+    "type": "ultralytics_yolo",
+    "weights": "models/yolov11m/best.pt",
+    "status": "available_if_weights_exist"
+  },
+  {
+    "name": "yolov11l",
+    "type": "ultralytics_yolo",
+    "weights": "models/yolov11l/best.pt",
+    "status": "available_if_weights_exist"
+  },
+  {
+    "name": "faster_rcnn_optional",
+    "type": "future_detector",
+    "weights": "model_comparison/checkpoints/faster_rcnn.pth",
+    "status": "planned_local_experiment"
+  },
+  {
+    "name": "detr_optional",
+    "type": "future_detector",
+    "weights": "model_comparison/checkpoints/detr.pth",
+    "status": "planned_local_experiment"
+  }
+]

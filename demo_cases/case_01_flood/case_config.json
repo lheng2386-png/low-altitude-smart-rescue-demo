@@ -1,0 +1,13 @@
+{
+  "case_id": "case_01_flood",
+  "title": "Flood Civilian Rescue",
+  "scenario": "Flooded low-altitude UAV scene",
+  "image_candidates": [
+    "app/examples/230714-india-flooding-mb-0831-d3a66d_jpg.rf.3e607c4f8f121834224f95ab0d44ddd6.jpg",
+    "static/images/showcase/flood_demo_input.jpg",
+    "static/images/230714-india-flooding-mb-0831-d3a66d.jpg"
+  ],
+  "mask_type": "flood_water",
+  "conf_threshold": 0.3,
+  "start_point": [20, -1]
+}

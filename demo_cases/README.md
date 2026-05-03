@@ -1,58 +1,73 @@
 # Demo Cases
 
-This directory describes how to organize 3-5 complete AeroRescue-AI competition demo cases.
+This directory defines 3-5 complete AeroRescue-AI competition demo cases. The generated visual outputs are written to `static/images/showcase/<case_id>/` by the offline script.
 
-The repository does not need to include large raw datasets. Each case can be prepared locally with a small image, optional segmentation mask, expected outputs, and notes.
+## Generate Showcase Outputs
 
-## Recommended Case Structure
-
-```text
-demo_cases/case_01_flood/
-├── input.jpg
-├── mask.png
-├── expected_outputs.md
-└── notes.md
+```bash
+python scripts/generate_demo_cases.py
 ```
 
-## Case 1 Flood Civilian Rescue
+Optional:
 
-- Scene: flood or waterlogged area.
-- Target: `civilian`.
-- Main demonstration: water risk, TERP priority, Risk-Aware A* route.
-- Expected output: civilian ranked high, path planner prefers avoiding water when mask is available.
+```bash
+python scripts/generate_demo_cases.py --case case_01_flood --model yolov11m
+```
 
-## Case 2 Building Collapse
+The generator does not start Gradio, does not download data, and does not call external APIs.
 
-- Scene: damaged or collapsed buildings.
-- Target: `civilian` / `rescuer`.
-- Main demonstration: `major_damage` and `destroyed_building` environmental risk.
-- Expected output: environment score increases around severe damage zones.
+## Standard Generated Artifacts
 
-## Case 3 Road Blocked
+Each generated case should contain:
 
-- Scene: blocked road or obstructed access.
-- Target: animal or civilian.
-- Main demonstration: `road_blocked` cost map and path detour.
-- Expected output: baseline path may cross blocked road, Risk-Aware A* should prefer a lower-risk alternative when possible.
+```text
+static/images/showcase/case_01_flood/
+├── input.jpg
+├── demo_mask.png
+├── detection_overlay.png
+├── segmentation_overlay.png
+├── risk_aware_path_overlay.png
+├── dual_path_overlay.png
+├── target_table.csv
+├── terp_ranking.csv
+├── path_comparison.json
+├── rescue_report.txt
+└── case_summary.md
+```
 
-## Case 4 Multi-target Priority
+## Manual Demo Mask Policy
 
-- Scene: multiple civilians, animals, and rescuers.
-- Target: multiple target classes.
-- Main demonstration: TERP ranking across target class, environment, and route accessibility.
-- Expected output: target ranking reflects both target importance and accessibility.
+Some cases use a manually prepared demo mask so that the decision layer, TERP ranking, environment risk fusion, and Risk-Aware A* can be demonstrated without requiring a trained segmentation checkpoint.
 
-## Case 5 No Target / Low Confidence
+Required wording:
 
-- Scene: no clear rescue target or very low-confidence detections.
-- Target: none.
-- Main demonstration: system avoids overconfident rescue advice.
-- Expected output: report explains that no clear rescue target was detected and no path is planned.
+> This mask is manually prepared for decision-layer demonstration. It is not an automatic segmentation prediction.
+
+Do not describe `demo_mask.png` as an automatic segmentation output unless it was actually produced by a trained local checkpoint.
+
+## Case Purposes
+
+| Case | Purpose | Main Artifacts |
+| --- | --- | --- |
+| Case 1 Flood Civilian Rescue | Show water risk and TERP priority | segmentation overlay, TERP table, path comparison |
+| Case 2 Building Collapse | Show major/destroyed building risk | environment summary, report warning |
+| Case 3 Road Blocked | Show road-blocked path cost | baseline vs Risk-Aware A* comparison |
+| Case 4 Multi-target Priority | Show TERP ranking across target types | target table, TERP ranking |
+| Case 5 No Target / Fallback | Show safe no-target behavior | no-target report, fallback summary |
+
+## Use In README, PPT, And Demo Video
+
+- Use `input.jpg`, `detection_overlay.png`, `segmentation_overlay.png`, and `dual_path_overlay.png` for visual slides.
+- Use `terp_ranking.csv` for a compact priority table.
+- Use `path_comparison.json` to explain baseline vs Risk-Aware A*.
+- Use `rescue_report.txt` as the generated Chinese report example.
+- Use `case_summary.md` to explain source image, mask policy, detection status, and current limitations.
 
 ## Notes
 
-- Use local images or project-generated outputs.
-- Avoid committing large datasets.
-- Do not commit model checkpoints.
+- Use local images or copied reference images only.
+- Avoid committing full raw datasets.
+- Do not commit checkpoints.
+- Do not fabricate mAP, FPS, or model comparison metrics.
 - For class-id masks, PNG is recommended.
 - If no mask is available, the case should explicitly show fallback behavior.
