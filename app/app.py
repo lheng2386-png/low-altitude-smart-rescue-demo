@@ -44,8 +44,6 @@ VIDEO_CLASS_MIN_CONF = {
     "cat": 0.45,
 }
 
-LANGUAGE_CHOICES = ("中文", "English")
-
 TEXT = {
     "zh": {
         "page_title": "AeroRescue-AI 低空应急救援智能感知与辅助决策系统",
@@ -85,7 +83,7 @@ TEXT = {
         "current_capability": "当前能力说明",
         "current_capability_note": "本地 Gradio 原型支持完整决策链路。",
         "local_assets": "本地 AeroRescue-AI 资源",
-        "generated_outputs": "生成的 Demo Case 输出",
+        "generated_outputs": "生成的演示案例输出",
         "segmentation_legend": "语义分割类别图例",
         "upload_video": "上传视频",
         "frame_skip": "帧跳过（越大越快）",
@@ -142,9 +140,9 @@ TEXT = {
         "workflow_title": "Workflow",
         "workflow_note": "UAV image / video → YOLOv11 detection → segmentation source → environment-risk fusion → TERP priority → rescue ranking → A* path planning → English rescue report.",
         "current_capability": "Current Capability Notes",
-        "current_capability_note": "The local Gradio prototype supports the full decision chain.",
+        "current_capability_note": "本地 Gradio 原型支持完整决策链路。",
         "local_assets": "Local AeroRescue-AI Assets",
-        "generated_outputs": "Generated Demo Case Outputs",
+        "generated_outputs": "生成的演示案例输出",
         "segmentation_legend": "Segmentation Class Legend",
         "upload_video": "Upload a Video",
         "frame_skip": "Frame Skip (higher = faster)",
@@ -231,7 +229,7 @@ def get_auto_segmentation_model(weights_path):
 
 
 def lang_key(language):
-    return "en" if str(language).lower().startswith("en") else "zh"
+    return "zh"
 
 
 def t(language, key, **kwargs):
@@ -252,11 +250,6 @@ def display_risk_level(risk_level, language):
 
 
 def image_header_html(language):
-    if lang_key(language) == "en":
-        return """
-        <h1 style='text-align: center'>AeroRescue-AI</h1>
-        <p style='text-align: center'>YOLO disaster target detection with optional segmentation risk fusion and A* image-plane path planning</p>
-        """
     return """
         <h1 style='text-align: center'>AeroRescue-AI</h1>
         <p style='text-align: center'>YOLO 灾害目标检测、可选语义分割风险融合与 A* 图像平面路径规划</p>
@@ -273,60 +266,12 @@ def normalize_segmentation_source(value):
 
 
 def demo_gallery_markdown(language):
-    if lang_key(language) == "en":
-        return """
-## AeroRescue-AI Demo Gallery
-
-**Workflow**
-
-UAV Image / Video  
-→ YOLOv11 Target Detection  
-→ Segmentation Source  
-→ Environment Risk Fusion  
-→ TERP Priority Model  
-→ Rescue Priority Ranking  
-→ Baseline A* / Risk-Aware A* Path Planning  
-→ English Rescue Report
-
-**Current Capability Notes**
-
-- Uploaded Mask: available for class-id/RGB segmentation mask fusion.
-- Auto Segmentation Model: experimental and requires a local checkpoint.
-- None: available fallback with target-only risk scoring and default path cost.
-- TERP: combines target, environment, and route accessibility priority.
-- Risk-Aware A*: compares uniform-cost baseline routing against segmentation-cost routing.
-- Path Planning: image-plane reference path, not a real GPS route.
-
-**Core Innovations**
-
-- TERP Target-Environment-Route Priority Model.
-- Risk-Aware A* image-plane rescue path planning.
-- Detection-Segmentation-Decision-Report closed loop.
-- Reference-inspired UAV rescue platform workflow.
-
-**Reference Projects Used In This Prototype**
-
-- ARGUS: UAV rescue platform workflow and report-style system reference.
-- urban-disaster-monitor: YOLOv11 disaster target detection and Gradio-style demo reference.
-- Post-Disaster-Dataset / Detection-Models: survivor detection and model comparison structure reference.
-- RescueNet: post-disaster UAV semantic segmentation class reference.
-
-**Demo Cases**
-
-- Case 1 Flood Civilian Rescue: water risk + TERP + Risk-Aware A*.
-- Case 2 Building Collapse: major damage / destroyed building risk.
-- Case 3 Road Blocked: blocked-road cost map and path detour.
-- Case 4 Multi-target Priority: TERP ranking across people, animals, and rescuers.
-- Case 5 No Target / Low Confidence: safe no-target report behavior.
-
-Run `python scripts/generate_demo_cases.py` from the repository root to create complete local showcase outputs.
-        """
     return """
 ## AeroRescue-AI 演示画廊
 
 **工作流程**
 
-UAV 图像 / 视频  
+无人机图像 / 视频  
 → YOLOv11 目标检测  
 → 语义分割来源  
 → 环境风险融合  
@@ -337,30 +282,23 @@ UAV 图像 / 视频
 
 **当前能力说明**
 
-- 上传掩码：支持 class-id / RGB 语义分割掩码融合。
+- 上传掩码：支持类别编号掩码或彩色掩码融合。
 - 自动分割模型：实验性功能，需要本地 checkpoint。
 - 无分割：可用回退，仅基于目标与默认代价进行风险评分。
 - TERP：融合目标、环境与路径可达性优先级。
-- Risk-Aware A*：对比均匀代价 baseline 路径与分割代价路径。
+- 风险感知 A*：对比均匀代价基线路径与分割代价路径。
 - 路径规划：图像平面参考路径，不是真实 GPS 路线。
 
 **核心创新**
 
 - TERP 目标—环境—可达性联合救援优先级模型。
-- Risk-Aware A* 图像平面救援路径规划。
+- 风险感知 A* 图像平面救援路径规划。
 - 感知-决策-报告闭环。
 - 参考驱动的低空无人机救援平台工作流。
 
-**参考项目**
+**演示案例**
 
-- ARGUS：无人机救援平台工作流与报告式系统参考。
-- urban-disaster-monitor：YOLOv11 灾害目标检测与 Gradio 展示参考。
-- Post-Disaster-Dataset / Detection-Models：灾后人员检测和模型对比结构参考。
-- RescueNet：灾后无人机语义分割类别参考。
-
-**Demo Cases**
-
-- 案例 1 洪涝平民救援：水域风险 + TERP + Risk-Aware A*。
+- 案例 1 洪涝平民救援：水域风险 + TERP + 风险感知 A*。
 - 案例 2 建筑坍塌：严重损毁 / 完全毁坏建筑风险。
 - 案例 3 道路阻断：阻断道路代价地图与绕行路径。
 - 案例 4 多目标优先级：平民、动物、救援人员的 TERP 排序。
@@ -371,28 +309,16 @@ UAV 图像 / 视频
 
 
 def segmentation_legend_markdown(language):
-    if lang_key(language) == "en":
-        return """
-## Segmentation Class Legend
-
-| ID | Class | Risk Meaning | Path Cost Meaning |
-| --- | --- | --- | --- |
-| 1 | water | High risk | Very high cost |
-| 7 | road_clear | Low risk | Low cost |
-| 8 | road_blocked | High risk | High cost |
-| 4 | major_damage | High risk | High cost |
-| 5 | destroyed_building | High risk | Very high cost |
-        """
     return """
 ## 语义分割类别图例
 
 | ID | 类别 | 风险含义 | 路径代价含义 |
 | --- | --- | --- | --- |
-| 1 | water / 水域 | 高风险 | 代价很高 |
-| 7 | road_clear / 可通行道路 | 低风险 | 低代价 |
-| 8 | road_blocked / 道路阻断 | 高风险 | 高代价 |
-| 4 | major_damage / 严重损毁建筑 | 高风险 | 高代价 |
-| 5 | destroyed_building / 完全毁坏建筑 | 高风险 | 代价很高 |
+| 1 | 水域 | 高风险 | 代价很高 |
+| 7 | 可通行道路 | 低风险 | 低代价 |
+| 8 | 道路阻断 | 高风险 | 高代价 |
+| 4 | 严重损毁建筑 | 高风险 | 高代价 |
+| 5 | 完全毁坏建筑 | 高风险 | 代价很高 |
     """
 
 
@@ -992,97 +918,99 @@ def video_detection(video_path, conf_threshold, model_variant, frame_skip=15, ma
         predictions += f" {t(language, 'limited_frames', max_frames=max_frames)}"
     return temp_video_path, predictions
 
-with gr.Blocks() as app:
-    language_selector = gr.Radio(LANGUAGE_CHOICES, label="Language / 语言", value="中文")
-    header_html = gr.HTML(image_header_html("zh"))
+with gr.Blocks(title="AeroRescue-AI 低空应急救援智能感知与辅助决策系统") as app:
+    gr.HTML("""
+        <h1 style='text-align: center'>AeroRescue-AI</h1>
+        <p style='text-align: center'>使用Gradio构建 · YOLO 灾害目标检测、可选语义分割风险融合与 A* 图像平面路径规划</p>
+    """)
 
-    with gr.Tab("Image"):
+    with gr.Tab("图像"):
         with gr.Row():
             with gr.Column():
-                image = gr.Image(label="Upload an Image", type="pil")
+                image = gr.Image(label="上传图像", type="pil")
                 segmentation_source = gr.Radio(
-                    ["Uploaded Mask", "Auto Segmentation Model", "None"],
-                    label="Segmentation Source",
-                    value="Uploaded Mask",
+                    ["上传掩码", "自动分割模型", "无分割"],
+                    label="语义分割来源",
+                    value="上传掩码",
                 )
                 segmentation_mask = gr.File(
-                    label="Optional Segmentation Mask Upload",
+                    label="可选语义分割掩码上传",
                     file_types=[".png", ".jpg", ".jpeg"],
                 )
-                start_x = gr.Number(label="Rescue Start X", value=20, precision=0)
-                start_y = gr.Number(label="Rescue Start Y (-1 means bottom default)", value=-1, precision=0)
-                conf_threshold = gr.Slider(label="Confidence Threshold", minimum=0.0, maximum=1.0, step=0.05, value=0.30)
-                output_model = gr.Dropdown(["yolov11n", "yolov11s", "yolov11m", "yolov11l"], label="Select Model", info="Select the YOLOv11 model variant to use.", value="yolov11m")
-                btn = gr.Button("Process Image", variant="primary")
+                start_x = gr.Number(label="救援起点 X", value=20, precision=0)
+                start_y = gr.Number(label="救援起点 Y（-1 表示使用底部默认值）", value=-1, precision=0)
+                conf_threshold = gr.Slider(label="置信度阈值", minimum=0.0, maximum=1.0, step=0.05, value=0.30)
+                output_model = gr.Dropdown(["yolov11n", "yolov11s", "yolov11m", "yolov11l"], label="选择模型", info="选择要使用的 YOLOv11 模型版本。", value="yolov11m")
+                btn = gr.Button("处理图像", variant="primary")
             with gr.Column():
-                output_image = gr.Image(label="Processed Image")
-                output_segmentation_overlay = gr.Image(label="Segmentation Overlay")
-                output_path_overlay = gr.Image(label="Path Planning Overlay")
+                output_image = gr.Image(label="处理后图像")
+                output_segmentation_overlay = gr.Image(label="分割叠加图")
+                output_path_overlay = gr.Image(label="路径规划叠加图")
                 output_segmentation_status = gr.Textbox(
-                    label="Segmentation Source Status",
+                    label="语义分割来源状态",
                     lines=4,
-                    placeholder="Segmentation source status will appear here...",
+                    placeholder="语义分割来源状态会显示在这里……",
                 )
                 output_details = gr.Dataframe(
-                    headers=["id", "class_name", "confidence", "bbox", "center", "area"],
-                    label="Detection Details",
+                    headers=["编号", "类别", "置信度", "边框", "中心点", "面积"],
+                    label="检测详情",
                     interactive=False,
                 )
                 output_segmentation_summary = gr.Dataframe(
-                    headers=["class_name", "display_name", "area_percent"],
-                    label="Segmentation Summary",
+                    headers=["类别名", "显示名称", "面积占比(%)"],
+                    label="语义分割汇总",
                     interactive=False,
                 )
                 output_ranking = gr.Dataframe(
                     headers=[
-                        "rank",
-                        "target_id",
-                        "class_name",
-                        "confidence",
-                        "bbox",
-                        "risk_score",
-                        "risk_level",
-                        "environment_score",
-                        "environment",
-                        "reason",
+                        "排名",
+                        "目标ID",
+                        "类别",
+                        "置信度",
+                        "边框",
+                        "风险分数",
+                        "风险等级",
+                        "环境分数",
+                        "主导环境",
+                        "原因",
                     ],
-                    label="Risk Ranking",
+                    label="风险排序",
                     interactive=False,
                 )
                 output_terp_ranking = gr.Dataframe(
                     headers=[
-                        "rank",
-                        "target_id",
-                        "class_name",
-                        "terp_score",
-                        "terp_level",
-                        "target_score",
-                        "environment_score",
-                        "accessibility_score",
-                        "reason",
+                        "排名",
+                        "目标ID",
+                        "类别",
+                        "TERP 分数",
+                        "TERP 等级",
+                        "目标分数",
+                        "环境分数",
+                        "可达性分数",
+                        "原因",
                     ],
-                    label="TERP Ranking",
+                    label="TERP 排名",
                     interactive=False,
                 )
                 output_path_summary = gr.Textbox(
-                    label="Path Planning Summary",
+                    label="路径规划摘要",
                     lines=6,
-                    placeholder="Path planning summary will appear here...",
+                    placeholder="路径规划摘要会显示在这里……",
                 )
                 output_path_comparison = gr.Textbox(
-                    label="A* Path Comparison",
+                    label="A* 路径对比",
                     lines=6,
-                    placeholder="Baseline vs Risk-Aware A* comparison will appear here...",
+                    placeholder="Baseline 与 Risk-Aware A* 的对比会显示在这里……",
                 )
                 output_report = gr.Textbox(
-                    label="Generated Rescue Report",
+                    label="生成的救援报告",
                     lines=14,
-                    placeholder="Rescue report will appear here...",
+                    placeholder="救援报告会显示在这里……",
                 )
 
         btn.click(
             fn=image_detection,
-            inputs=[image, segmentation_source, segmentation_mask, start_x, start_y, conf_threshold, output_model, language_selector],
+            inputs=[image, segmentation_source, segmentation_mask, start_x, start_y, conf_threshold, output_model],
             outputs=[
                 output_image,
                 output_segmentation_overlay,
@@ -1141,94 +1069,72 @@ with gr.Blocks() as app:
                 ["examples/ph_17939_63492_jpg.rf.bf0e962767adc644290645db26ab9e26.jpg"]
             ],
             inputs=image,
-            label="Example Images"
+            label="示例图像"
         )
 
-    with gr.Tab("Demo Gallery"):
+    with gr.Tab("展示"):
         gallery_markdown = gr.Markdown(demo_gallery_markdown("zh"))
 
         gallery_items = gallery_image_items("zh")
         if gallery_items:
             local_assets_gallery = gr.Gallery(
                 value=gallery_items,
-                label="Local AeroRescue-AI Demo Assets",
+                label="本地 AeroRescue-AI 资源",
                 columns=3,
                 height=280,
                 allow_preview=True,
             )
         else:
-            local_assets_gallery = gr.Markdown("TODO: add AeroRescue-AI generated demo output.")
+            local_assets_gallery = gr.Markdown("TODO：添加 AeroRescue-AI 生成的演示输出。")
 
         case_gallery_items = demo_case_gallery_items("zh")
         if case_gallery_items:
             case_outputs_gallery = gr.Gallery(
                 value=case_gallery_items,
-                label="Generated Demo Case Outputs",
+                label="生成的演示案例输出",
                 columns=4,
                 height=360,
                 allow_preview=True,
             )
         else:
-            case_outputs_gallery = gr.Markdown("Run `python scripts/generate_demo_cases.py` to generate complete demo case outputs.")
+            case_outputs_gallery = gr.Markdown("运行 `python scripts/generate_demo_cases.py` 生成完整的 Demo Case 输出。")
 
         segmentation_legend_markdown_component = gr.Markdown(
             """
-## Segmentation Class Legend
+## 语义分割类别图例
 
-| ID | Class | Risk Meaning | Path Cost Meaning |
+| ID | 类别 | 风险含义 | 路径代价含义 |
 | --- | --- | --- | --- |
-| 1 | water | High risk | Very high cost |
-| 7 | road_clear | Low risk | Low cost |
-| 8 | road_blocked | High risk | High cost |
-| 4 | major_damage | High risk | High cost |
-| 5 | destroyed_building | High risk | Very high cost |
+| 1 | water / 水域 | 高风险 | 代价很高 |
+| 7 | road_clear / 可通行道路 | 低风险 | 低代价 |
+| 8 | road_blocked / 道路阻断 | 高风险 | 高代价 |
+| 4 | major_damage / 严重损毁建筑 | 高风险 | 高代价 |
+| 5 | destroyed_building / 完全毁坏建筑 | 高风险 | 代价很高 |
             """
         )
         
-    with gr.Tab("Video"):
+    with gr.Tab("视频"):
         with gr.Row():
             with gr.Column():
-                video = gr.Video(label="Upload a Video", autoplay=True)
-                conf_threshold = gr.Slider(label="Confidence Threshold", minimum=0.0, maximum=1.0, step=0.05, value=0.30)
-                frame_skip = gr.Slider(label="Frame Skip (higher = faster)", minimum=1, maximum=60, step=1, value=15)
-                max_frames = gr.Slider(label="Max Processed Frames (0 = full video)", minimum=0, maximum=600, step=30, value=0)
-                output_model = gr.Dropdown(["yolov11n", "yolov11s", "yolov11m", "yolov11l"], label="Select Model", info="Select the YOLOv11 model variant to use.", value="yolov11m")
-                btn = gr.Button("Process Video", variant="primary")
+                video = gr.Video(label="上传视频", autoplay=True)
+                conf_threshold = gr.Slider(label="置信度阈值", minimum=0.0, maximum=1.0, step=0.05, value=0.30)
+                frame_skip = gr.Slider(label="帧跳过（越大越快）", minimum=1, maximum=60, step=1, value=15)
+                max_frames = gr.Slider(label="最大处理帧数（0 = 全视频）", minimum=0, maximum=600, step=30, value=0)
+                output_model = gr.Dropdown(["yolov11n", "yolov11s", "yolov11m", "yolov11l"], label="选择模型", info="选择要使用的 YOLOv11 模型版本。", value="yolov11m")
+                btn = gr.Button("处理视频", variant="primary")
             with gr.Column():
-                output_video = gr.Video(label="Processed Video", autoplay=True)
-                output_predictions = gr.Textbox(label="Predictions", placeholder="Predictions will appear here...")
+                output_video = gr.Video(label="处理后视频", autoplay=True)
+                output_predictions = gr.Textbox(label="预测结果", placeholder="预测结果会显示在这里……")
 
-        btn.click(fn=video_detection, inputs=[video, conf_threshold, output_model, frame_skip, max_frames, language_selector], outputs=[output_video, output_predictions])
+        btn.click(fn=video_detection, inputs=[video, conf_threshold, output_model, frame_skip, max_frames], outputs=[output_video, output_predictions])
 
         video_path = str(STATIC_VIDEO_PATH)
 
         gr.Examples(
             examples=[[video_path]],
             inputs=video,
-            label="Example Videos"
+            label="示例视频"
         )
-
-    def refresh_language(language):
-        language = lang_key(language)
-        return [
-            gr.update(value=image_header_html(language)),
-            gr.update(value=demo_gallery_markdown(language)),
-            gr.update(value=gallery_image_items(language)),
-            gr.update(value=demo_case_gallery_items(language)),
-            gr.update(value=segmentation_legend_markdown(language)),
-        ]
-
-    language_selector.change(
-        fn=refresh_language,
-        inputs=[language_selector],
-        outputs=[
-            header_html,
-            gallery_markdown,
-            local_assets_gallery,
-            case_outputs_gallery,
-            segmentation_legend_markdown_component,
-        ],
-    )
 
 if __name__ == "__main__":
     app.launch(allowed_paths=[str(APP_DIR), str(ROOT_DIR / "static")])
