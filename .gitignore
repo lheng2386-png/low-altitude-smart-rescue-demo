@@ -211,10 +211,10 @@ checkpoints/
 *.onnx
 
 # Runtime outputs
-outputs/*
-!outputs/.gitkeep
-!outputs/*/
-!outputs/*/.gitkeep
+outputs/**
+!outputs/
+!outputs/**/
+!outputs/**/.gitkeep
 *.tif
 *.tiff
 *.laz

@@ -1,0 +1,77 @@
+name: Deploy to Hugging Face Space
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: hf-space-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      HF_SPACE_REPO: ${{ vars.HF_SPACE_REPO || 'carolinasoares/urban-disaster-monitor-v2' }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate Hugging Face token
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          if [ -z "$HF_TOKEN" ]; then
+            echo "::error::Missing repository secret HF_TOKEN. Add a Hugging Face write token in GitHub Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+
+      - name: Clone Hugging Face Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          git clone "https://user:${HF_TOKEN}@huggingface.co/spaces/${HF_SPACE_REPO}" hf_space
+
+      - name: Sync application files
+        run: |
+          rsync -a --delete \
+            --exclude '.git' \
+            --exclude '__pycache__' \
+            --exclude '*.pyc' \
+            --exclude '.DS_Store' \
+            app backend modules static models configs demo_cases demo_missions \
+            hf_space/
+
+          cp app/requirements.txt hf_space/requirements.txt
+
+          cat > hf_space/README.md <<'EOF'
+          ---
+          title: AeroRescue AI
+          colorFrom: blue
+          colorTo: green
+          sdk: gradio
+          sdk_version: 5.35.0
+          app_file: app/app.py
+          pinned: false
+          ---
+
+          # AeroRescue-AI
+
+          Low-altitude UAV emergency rescue decision-support prototype.
+          EOF
+
+      - name: Commit and push Space update
+        working-directory: hf_space
+        run: |
+          git config user.email "actions@github.com"
+          git config user.name "github-actions[bot]"
+          git add .
+          if git diff --cached --quiet; then
+            echo "No changes to deploy."
+            exit 0
+          fi
+          git commit -m "Update AeroRescue-AI from GitHub"
+          git push
