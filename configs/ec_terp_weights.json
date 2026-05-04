@@ -1,0 +1,19 @@
+{
+  "target_urgency_weight": 0.30,
+  "environment_risk_weight": 0.25,
+  "route_accessibility_weight": 0.20,
+  "coverage_gap_weight": 0.15,
+  "evidence_quality_weight": 0.10,
+  "uncertainty_penalty_weight": 0.15,
+  "normalization": {
+    "score_min": 0.0,
+    "score_max": 100.0
+  },
+  "evidence_level_scores": {
+    "strong": 1.0,
+    "medium": 0.7,
+    "weak": 0.35,
+    "none": 0.0
+  },
+  "truthfulness_note": "These are transparent prior weights for EC-TERP. They are not learned model parameters and should be calibrated with a validation set in future work."
+}

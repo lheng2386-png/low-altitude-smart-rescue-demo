@@ -1,8 +1,10 @@
 import sys
 import subprocess
+import tempfile
 from pathlib import Path
 
 import numpy as np
+from PIL import Image
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 APP_DIR = ROOT_DIR / "app"
@@ -26,6 +28,20 @@ from segmentation_engine import (  # noqa: E402
 from segmentation_model import get_segmentation_model_status  # noqa: E402
 from scene_applicability_gate import evaluate_scene_applicability  # noqa: E402
 from terp_engine import calculate_terp, rank_targets_by_terp  # noqa: E402
+from evidence_ledger import (  # noqa: E402
+    add_evidence_entry,
+    create_ledger,
+    load_ledger,
+    save_ledger,
+    summarize_ledger,
+)
+from input_validator import validate_mission_inputs  # noqa: E402
+from mission_orchestrator import (  # noqa: E402
+    finalize_mission,
+    initialize_mission_from_inputs,
+    record_module_result,
+)
+from mission_schema import create_mission, load_mission, save_mission  # noqa: E402
 from scripts.generate_demo_cases import _manual_demo_mask  # noqa: E402
 from model_comparison.evaluate_detection_models import load_registry  # noqa: E402
 
@@ -152,6 +168,92 @@ def main():
 
     missing_status = get_segmentation_model_status(ROOT_DIR / "checkpoints" / "missing_smoke_test.pth")
     assert missing_status["available"] is False
+
+    tmp_path = Path(tempfile.mkdtemp(prefix="aerorescue_mission_smoke_"))
+    rgb_path = tmp_path / "input_rgb.png"
+    Image.fromarray(image).save(rgb_path)
+
+    input_summary = validate_mission_inputs(rgb_images=[str(rgb_path)])
+    assert "object_detection" in input_summary["available_modules"]
+    assert "simulated_thermal_risk" in input_summary["available_modules"]
+    assert "image_plane_path_planning" in input_summary["available_modules"]
+    assert not input_summary["real_temperature_available"]
+    disabled_modules = {item["module"] for item in input_summary["disabled_modules"]}
+    assert "real_temperature_analysis" in disabled_modules
+    assert "gps_navigation" in disabled_modules
+    assert "RGB images can support visual detection but cannot provide real temperature_matrix." in input_summary[
+        "truthfulness_boundaries"
+    ]
+
+    mission = create_mission(
+        mission_name="Smoke Mission",
+        input_summary=input_summary,
+        available_modules=input_summary["available_modules"],
+        disabled_modules=input_summary["disabled_modules"],
+        truthfulness_boundaries=input_summary["truthfulness_boundaries"],
+    )
+    mission_dir = tmp_path / "missions" / mission["mission_id"]
+    mission["evidence_ledger_path"] = str(mission_dir / "evidence" / "ledger.json")
+    mission_json_path = save_mission(mission, mission_dir)
+    loaded_mission = load_mission(mission_json_path)
+    assert loaded_mission["mission_id"] == mission["mission_id"]
+    assert mission_json_path.exists()
+
+    ledger = create_ledger(mission["mission_id"])
+    add_evidence_entry(
+        ledger,
+        module="thermal",
+        input_ref=str(rgb_path),
+        output_ref="outputs/thermal/simulated_heatmap.png",
+        result_type="simulated_heatmap",
+        source_type="simulated_thermal",
+    )
+    add_evidence_entry(
+        ledger,
+        module="path_planning",
+        input_ref=str(rgb_path),
+        output_ref="outputs/path/path_overlay.png",
+        result_type="image_plane_path",
+        source_type="image_plane_path",
+    )
+    add_evidence_entry(
+        ledger,
+        module="segmentation",
+        input_ref="input/masks/uploaded.png",
+        output_ref="outputs/segmentation/uploaded_mask_overlay.png",
+        result_type="uploaded_mask",
+        source_type="uploaded_mask",
+    )
+    assert all("human_review_required" in entry for entry in ledger["entries"])
+    ledger_summary = summarize_ledger(ledger)
+    assert ledger_summary["total_evidence_count"] == 3
+    assert ledger_summary["human_review_required_count"] == 3
+    assert ledger_summary["module_counts"]["thermal"] == 1
+    assert ledger_summary["module_counts"]["path_planning"] == 1
+    assert ledger_summary["module_counts"]["segmentation"] == 1
+    ledger_path = save_ledger(ledger, mission["evidence_ledger_path"])
+    assert ledger_path.exists()
+    assert load_ledger(ledger_path)["entries"][0]["source_type"] == "simulated_thermal"
+
+    orchestrated_mission, orchestrated_dir = initialize_mission_from_inputs(
+        tmp_path / "orchestrated_missions",
+        mission_name="Orchestrated Smoke Mission",
+        rgb_images=[str(rgb_path)],
+    )
+    record_module_result(
+        orchestrated_mission,
+        orchestrated_dir,
+        module="thermal",
+        input_ref=str(rgb_path),
+        output_ref="outputs/thermal/simulated_heatmap.png",
+        result_type="simulated_heatmap",
+        source_type="simulated_thermal",
+    )
+    summary = finalize_mission(orchestrated_mission, orchestrated_dir)
+    assert (orchestrated_dir / "mission.json").exists()
+    assert (orchestrated_dir / "evidence" / "ledger.json").exists()
+    assert (orchestrated_dir / "mission_summary.json").exists()
+    assert summary["evidence_summary"]["total_evidence_count"] == 1
 
     help_result = subprocess.run(
         [sys.executable, str(ROOT_DIR / "scripts" / "generate_demo_cases.py"), "--help"],

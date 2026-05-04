@@ -41,11 +41,13 @@ def analyze_simulated_thermal(image_file):
         base = image[:, :, :3]
         gray = cv2.cvtColor(base, cv2.COLOR_BGR2GRAY).astype(np.float32)
 
-    temp = cv2.normalize(gray, None, 20.0, 80.0, cv2.NORM_MINMAX)
-    normalized = cv2.normalize(temp, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+    # Simulated mode deliberately produces an intensity score, not Celsius.
+    # Ordinary RGB/JPG/PNG data cannot be converted into real temperature.
+    normalized_score = cv2.normalize(gray, None, 0.0, 1.0, cv2.NORM_MINMAX)
+    normalized = (normalized_score * 255).clip(0, 255).astype(np.uint8)
     heatmap = cv2.applyColorMap(normalized, cv2.COLORMAP_INFERNO)
-    threshold = np.percentile(temp, 95)
-    hotspot = temp >= threshold
+    threshold = float(np.percentile(normalized_score, 95))
+    hotspot = normalized_score >= threshold
     hotspot_u8 = (hotspot.astype(np.uint8) * 255)
     overlay = cv2.addWeighted(base.astype(np.uint8), 0.45, heatmap, 0.55, 0)
     overlay[hotspot] = (0, 255, 255)
@@ -61,11 +63,11 @@ def analyze_simulated_thermal(image_file):
         cv2.rectangle(overlay, (x, y), (x + w, y + h), (0, 255, 255), 2)
 
     area_ratio = float(np.count_nonzero(hotspot)) / max(1, hotspot.size)
-    max_temp = float(np.max(temp))
-    mean_temp = float(np.mean(temp))
-    if area_ratio > 0.08 or max_temp > 70:
+    max_score = float(np.max(normalized_score))
+    mean_score = float(np.mean(normalized_score))
+    if area_ratio > 0.08 or max_score > 0.86:
         risk = "High"
-        explanation = "疑似高温热点范围较大，建议优先复核火源、被困人员或危险热源。"
+        explanation = "模拟热点范围较大，建议结合真实热红外或现场信息复核火源、被困人员或危险热源。"
     elif area_ratio > 0.025:
         risk = "Medium"
         explanation = "存在局部高温热点，建议结合可见光图像进行复核。"
@@ -82,16 +84,22 @@ def analyze_simulated_thermal(image_file):
     cv2.imwrite(str(overlay_path), overlay)
 
     result = {
-        "thermal_mode": "simulated_thermal",
-        "max_temperature": round(max_temp, 2),
-        "mean_temperature": round(mean_temp, 2),
+        "thermal_mode": "simulated",
+        "temperature_matrix": None,
+        "temperature_matrix_path": None,
+        "max_temperature": None,
+        "mean_temperature": None,
+        "unit": "none",
+        "normalized_hotspot_score_max": round(max_score, 4),
+        "normalized_hotspot_score_mean": round(mean_score, 4),
+        "hotspot_score_threshold": round(threshold, 4),
         "hotspot_count": hotspot_count,
         "hotspot_area_ratio": round(area_ratio, 4),
         "risk_level": risk,
         "risk_explanation": explanation,
         "is_simulated_temperature": is_simulated,
         "is_real_temperature_measurement": False,
-        "truthfulness_note": "该结果由普通图像灰度归一化生成，不代表真实温度测量。",
+        "truthfulness_note": "This is a simulated thermal visualization based on grayscale/intensity analysis. It is not a real temperature measurement.",
     }
     result_path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
     status = "模拟热红外分析完成。当前结果由图像灰度归一化生成，不代表真实热红外测温。"

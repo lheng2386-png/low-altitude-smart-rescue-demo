@@ -6,6 +6,7 @@ sensor values to Celsius only when the required radiometric metadata is present.
 """
 
 import json
+import os
 import shutil
 import subprocess
 import tempfile
@@ -23,9 +24,15 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 SUPPORTED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".tif", ".tiff"}
 
 
+class RadiometricThermalError(RuntimeError):
+    """Raised when a radiometric thermal file cannot be parsed truthfully."""
+
+
 def _as_path(file_obj):
     if file_obj is None:
         return None
+    if isinstance(file_obj, Path):
+        return str(file_obj)
     if isinstance(file_obj, str):
         return file_obj
     if isinstance(file_obj, dict):
@@ -37,23 +44,61 @@ def _as_path(file_obj):
 
 def check_radiometric_environment():
     """Check local tools required for radiometric parsing without installing them."""
-    exiftool_available = shutil.which("exiftool") is not None
+    exiftool_available = False
+    exiftool_version = None
+    try:
+        exiftool_result = subprocess.run(
+            ["exiftool", "-ver"],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        exiftool_available = exiftool_result.returncode == 0
+        exiftool_version = (exiftool_result.stdout or exiftool_result.stderr or "").strip()
+    except Exception:
+        exiftool_available = False
+    dji_sdk_path = os.environ.get("DJI_THERMAL_SDK_PATH") or os.environ.get("DIRP_LIBRARY_PATH")
+    common_dji_paths = [
+        Path("/usr/local/lib/libdirp.so"),
+        Path("/usr/local/lib/libdirp.dylib"),
+        Path("/opt/dji/lib/libdirp.so"),
+        Path("/opt/dji/lib/libdirp.dylib"),
+    ]
+    dji_sdk_detected = bool(dji_sdk_path and Path(dji_sdk_path).exists()) or any(path.exists() for path in common_dji_paths)
+    dji_parser_implemented = False
     numpy_available = True
     pil_available = True
     cv2_available = True
     can_parse_flir = bool(exiftool_available and numpy_available and pil_available and cv2_available)
+    warnings = []
+    if not exiftool_available:
+        warnings.append("exiftool is not available; FLIR radiometric JPG parsing cannot run.")
+    if dji_sdk_detected and not dji_parser_implemented:
+        warnings.append("DJI Thermal SDK / DIRP was detected, but DJI R-JPEG parsing is not implemented in this project yet.")
+    elif not dji_sdk_detected:
+        warnings.append("DJI Thermal SDK / DIRP is not configured; DJI R-JPEG parsing is placeholder only.")
     message = (
         "Radiometric 环境可用：已找到 exiftool，可尝试解析 FLIR radiometric JPG。"
         if can_parse_flir
         else "Radiometric 环境不完整：需要本机安装 exiftool，且 Python 环境具备 numpy/PIL/cv2。"
     )
+    supported_parsers = []
+    if can_parse_flir:
+        supported_parsers.append("flir_exiftool")
     return {
         "exiftool_available": exiftool_available,
+        "exiftool_version": exiftool_version,
+        "dji_sdk_available": dji_sdk_detected,
+        "dji_sdk_detected": dji_sdk_detected,
+        "dji_parser_implemented": dji_parser_implemented,
+        "dji_sdk_detected_but_parser_not_implemented": bool(dji_sdk_detected and not dji_parser_implemented),
+        "supported_parsers": supported_parsers,
+        "warnings": warnings,
         "numpy_available": numpy_available,
         "pil_available": pil_available,
         "cv2_available": cv2_available,
         "flir_parser_available": can_parse_flir,
-        "dji_sdk_available": False,
         "can_parse_flir_rjpeg": can_parse_flir,
         "can_parse_dji_rjpeg": False,
         "message": message,
@@ -120,16 +165,26 @@ def detect_radiometric_file_type(file_path):
         return {
             "file_type": "unsupported",
             "is_radiometric": False,
+            "is_radiometric_candidate": False,
+            "camera_model": None,
+            "parser": None,
             "evidence": {"path": str(path), "exists": False},
+            "metadata_summary": {"path": str(path), "exists": False},
             "message": "输入文件不存在。",
+            "reason": "输入文件不存在。",
         }
     suffix = path.suffix.lower()
     if suffix not in SUPPORTED_IMAGE_EXTENSIONS:
         return {
             "file_type": "unsupported",
             "is_radiometric": False,
+            "is_radiometric_candidate": False,
+            "camera_model": None,
+            "parser": None,
             "evidence": {"suffix": suffix},
+            "metadata_summary": {"suffix": suffix},
             "message": "当前仅支持 jpg/jpeg/png/tif/tiff 图像文件检测。",
+            "reason": "当前仅支持 jpg/jpeg/png/tif/tiff 图像文件检测。",
         }
 
     metadata, metadata_error = _read_exif_json(path)
@@ -142,6 +197,14 @@ def detect_radiometric_file_type(file_path):
         "has_raw_thermal_image_tag": _metadata_has_key(metadata, "raw", "thermal"),
         "has_thermal_data_tag": _metadata_has_key(metadata, "thermal", "data"),
     }
+    metadata_summary = {
+        "camera_make": evidence["make"],
+        "camera_model": evidence["model"],
+        "metadata_available": evidence["metadata_available"],
+        "has_raw_thermal_image_tag": evidence["has_raw_thermal_image_tag"],
+        "has_thermal_data_tag": evidence["has_thermal_data_tag"],
+        "metadata_error": metadata_error,
+    }
     combined = " ".join(str(value) for value in metadata.values()).lower() + " " + " ".join(metadata.keys()).lower()
     make_model = f"{evidence['make']} {evidence['model']}".lower()
 
@@ -149,31 +212,51 @@ def detect_radiometric_file_type(file_path):
         return {
             "file_type": "flir_radiometric_jpg",
             "is_radiometric": True,
+            "is_radiometric_candidate": True,
+            "camera_model": evidence["model"] or None,
+            "parser": "flir_exiftool",
             "evidence": evidence,
+            "metadata_summary": metadata_summary,
             "message": "检测到 FLIR / Raw Thermal 相关元数据，可尝试 radiometric 解析。",
+            "reason": "检测到 FLIR / Raw Thermal 相关元数据，可尝试 radiometric 解析。",
         }
 
     if "dji" in combined and ("r-jpeg" in combined or "thermal" in combined or "dirp" in combined):
         return {
             "file_type": "dji_rjpeg",
             "is_radiometric": True,
+            "is_radiometric_candidate": True,
+            "camera_model": evidence["model"] or None,
+            "parser": "dji_dirp_sdk",
             "evidence": evidence,
+            "metadata_summary": metadata_summary,
             "message": "检测到 DJI thermal/R-JPEG 相关元数据，但当前需要 DJI Thermal SDK / DIRP 才能解析。",
+            "reason": "检测到 DJI thermal/R-JPEG 相关元数据，但当前需要 DJI Thermal SDK / DIRP 才能解析。",
         }
 
     if suffix in {".jpg", ".jpeg"}:
         return {
-            "file_type": "unknown_jpg",
+            "file_type": "ordinary_image",
             "is_radiometric": False,
+            "is_radiometric_candidate": False,
+            "camera_model": evidence["model"] or None,
+            "parser": None,
             "evidence": evidence,
+            "metadata_summary": metadata_summary,
             "message": "这是普通 JPG 或未检测到 radiometric thermal data，不能进行真实测温。",
+            "reason": "该文件不包含可解析 radiometric thermal data，无法生成真实 temperature_matrix。",
         }
 
     return {
-        "file_type": "unsupported",
+        "file_type": "unknown",
         "is_radiometric": False,
+        "is_radiometric_candidate": False,
+        "camera_model": evidence["model"] or None,
+        "parser": None,
         "evidence": evidence,
+        "metadata_summary": metadata_summary,
         "message": "未检测到可解析的 radiometric thermal data。",
+        "reason": "未检测到可解析的 radiometric thermal data。",
     }
 
 
@@ -205,6 +288,8 @@ def extract_flir_metadata(file_path):
         "planck_o": metadata.get("PlanckO"),
         "raw_thermal_image_type": metadata.get("RawThermalImageType"),
     }
+    required = ["planck_r1", "planck_r2", "planck_b", "planck_f", "planck_o"]
+    fields["missing_fields"] = [field for field in required if fields.get(field) in {None, ""}]
     return {"success": True, "error": "", "metadata": fields, "raw_metadata": metadata}
 
 
@@ -258,6 +343,17 @@ def _raw_to_celsius(raw, metadata):
 
 def parse_flir_radiometric_jpg(file_path):
     """Parse a FLIR radiometric JPG into a Celsius temperature matrix if possible."""
+    detection = detect_radiometric_file_type(file_path)
+    if detection.get("file_type") != "flir_radiometric_jpg":
+        return {
+            "success": False,
+            "temperature_matrix": None,
+            "unit": "celsius",
+            "parser": "flir_exiftool",
+            "metadata": detection.get("metadata_summary", {}),
+            "error_code": "NOT_FLIR_RADIOMETRIC",
+            "error": detection.get("reason") or "该文件不是 FLIR radiometric JPG。",
+        }
     metadata_result = extract_flir_metadata(file_path)
     metadata = metadata_result.get("metadata", {})
     if not metadata_result.get("success"):
@@ -267,7 +363,18 @@ def parse_flir_radiometric_jpg(file_path):
             "unit": "celsius",
             "parser": "flir_exiftool",
             "metadata": metadata,
+            "error_code": "METADATA_READ_FAILED",
             "error": metadata_result.get("error", "无法读取 FLIR metadata。"),
+        }
+    if metadata.get("missing_fields"):
+        return {
+            "success": False,
+            "temperature_matrix": None,
+            "unit": "celsius",
+            "parser": "flir_exiftool",
+            "metadata": metadata,
+            "error_code": "MISSING_PLANCK_METADATA",
+            "error": f"缺少关键 Planck 参数：{metadata.get('missing_fields')}，无法可靠换算摄氏温度。",
         }
 
     with tempfile.TemporaryDirectory() as tmp_dir:
@@ -280,6 +387,7 @@ def parse_flir_radiometric_jpg(file_path):
                 "unit": "celsius",
                 "parser": "flir_exiftool",
                 "metadata": metadata,
+                "error_code": "RAW_THERMAL_IMAGE_NOT_FOUND",
                 "error": f"未检测到 Raw Thermal Image，不能用普通图像灰度伪造真实温度。{error}",
             }
         raw = _read_raw_thermal_array(raw_path)
@@ -290,6 +398,7 @@ def parse_flir_radiometric_jpg(file_path):
                 "unit": "celsius",
                 "parser": "flir_exiftool",
                 "metadata": metadata,
+                "error_code": "RAW_THERMAL_IMAGE_READ_FAILED",
                 "error": "已提取 Raw Thermal Image，但无法读取为数值矩阵。",
             }
         temperature_matrix, error = _raw_to_celsius(raw, metadata)
@@ -300,6 +409,7 @@ def parse_flir_radiometric_jpg(file_path):
                 "unit": "celsius",
                 "parser": "flir_exiftool",
                 "metadata": metadata,
+                "error_code": "PLANCK_CONVERSION_FAILED",
                 "error": error,
             }
     return {
@@ -308,6 +418,8 @@ def parse_flir_radiometric_jpg(file_path):
         "unit": "celsius",
         "parser": "flir_exiftool",
         "metadata": metadata,
+        "correction_level": "basic_planck",
+        "error_code": None,
         "error": "",
     }
 
@@ -319,7 +431,9 @@ def parse_dji_rjpeg(file_path):
         "temperature_matrix": None,
         "unit": "celsius",
         "parser": "dji_dirp_sdk",
-        "error": "DJI R-JPEG parsing requires DJI Thermal SDK / DIRP library. This project currently provides only a placeholder interface.",
+        "error_code": "DJI_DIRP_PARSER_NOT_IMPLEMENTED",
+        "message": "DJI R-JPEG detected, but the DJI DIRP parser is not implemented in this project yet.",
+        "error": "DJI R-JPEG parsing requires a real DJI Thermal SDK / DIRP integration. This project currently provides only a placeholder interface.",
     }
 
 
@@ -339,6 +453,7 @@ def compute_temperature_statistics(temperature_matrix, threshold_celsius=None):
             "hotspot_threshold_source": "none",
             "hotspot_pixel_count": 0,
             "hotspot_area_ratio": 0.0,
+            "valid_pixel_count": 0,
         }
     mean = float(np.mean(valid))
     std = float(np.std(valid))
@@ -362,6 +477,7 @@ def compute_temperature_statistics(temperature_matrix, threshold_celsius=None):
         "hotspot_threshold_source": threshold_source,
         "hotspot_pixel_count": int(np.count_nonzero(hotspot)),
         "hotspot_area_ratio": round(float(np.count_nonzero(hotspot)) / max(1, temp.size), 4),
+        "valid_pixel_count": int(valid.size),
         "note": "37.5°C 可作为人体/异常热点参考阈值之一，但不能直接作为医学判断。",
     }
 
@@ -445,16 +561,20 @@ def analyze_radiometric_thermal(file_path, threshold_celsius=None, output_dir=No
     if not path.exists():
         return {
             "success": False,
-            "thermal_mode": "radiometric_thermal",
+            "thermal_mode": "radiometric",
             "is_real_temperature_measurement": False,
             "file_type": "unsupported",
-            "parser": "",
-            "temperature_matrix_path": "",
-            "heatmap_path": "",
-            "overlay_path": "",
-            "statistics": {},
+            "parser": None,
+            "camera_model": None,
+            "temperature_matrix_shape": None,
+            "temperature_matrix_path": None,
+            "heatmap_path": None,
+            "overlay_path": None,
+            "statistics": None,
             "metadata": {},
             "truthfulness_note": "输入文件不存在，系统不会生成伪温度。",
+            "error_code": "INPUT_MISSING",
+            "message": "输入文件不存在。",
             "error": "输入文件不存在。",
         }
 
@@ -467,32 +587,40 @@ def analyze_radiometric_thermal(file_path, threshold_celsius=None, output_dir=No
     else:
         return {
             "success": False,
-            "thermal_mode": "radiometric_thermal",
+            "thermal_mode": "radiometric",
             "is_real_temperature_measurement": False,
             "file_type": file_type,
-            "parser": "",
-            "temperature_matrix_path": "",
-            "heatmap_path": "",
-            "overlay_path": "",
-            "statistics": {},
-            "metadata": detection.get("evidence", {}),
+            "parser": detection.get("parser"),
+            "camera_model": detection.get("camera_model"),
+            "temperature_matrix_shape": None,
+            "temperature_matrix_path": None,
+            "heatmap_path": None,
+            "overlay_path": None,
+            "statistics": None,
+            "metadata": detection.get("metadata_summary", detection.get("evidence", {})),
             "truthfulness_note": "未检测到真实 radiometric thermal data，系统不会用灰度值伪造温度。",
+            "error_code": "NOT_RADIOMETRIC_DATA",
+            "message": detection.get("reason", "该文件不包含可解析的 radiometric thermal data，无法生成真实 temperature_matrix。"),
             "error": detection.get("message", "不是可解析的 radiometric thermal 文件。"),
         }
 
     if not parsed.get("success"):
         return {
             "success": False,
-            "thermal_mode": "radiometric_thermal",
+            "thermal_mode": "radiometric",
             "is_real_temperature_measurement": False,
             "file_type": file_type,
             "parser": parsed.get("parser", ""),
-            "temperature_matrix_path": "",
-            "heatmap_path": "",
-            "overlay_path": "",
-            "statistics": {},
+            "camera_model": parsed.get("metadata", {}).get("camera_model") or detection.get("camera_model"),
+            "temperature_matrix_shape": None,
+            "temperature_matrix_path": None,
+            "heatmap_path": None,
+            "overlay_path": None,
+            "statistics": None,
             "metadata": parsed.get("metadata", {}),
             "truthfulness_note": "未成功解析 temperature matrix，系统不会生成伪温度。",
+            "error_code": parsed.get("error_code") or "TEMPERATURE_MATRIX_PARSE_FAILED",
+            "message": parsed.get("message") or parsed.get("error", "Radiometric parsing failed."),
             "error": parsed.get("error", "Radiometric parsing failed."),
         }
 
@@ -507,16 +635,21 @@ def analyze_radiometric_thermal(file_path, threshold_celsius=None, output_dir=No
     stats = compute_temperature_statistics(temp, threshold_celsius=threshold_celsius)
     result = {
         "success": True,
-        "thermal_mode": "radiometric_thermal",
+        "thermal_mode": "radiometric",
         "is_real_temperature_measurement": True,
         "file_type": file_type,
         "parser": parsed.get("parser", ""),
+        "camera_model": parsed.get("metadata", {}).get("camera_model") or detection.get("camera_model"),
+        "temperature_matrix_shape": [int(temp.shape[0]), int(temp.shape[1])],
         "temperature_matrix_path": str(matrix_path),
         "heatmap_path": heatmap_result or "",
         "overlay_path": overlay_result or "",
         "statistics": stats,
         "metadata": parsed.get("metadata", {}),
         "truthfulness_note": "该结果来自 radiometric thermal 文件解析出的 temperature matrix。",
+        "error_code": None,
+        "message": "Radiometric Thermal 解析成功，已生成真实 temperature_matrix。",
+        "correction_level": parsed.get("correction_level", "basic_planck"),
         "error": heatmap_error or overlay_error,
     }
     result_path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")

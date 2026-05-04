@@ -43,3 +43,14 @@ Infrared Detection means object detection on infrared images, such as detecting 
 - No fake temperature matrix is generated.
 
 Only successful parsing of a real radiometric thermal file can be reported as real temperature measurement.
+
+## Acceptance Standard
+
+- Real measurement is successful only when `temperature_matrix.npy` is generated from radiometric data.
+- Ordinary JPG/PNG input must fail in Radiometric Thermal mode.
+- Simulated Thermal may generate heatmaps and hotspot overlays, but it must not report real Celsius values.
+- DJI R-JPEG requires DJI Thermal SDK / DIRP; without that SDK, the parser must return a dependency-missing / not-implemented result.
+
+## Competition Wording
+
+系统支持模拟热红外分析与真实 Radiometric Thermal 解析。普通 RGB 图像只进行热点模拟，不宣称真实测温；对于 FLIR radiometric JPG 或 DJI R-JPEG，系统会尝试解析 `temperature_matrix`，只有成功解析时才输出真实摄氏温度统计。

@@ -1,8 +1,15 @@
 from collections import OrderedDict
 
-import cv2
 import numpy as np
 from PIL import Image
+
+try:
+    import cv2  # type: ignore
+
+    CV2_AVAILABLE = True
+except Exception:
+    cv2 = None
+    CV2_AVAILABLE = False
 
 from environment_risk import (
     CLASS_DISPLAY_NAMES,
@@ -98,7 +105,9 @@ def resize_segmentation_mask(mask, width, height):
         return None
     if mask.shape[:2] == (height, width):
         return mask
-    return cv2.resize(mask.astype(np.uint8), (width, height), interpolation=cv2.INTER_NEAREST)
+    if CV2_AVAILABLE:
+        return cv2.resize(mask.astype(np.uint8), (width, height), interpolation=cv2.INTER_NEAREST)
+    return np.asarray(Image.fromarray(mask.astype(np.uint8)).resize((int(width), int(height)), Image.NEAREST))
 
 
 def validate_segmentation_mask(mask):
@@ -177,7 +186,10 @@ def create_segmentation_overlay(image, mask, alpha=0.45):
         color_mask[aligned_mask == class_id] = color
 
     overlay = image_rgb.copy()
-    blended = cv2.addWeighted(image_rgb, 1.0 - alpha, color_mask, alpha, 0)
+    if CV2_AVAILABLE:
+        blended = cv2.addWeighted(image_rgb, 1.0 - alpha, color_mask, alpha, 0)
+    else:
+        blended = np.clip((1.0 - alpha) * image_rgb.astype(np.float32) + alpha * color_mask.astype(np.float32), 0, 255).astype(np.uint8)
     overlay[foreground] = blended[foreground]
     return overlay
 

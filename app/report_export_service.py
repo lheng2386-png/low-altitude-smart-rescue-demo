@@ -3,6 +3,11 @@ import json
 from datetime import datetime
 from pathlib import Path
 
+from decision_reference_registry import format_decision_reference_summary_for_report
+from mission_evidence_ledger import build_mission_evidence_ledger, format_mission_evidence_ledger_markdown
+from final_report_v2_service import build_final_report_v2, save_final_report_v2
+from module_status_scanner import format_module_status_markdown, scan_all_modules
+
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 OUTPUT_ROOT = ROOT_DIR / "outputs"
@@ -46,9 +51,9 @@ def _thermal_truthfulness_summary(thermal_result_text):
     mode = data.get("thermal_mode", "unknown")
     is_real = bool(data.get("is_real_temperature_measurement"))
     note = data.get("truthfulness_note", "")
-    if mode == "simulated_thermal":
+    if mode in {"simulated", "simulated_thermal"}:
         return "该结果为普通图像灰度热点分析，不是真实热红外测温。\n" + note
-    if mode == "radiometric_thermal" and is_real:
+    if mode in {"radiometric", "radiometric_thermal"} and is_real:
         stats = data.get("statistics", {})
         return (
             "该结果来自 radiometric thermal 文件解析出的 temperature matrix。\n"
@@ -60,11 +65,64 @@ def _thermal_truthfulness_summary(thermal_result_text):
             f"hotspot_area_ratio: {stats.get('hotspot_area_ratio')}\n"
             f"{note}"
         )
-    if mode == "radiometric_thermal":
+    if mode in {"radiometric", "radiometric_thermal"}:
         return f"Radiometric Thermal 解析失败：{data.get('error', '')}\n未解析出真实 temperature matrix，不能自动 fallback 成假温度。\n{note}"
     if mode == "infrared_detection":
         return "红外目标检测不等于真实温度测量。\n" + note
     return note or "未提供热红外真实性说明。"
+
+
+def format_decision_fusion_for_report(decision_fusion_result):
+    if not decision_fusion_result:
+        return "决策层参考融合尚未执行。"
+    lines = [
+        f"决策融合评分：{decision_fusion_result.get('decision_fusion_score', 0)}",
+        f"决策融合等级：{decision_fusion_result.get('decision_fusion_level', 'unknown')}",
+        f"人工复核：{'是' if decision_fusion_result.get('human_review_required', True) else '否'}",
+        f"真实性说明：{decision_fusion_result.get('truthfulness_note', '')}",
+    ]
+    if decision_fusion_result.get("recommended_actions"):
+        lines.append("建议动作：")
+        for action in decision_fusion_result.get("recommended_actions", []):
+            lines.append(f"- {action}")
+    return "\n".join(lines)
+
+
+def format_module_execution_status_for_report(root_dir=None):
+    """Return a markdown summary of module execution status for future reports."""
+    scan_result = scan_all_modules(root_dir=root_dir)
+    return format_module_status_markdown(scan_result)
+
+
+def format_mission_evidence_for_report(root_dir=None):
+    """Return the mission evidence ledger markdown for future reports."""
+    try:
+        ledger = build_mission_evidence_ledger(root_dir=root_dir)
+        return format_mission_evidence_ledger_markdown(ledger)
+    except Exception as exc:
+        return f"# AeroRescue-AI 任务证据链总账\n\n证据链生成失败：{exc}"
+
+
+def export_final_report_v2(root_dir=None, output_dir=None):
+    """Export the evidence-chain-driven final report v2."""
+    try:
+        report = build_final_report_v2(root_dir=root_dir)
+        saved = save_final_report_v2(report=report, root_dir=root_dir, output_dir=output_dir)
+        return (
+            "Final Report 2.0 已生成。",
+            saved["markdown_path"],
+            saved["html_path"],
+            saved["json_path"],
+            report.get("report_markdown", ""),
+        )
+    except Exception as exc:
+        return (
+            f"Final Report 2.0 生成失败：{exc}",
+            None,
+            None,
+            None,
+            "",
+        )
 
 
 def export_final_report():
@@ -95,6 +153,14 @@ def export_final_report():
 ## 目标检测与综合决策摘要
 
 目标检测与综合决策模块在 Gradio 页面内生成检测图、风险排序、TERP 排名、路径规划摘要与中文救援报告。若需要纳入最终报告，请先在“AI 灾情描述”Tab 中粘贴该报告文本。
+
+{format_decision_reference_summary_for_report()}
+
+本阶段已预留 `outputs/decision_fusion/` 的后续接入能力，可在未来汇总 search priority、damage impact、coverage score 与 detection runtime evidence。
+
+## 任务证据链总账
+
+{format_mission_evidence_for_report()}
 
 ## 三维重建结果
 

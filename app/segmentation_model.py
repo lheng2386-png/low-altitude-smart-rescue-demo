@@ -1,10 +1,32 @@
 from pathlib import Path
 
-import cv2
 import numpy as np
-import torch
 from PIL import Image
-from torch import nn
+
+try:
+    import torch  # type: ignore
+    from torch import nn  # type: ignore
+
+    TORCH_AVAILABLE = True
+except Exception:
+    torch = None
+    TORCH_AVAILABLE = False
+
+    class _MissingModule:
+        pass
+
+    class _MissingNN:
+        Module = _MissingModule
+
+    nn = _MissingNN()
+
+try:
+    import cv2  # type: ignore
+
+    CV2_AVAILABLE = True
+except Exception:
+    cv2 = None
+    CV2_AVAILABLE = False
 
 
 NUM_SEGMENTATION_CLASSES = 11
@@ -86,6 +108,8 @@ class LightweightUNet(nn.Module):
 
 
 def _device(device=None):
+    if not TORCH_AVAILABLE:
+        return None
     if device:
         return torch.device(device)
     if torch.cuda.is_available():
@@ -129,6 +153,14 @@ def get_segmentation_model_status(weights_path):
 
 def load_segmentation_model(weights_path=None, device=None):
     """Load a lightweight 11-class segmentation model if weights exist."""
+    if not TORCH_AVAILABLE:
+        return None, {
+            "available": False,
+            "path": str(weights_path) if weights_path else None,
+            "message": "Automatic segmentation requires torch, but torch is not installed in this environment.",
+            "dependency_missing": "torch",
+        }
+
     if weights_path is None:
         weights_path = get_default_segmentation_weights()
 
@@ -174,7 +206,12 @@ def _to_rgb_array(image):
 def _preprocess(image, input_size):
     image_rgb = _to_rgb_array(image)
     original_height, original_width = image_rgb.shape[:2]
-    resized = cv2.resize(image_rgb, (input_size, input_size), interpolation=cv2.INTER_LINEAR)
+    if CV2_AVAILABLE:
+        resized = cv2.resize(image_rgb, (input_size, input_size), interpolation=cv2.INTER_LINEAR)
+    else:
+        resized = np.asarray(Image.fromarray(image_rgb).resize((input_size, input_size), Image.BILINEAR))
+    if not TORCH_AVAILABLE:
+        raise RuntimeError("torch is required for automatic segmentation preprocessing.")
     tensor = torch.from_numpy(resized).float().permute(2, 0, 1) / 255.0
     mean = torch.tensor([0.485, 0.456, 0.406]).view(3, 1, 1)
     std = torch.tensor([0.229, 0.224, 0.225]).view(3, 1, 1)
@@ -182,7 +219,17 @@ def _preprocess(image, input_size):
     return tensor.unsqueeze(0), original_width, original_height
 
 
-@torch.no_grad()
+def _no_grad_decorator():
+    if TORCH_AVAILABLE:
+        return torch.no_grad()
+
+    def _decorator(func):
+        return func
+
+    return _decorator
+
+
+@_no_grad_decorator()
 def predict_segmentation_mask(image, model, device=None, input_size=512):
     """Predict an 11-class class-id mask with a loaded segmentation model."""
     if model is None:
@@ -197,6 +244,8 @@ def predict_segmentation_mask(image, model, device=None, input_size=512):
         tensor = tensor.to(run_device)
         logits = model(tensor)
         pred = torch.argmax(logits, dim=1).squeeze(0).detach().cpu().numpy().astype(np.uint8)
-        return cv2.resize(pred, (original_width, original_height), interpolation=cv2.INTER_NEAREST)
+        if CV2_AVAILABLE:
+            return cv2.resize(pred, (original_width, original_height), interpolation=cv2.INTER_NEAREST)
+        return np.asarray(Image.fromarray(pred).resize((original_width, original_height), Image.NEAREST)).astype(np.uint8)
     except Exception:
         return None

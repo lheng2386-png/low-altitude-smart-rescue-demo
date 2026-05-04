@@ -1,0 +1,53 @@
+video_to_frames:
+  fps_sampling: 1.0
+  output_dir: outputs/reconstruction_3d/frames
+
+frame_quality_filter:
+  blur_threshold: 100.0
+  brightness_threshold: 30.0
+  reduce_duplicates: true
+  duplicate_hash_distance: 4
+  output_dir: outputs/reconstruction_3d/selected_frames
+
+colmap:
+  executable: "colmap"
+  use_gpu: true
+  max_image_size: 2000
+  matcher: "sequential"
+  run_dense: false
+  run_mesher: false
+  timeout_seconds: 3600
+  panorama_sfm_script: null
+  standard_output_dir: outputs/reconstruction_3d/colmap_standard
+  panorama_output_dir: outputs/reconstruction_3d/colmap_360
+  execute_by_default: false
+
+odm:
+  docker_image: "opendronemap/odm"
+  project_name: "aerorescue_odm"
+  camera_lens: "auto"
+  feature_quality: "medium"
+  pc_quality: "medium"
+  dsm: true
+  dtm: false
+  use_fast_orthophoto: false
+  orthophoto_resolution: null
+  auto_pull: false
+  timeout_seconds: 7200
+  output_dir: outputs/reconstruction_3d/odm
+  execute_by_default: false
+  additional_args: []
+  expected_outputs:
+    orthophoto: "odm_orthophoto/odm_orthophoto.tif"
+    dsm: "odm_dem/dsm.tif"
+    dtm: "odm_dem/dtm.tif"
+    point_cloud_laz: "odm_georeferencing/odm_georeferenced_model.laz"
+    point_cloud_las: "odm_georeferencing/odm_georeferenced_model.las"
+    textured_model_obj: "odm_texturing/odm_textured_model.obj"
+    textured_model_geo_obj: "odm_texturing/odm_textured_model_geo.obj"
+    report_pdf: "odm_report/report.pdf"
+
+report:
+  output_dir: outputs/reconstruction_3d/report
+  gps_available: false
+  gcp_available: false

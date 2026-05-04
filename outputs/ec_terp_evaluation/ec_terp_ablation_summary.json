@@ -1,0 +1,14 @@
+{
+  "summary": {
+    "most_impactful_ablation": "without_evidence_quality",
+    "mean_rank_shift_by_ablation": {
+      "without_environment_risk": 0.0,
+      "without_route_accessibility": 0.0,
+      "without_coverage_gap": 0.0,
+      "without_evidence_quality": 0.2,
+      "without_uncertainty_penalty": 0.2
+    }
+  },
+  "truthfulness_note": "Ablation study shows how EC-TERP ranking changes when individual components are removed.",
+  "case_type_note": "Ablation results are computed from synthetic or user-provided cases."
+}

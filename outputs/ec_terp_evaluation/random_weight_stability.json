@@ -1,0 +1,598 @@
+{
+  "success": true,
+  "n_trials": 5,
+  "perturbation_ratio": 0.15,
+  "summary": {
+    "top1_stability": 1.0,
+    "top3_stability": 1.0,
+    "average_rank_shift": 0.0
+  },
+  "trial_results": [
+    {
+      "trial": 1,
+      "case_id": "case_001_flood_road_blocked",
+      "top1_changed": false,
+      "top3_stability": 1.0,
+      "average_rank_shift": 0.0,
+      "base_order": [
+        "T001",
+        "T002"
+      ],
+      "perturbed_order": [
+        "T001",
+        "T002"
+      ],
+      "weights": {
+        "target_urgency_weight": 0.312548,
+        "environment_risk_weight": 0.214376,
+        "route_accessibility_weight": 0.186502,
+        "coverage_gap_weight": 0.137544,
+        "evidence_quality_weight": 0.107094,
+        "uncertainty_penalty_weight": 0.157951
+      }
+    },
+    {
+      "trial": 1,
+      "case_id": "case_002_damaged_building_human_candidate",
+      "top1_changed": false,
+      "top3_stability": 1.0,
+      "average_rank_shift": 0.0,
+      "base_order": [
+        "T011",
+        "TR012"
+      ],
+      "perturbed_order": [
+        "T011",
+        "TR012"
+      ],
+      "weights": {
+        "target_urgency_weight": 0.312548,
+        "environment_risk_weight": 0.214376,
+        "route_accessibility_weight": 0.186502,
+        "coverage_gap_weight": 0.137544,
+        "evidence_quality_weight": 0.107094,
+        "uncertainty_penalty_weight": 0.157951
+      }
+    },
+    {
+      "trial": 1,
+      "case_id": "case_003_low_confidence_target",
+      "top1_changed": false,
+      "top3_stability": 1.0,
+      "average_rank_shift": 0.0,
+      "base_order": [
+        "T022",
+        "T021"
+      ],
+      "perturbed_order": [
+        "T022",
+        "T021"
+      ],
+      "weights": {
+        "target_urgency_weight": 0.312548,
+        "environment_risk_weight": 0.214376,
+        "route_accessibility_weight": 0.186502,
+        "coverage_gap_weight": 0.137544,
+        "evidence_quality_weight": 0.107094,
+        "uncertainty_penalty_weight": 0.157951
+      }
+    },
+    {
+      "trial": 1,
+      "case_id": "case_004_path_unavailable_high_risk",
+      "top1_changed": false,
+      "top3_stability": 1.0,
+      "average_rank_shift": 0.0,
+      "base_order": [
+        "T032",
+        "T031"
+      ],
+      "perturbed_order": [
+        "T032",
+        "T031"
+      ],
+      "weights": {
+        "target_urgency_weight": 0.312548,
+        "environment_risk_weight": 0.214376,
+        "route_accessibility_weight": 0.186502,
+        "coverage_gap_weight": 0.137544,
+        "evidence_quality_weight": 0.107094,
+        "uncertainty_penalty_weight": 0.157951
+      }
+    },
+    {
+      "trial": 1,
+      "case_id": "case_005_coverage_gap_case",
+      "top1_changed": false,
+      "top3_stability": 1.0,
+      "average_rank_shift": 0.0,
+      "base_order": [
+        "T041",
+        "T042",
+        "TR043"
+      ],
+      "perturbed_order": [
+        "T041",
+        "T042",
+        "TR043"
+      ],
+      "weights": {
+        "target_urgency_weight": 0.312548,
+        "environment_risk_weight": 0.214376,
+        "route_accessibility_weight": 0.186502,
+        "coverage_gap_weight": 0.137544,
+        "evidence_quality_weight": 0.107094,
+        "uncertainty_penalty_weight": 0.157951
+      }
+    },
+    {
+      "trial": 2,
+      "case_id": "case_001_flood_road_blocked",
+      "top1_changed": false,
+      "top3_stability": 1.0,
+      "average_rank_shift": 0.0,
+      "base_order": [
+        "T001",
+        "T002"
+      ],
+      "perturbed_order": [
+        "T001",
+        "T002"
+      ],
+      "weights": {
+        "target_urgency_weight": 0.335296,
+        "environment_risk_weight": 0.21902,
+        "route_accessibility_weight": 0.195315,
+        "coverage_gap_weight": 0.128841,
+        "evidence_quality_weight": 0.091559,
+        "uncertainty_penalty_weight": 0.150241
+      }
+    },
+    {
+      "trial": 2,
+      "case_id": "case_002_damaged_building_human_candidate",
+      "top1_changed": false,
+      "top3_stability": 1.0,
+      "average_rank_shift": 0.0,
+      "base_order": [
+        "T011",
+        "TR012"
+      ],
+      "perturbed_order": [
+        "T011",
+        "TR012"
+      ],
+      "weights": {
+        "target_urgency_weight": 0.335296,
+        "environment_risk_weight": 0.21902,
+        "route_accessibility_weight": 0.195315,
+        "coverage_gap_weight": 0.128841,
+        "evidence_quality_weight": 0.091559,
+        "uncertainty_penalty_weight": 0.150241
+      }
+    },
+    {
+      "trial": 2,
+      "case_id": "case_003_low_confidence_target",
+      "top1_changed": false,
+      "top3_stability": 1.0,
+      "average_rank_shift": 0.0,
+      "base_order": [
+        "T022",
+        "T021"
+      ],
+      "perturbed_order": [
+        "T022",
+        "T021"
+      ],
+      "weights": {
+        "target_urgency_weight": 0.335296,
+        "environment_risk_weight": 0.21902,
+        "route_accessibility_weight": 0.195315,
+        "coverage_gap_weight": 0.128841,
+        "evidence_quality_weight": 0.091559,
+        "uncertainty_penalty_weight": 0.150241
+      }
+    },
+    {
+      "trial": 2,
+      "case_id": "case_004_path_unavailable_high_risk",
+      "top1_changed": false,
+      "top3_stability": 1.0,
+      "average_rank_shift": 0.0,
+      "base_order": [
+        "T032",
+        "T031"
+      ],
+      "perturbed_order": [
+        "T032",
+        "T031"
+      ],
+      "weights": {
+        "target_urgency_weight": 0.335296,
+        "environment_risk_weight": 0.21902,
+        "route_accessibility_weight": 0.195315,
+        "coverage_gap_weight": 0.128841,
+        "evidence_quality_weight": 0.091559,
+        "uncertainty_penalty_weight": 0.150241
+      }
+    },
+    {
+      "trial": 2,
+      "case_id": "case_005_coverage_gap_case",
+      "top1_changed": false,
+      "top3_stability": 1.0,
+      "average_rank_shift": 0.0,
+      "base_order": [
+        "T041",
+        "T042",
+        "TR043"
+      ],
+      "perturbed_order": [
+        "T041",
+        "T042",
+        "TR043"
+      ],
+      "weights": {
+        "target_urgency_weight": 0.335296,
+        "environment_risk_weight": 0.21902,
+        "route_accessibility_weight": 0.195315,
+        "coverage_gap_weight": 0.128841,
+        "evidence_quality_weight": 0.091559,
+        "uncertainty_penalty_weight": 0.150241
+      }
+    },
+    {
+      "trial": 3,
+      "case_id": "case_001_flood_road_blocked",
+      "top1_changed": false,
+      "top3_stability": 1.0,
+      "average_rank_shift": 0.0,
+      "base_order": [
+        "T001",
+        "T002"
+      ],
+      "perturbed_order": [
+        "T001",
+        "T002"
+      ],
+      "weights": {
+        "target_urgency_weight": 0.257388,
+        "environment_risk_weight": 0.227413,
+        "route_accessibility_weight": 0.208993,
+        "coverage_gap_weight": 0.152022,
+        "evidence_quality_weight": 0.091613,
+        "uncertainty_penalty_weight": 0.154017
+      }
+    },
+    {
+      "trial": 3,
+      "case_id": "case_002_damaged_building_human_candidate",
+      "top1_changed": false,
+      "top3_stability": 1.0,
+      "average_rank_shift": 0.0,
+      "base_order": [
+        "T011",
+        "TR012"
+      ],
+      "perturbed_order": [
+        "T011",
+        "TR012"
+      ],
+      "weights": {
+        "target_urgency_weight": 0.257388,
+        "environment_risk_weight": 0.227413,
+        "route_accessibility_weight": 0.208993,
+        "coverage_gap_weight": 0.152022,
+        "evidence_quality_weight": 0.091613,
+        "uncertainty_penalty_weight": 0.154017
+      }
+    },
+    {
+      "trial": 3,
+      "case_id": "case_003_low_confidence_target",
+      "top1_changed": false,
+      "top3_stability": 1.0,
+      "average_rank_shift": 0.0,
+      "base_order": [
+        "T022",
+        "T021"
+      ],
+      "perturbed_order": [
+        "T022",
+        "T021"
+      ],
+      "weights": {
+        "target_urgency_weight": 0.257388,
+        "environment_risk_weight": 0.227413,
+        "route_accessibility_weight": 0.208993,
+        "coverage_gap_weight": 0.152022,
+        "evidence_quality_weight": 0.091613,
+        "uncertainty_penalty_weight": 0.154017
+      }
+    },
+    {
+      "trial": 3,
+      "case_id": "case_004_path_unavailable_high_risk",
+      "top1_changed": false,
+      "top3_stability": 1.0,
+      "average_rank_shift": 0.0,
+      "base_order": [
+        "T032",
+        "T031"
+      ],
+      "perturbed_order": [
+        "T032",
+        "T031"
+      ],
+      "weights": {
+        "target_urgency_weight": 0.257388,
+        "environment_risk_weight": 0.227413,
+        "route_accessibility_weight": 0.208993,
+        "coverage_gap_weight": 0.152022,
+        "evidence_quality_weight": 0.091613,
+        "uncertainty_penalty_weight": 0.154017
+      }
+    },
+    {
+      "trial": 3,
+      "case_id": "case_005_coverage_gap_case",
+      "top1_changed": false,
+      "top3_stability": 1.0,
+      "average_rank_shift": 0.0,
+      "base_order": [
+        "T041",
+        "T042",
+        "TR043"
+      ],
+      "perturbed_order": [
+        "T041",
+        "T042",
+        "TR043"
+      ],
+      "weights": {
+        "target_urgency_weight": 0.257388,
+        "environment_risk_weight": 0.227413,
+        "route_accessibility_weight": 0.208993,
+        "coverage_gap_weight": 0.152022,
+        "evidence_quality_weight": 0.091613,
+        "uncertainty_penalty_weight": 0.154017
+      }
+    },
+    {
+      "trial": 4,
+      "case_id": "case_001_flood_road_blocked",
+      "top1_changed": false,
+      "top3_stability": 1.0,
+      "average_rank_shift": 0.0,
+      "base_order": [
+        "T001",
+        "T002"
+      ],
+      "perturbed_order": [
+        "T001",
+        "T002"
+      ],
+      "weights": {
+        "target_urgency_weight": 0.327849,
+        "environment_risk_weight": 0.212987,
+        "route_accessibility_weight": 0.218349,
+        "coverage_gap_weight": 0.158916,
+        "evidence_quality_weight": 0.095208,
+        "uncertainty_penalty_weight": 0.134497
+      }
+    },
+    {
+      "trial": 4,
+      "case_id": "case_002_damaged_building_human_candidate",
+      "top1_changed": false,
+      "top3_stability": 1.0,
+      "average_rank_shift": 0.0,
+      "base_order": [
+        "T011",
+        "TR012"
+      ],
+      "perturbed_order": [
+        "T011",
+        "TR012"
+      ],
+      "weights": {
+        "target_urgency_weight": 0.327849,
+        "environment_risk_weight": 0.212987,
+        "route_accessibility_weight": 0.218349,
+        "coverage_gap_weight": 0.158916,
+        "evidence_quality_weight": 0.095208,
+        "uncertainty_penalty_weight": 0.134497
+      }
+    },
+    {
+      "trial": 4,
+      "case_id": "case_003_low_confidence_target",
+      "top1_changed": false,
+      "top3_stability": 1.0,
+      "average_rank_shift": 0.0,
+      "base_order": [
+        "T022",
+        "T021"
+      ],
+      "perturbed_order": [
+        "T022",
+        "T021"
+      ],
+      "weights": {
+        "target_urgency_weight": 0.327849,
+        "environment_risk_weight": 0.212987,
+        "route_accessibility_weight": 0.218349,
+        "coverage_gap_weight": 0.158916,
+        "evidence_quality_weight": 0.095208,
+        "uncertainty_penalty_weight": 0.134497
+      }
+    },
+    {
+      "trial": 4,
+      "case_id": "case_004_path_unavailable_high_risk",
+      "top1_changed": false,
+      "top3_stability": 1.0,
+      "average_rank_shift": 0.0,
+      "base_order": [
+        "T032",
+        "T031"
+      ],
+      "perturbed_order": [
+        "T032",
+        "T031"
+      ],
+      "weights": {
+        "target_urgency_weight": 0.327849,
+        "environment_risk_weight": 0.212987,
+        "route_accessibility_weight": 0.218349,
+        "coverage_gap_weight": 0.158916,
+        "evidence_quality_weight": 0.095208,
+        "uncertainty_penalty_weight": 0.134497
+      }
+    },
+    {
+      "trial": 4,
+      "case_id": "case_005_coverage_gap_case",
+      "top1_changed": false,
+      "top3_stability": 1.0,
+      "average_rank_shift": 0.0,
+      "base_order": [
+        "T041",
+        "T042",
+        "TR043"
+      ],
+      "perturbed_order": [
+        "T041",
+        "T042",
+        "TR043"
+      ],
+      "weights": {
+        "target_urgency_weight": 0.327849,
+        "environment_risk_weight": 0.212987,
+        "route_accessibility_weight": 0.218349,
+        "coverage_gap_weight": 0.158916,
+        "evidence_quality_weight": 0.095208,
+        "uncertainty_penalty_weight": 0.134497
+      }
+    },
+    {
+      "trial": 5,
+      "case_id": "case_001_flood_road_blocked",
+      "top1_changed": false,
+      "top3_stability": 1.0,
+      "average_rank_shift": 0.0,
+      "base_order": [
+        "T001",
+        "T002"
+      ],
+      "perturbed_order": [
+        "T001",
+        "T002"
+      ],
+      "weights": {
+        "target_urgency_weight": 0.341149,
+        "environment_risk_weight": 0.237745,
+        "route_accessibility_weight": 0.175565,
+        "coverage_gap_weight": 0.131852,
+        "evidence_quality_weight": 0.110425,
+        "uncertainty_penalty_weight": 0.154668
+      }
+    },
+    {
+      "trial": 5,
+      "case_id": "case_002_damaged_building_human_candidate",
+      "top1_changed": false,
+      "top3_stability": 1.0,
+      "average_rank_shift": 0.0,
+      "base_order": [
+        "T011",
+        "TR012"
+      ],
+      "perturbed_order": [
+        "T011",
+        "TR012"
+      ],
+      "weights": {
+        "target_urgency_weight": 0.341149,
+        "environment_risk_weight": 0.237745,
+        "route_accessibility_weight": 0.175565,
+        "coverage_gap_weight": 0.131852,
+        "evidence_quality_weight": 0.110425,
+        "uncertainty_penalty_weight": 0.154668
+      }
+    },
+    {
+      "trial": 5,
+      "case_id": "case_003_low_confidence_target",
+      "top1_changed": false,
+      "top3_stability": 1.0,
+      "average_rank_shift": 0.0,
+      "base_order": [
+        "T022",
+        "T021"
+      ],
+      "perturbed_order": [
+        "T022",
+        "T021"
+      ],
+      "weights": {
+        "target_urgency_weight": 0.341149,
+        "environment_risk_weight": 0.237745,
+        "route_accessibility_weight": 0.175565,
+        "coverage_gap_weight": 0.131852,
+        "evidence_quality_weight": 0.110425,
+        "uncertainty_penalty_weight": 0.154668
+      }
+    },
+    {
+      "trial": 5,
+      "case_id": "case_004_path_unavailable_high_risk",
+      "top1_changed": false,
+      "top3_stability": 1.0,
+      "average_rank_shift": 0.0,
+      "base_order": [
+        "T032",
+        "T031"
+      ],
+      "perturbed_order": [
+        "T032",
+        "T031"
+      ],
+      "weights": {
+        "target_urgency_weight": 0.341149,
+        "environment_risk_weight": 0.237745,
+        "route_accessibility_weight": 0.175565,
+        "coverage_gap_weight": 0.131852,
+        "evidence_quality_weight": 0.110425,
+        "uncertainty_penalty_weight": 0.154668
+      }
+    },
+    {
+      "trial": 5,
+      "case_id": "case_005_coverage_gap_case",
+      "top1_changed": false,
+      "top3_stability": 1.0,
+      "average_rank_shift": 0.0,
+      "base_order": [
+        "T041",
+        "T042",
+        "TR043"
+      ],
+      "perturbed_order": [
+        "T041",
+        "T042",
+        "TR043"
+      ],
+      "weights": {
+        "target_urgency_weight": 0.341149,
+        "environment_risk_weight": 0.237745,
+        "route_accessibility_weight": 0.175565,
+        "coverage_gap_weight": 0.131852,
+        "evidence_quality_weight": 0.110425,
+        "uncertainty_penalty_weight": 0.154668
+      }
+    }
+  ],
+  "truthfulness_note": "Random weight stability is computed on the provided evaluation cases and should not be interpreted as large-scale validation."
+}

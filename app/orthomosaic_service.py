@@ -124,6 +124,7 @@ def process_orthomosaic(image_files):
         "feature_matching_attempted": False,
         "stitch_success": False,
         "fallback_reason": "",
+        "mode": "",
         "output_path": "",
     }
 
@@ -137,6 +138,7 @@ def process_orthomosaic(image_files):
         result = images[0]
         status = "已生成单幅航测图像预览；单张图像不能说明正射拼接已完成。"
         log["fallback_reason"] = "单张图像仅生成预览。"
+        log["mode"] = "fast_preview"
     else:
         result = None
         status = ""
@@ -148,6 +150,7 @@ def process_orthomosaic(image_files):
                 if code == cv2.Stitcher_OK and stitched is not None:
                     result = stitched
                     log["stitch_success"] = True
+                    log["mode"] = "opencv_stitch_preview"
                     status = "OpenCV Stitcher 正射/全景拼接预览生成成功。"
                 else:
                     log["fallback_reason"] = f"OpenCV Stitcher 状态码：{code}"
@@ -159,12 +162,14 @@ def process_orthomosaic(image_files):
             result, reason = _feature_homography_stitch(images)
             if result is not None:
                 log["stitch_success"] = True
+                log["mode"] = "feature_homography_preview"
                 status = "ORB 特征匹配 + Homography 拼接预览生成成功。"
             else:
                 log["fallback_reason"] = reason or log["fallback_reason"] or "特征匹配失败。"
 
         if result is None:
             result = _grid_preview(images)
+            log["mode"] = "grid_preview"
             status = "正射拼接失败，已生成网格接片预览。"
 
     output_path = OUTPUT_DIR / "orthomosaic_result.jpg"
@@ -173,4 +178,3 @@ def process_orthomosaic(image_files):
     log_path = OUTPUT_DIR / "processing_log.json"
     log_path.write_text(json.dumps(log, ensure_ascii=False, indent=2), encoding="utf-8")
     return str(output_path), status, json.dumps(log, ensure_ascii=False, indent=2)
-

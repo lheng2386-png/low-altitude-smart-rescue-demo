@@ -45,6 +45,11 @@ def main():
         assert "模拟热红外分析" in thermal_status
         thermal_result = json.loads(thermal_json_text)
         assert thermal_result["is_simulated_temperature"] is True
+        assert thermal_result["is_real_temperature_measurement"] is False
+        assert thermal_result["temperature_matrix"] is None
+        assert thermal_result["temperature_matrix_path"] is None
+        assert thermal_result["max_temperature"] is None
+        assert "normalized_hotspot_score_max" in thermal_result
         assert "risk_level" in thermal_result
 
     reconstruction_outputs = process_reconstruction(None)

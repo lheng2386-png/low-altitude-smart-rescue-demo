@@ -33,7 +33,15 @@ def _write_synthetic_jpg(path):
 def main():
     env = check_radiometric_environment()
     assert "exiftool_available" in env
+    assert "dji_sdk_available" in env
+    assert "dji_sdk_detected" in env
+    assert "dji_parser_implemented" in env
+    assert "dji_sdk_detected_but_parser_not_implemented" in env
+    assert "supported_parsers" in env
+    assert "warnings" in env
     assert "can_parse_flir_rjpeg" in env
+    assert env["can_parse_dji_rjpeg"] is False
+    assert "dji_dirp_sdk" not in env["supported_parsers"]
 
     with tempfile.TemporaryDirectory() as tmp:
         tmp_dir = Path(tmp)
@@ -41,12 +49,18 @@ def main():
         _write_synthetic_jpg(jpg_path)
 
         detected = detect_radiometric_file_type(jpg_path)
-        assert detected["file_type"] in {"unknown_jpg", "unsupported"}
+        assert detected["file_type"] in {"ordinary_image", "unknown", "unsupported"}
+        assert detected["is_radiometric_candidate"] is False
         assert detected["is_radiometric"] is False
 
         result = analyze_radiometric_thermal(jpg_path, output_dir=tmp_dir)
         assert result["success"] is False
         assert result["is_real_temperature_measurement"] is False
+        assert result["thermal_mode"] == "radiometric"
+        assert result["temperature_matrix_path"] is None
+        assert result["temperature_matrix_shape"] is None
+        assert result["statistics"] is None
+        assert result["error_code"] == "NOT_RADIOMETRIC_DATA"
         assert "不会" in result["truthfulness_note"] or "not" in result["truthfulness_note"].lower()
 
         temp = np.array(

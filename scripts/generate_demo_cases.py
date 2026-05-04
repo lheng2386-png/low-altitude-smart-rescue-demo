@@ -13,9 +13,16 @@ import json
 import sys
 from pathlib import Path
 
-import cv2
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageDraw
+
+try:
+    import cv2  # type: ignore
+
+    CV2_AVAILABLE = True
+except Exception:
+    cv2 = None
+    CV2_AVAILABLE = False
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
@@ -129,6 +136,15 @@ def _extract_targets(results) -> list[dict]:
 
 def _draw_detection_overlay(image_rgb: np.ndarray, targets: list[dict]) -> np.ndarray:
     overlay = image_rgb.copy()
+    if not CV2_AVAILABLE:
+        pil = Image.fromarray(overlay.astype(np.uint8))
+        draw = ImageDraw.Draw(pil)
+        for target in targets:
+            x1, y1, x2, y2 = [int(round(v)) for v in target["bbox"]]
+            label = f"{target['id']} {target['class_name']} {target['confidence']:.2f}"
+            draw.rectangle((x1, y1, x2, y2), outline=(255, 230, 0), width=2)
+            draw.text((x1, max(2, y1 - 14)), label, fill=(255, 230, 0))
+        return np.asarray(pil)
     for target in targets:
         x1, y1, x2, y2 = [int(round(v)) for v in target["bbox"]]
         label = f"{target['id']} {target['class_name']} {target['confidence']:.2f}"

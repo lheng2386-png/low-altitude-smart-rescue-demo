@@ -2,9 +2,17 @@
 
 from heapq import heappop, heappush
 
-import cv2
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageDraw
+
+
+try:
+    import cv2  # type: ignore
+
+    CV2_AVAILABLE = True
+except Exception:
+    cv2 = None
+    CV2_AVAILABLE = False
 
 
 PATH_COSTS = {
@@ -20,6 +28,46 @@ PATH_COSTS = {
     9: 15.0,   # tree
     10: 100.0, # pool
 }
+
+
+PATH_TRUTHFULNESS_NOTE = (
+    "This path is generated in image coordinates for decision support only and is not a GPS navigation route."
+)
+
+
+def _path_metadata(status="ok", dependency=None, limitations=None):
+    return {
+        "path_type": "image_plane_path",
+        "is_gps_navigation": False,
+        "is_gis_route": False,
+        "requires_human_review": True,
+        "human_review_required": True,
+        "truthfulness_note": PATH_TRUTHFULNESS_NOTE,
+        "status": status,
+        "dependency": dependency,
+        "can_support_decision": status not in {"dependency_missing"},
+        "limitations": limitations or [],
+    }
+
+
+def get_path_planning_dependency_status():
+    """Return optional dependency status without blocking module import."""
+    if CV2_AVAILABLE:
+        return {
+            "status": "available",
+            "dependency": "opencv-python",
+            "available": True,
+            "truthfulness_note": "OpenCV is available for optional path preview rendering. Path results remain image-plane reference paths, not GPS navigation.",
+        }
+    return {
+        "status": "dependency_missing",
+        "dependency": "opencv-python",
+        "available": False,
+        "can_support_decision": False,
+        "human_review_required": True,
+        "truthfulness_note": "OpenCV is required for accelerated preview rendering, but A* image-plane path computation can still run with degraded rendering support. No GPS route was generated.",
+        "limitations": ["Missing cv2 / opencv-python dependency."],
+    }
 
 
 def _as_rgb_array(image):
@@ -43,11 +91,19 @@ def build_cost_map(segmentation_mask, image_width, image_height):
 
     mask = np.asarray(segmentation_mask)
     if mask.shape[:2] != (int(image_height), int(image_width)):
-        mask = cv2.resize(
-            mask.astype(np.uint8),
-            (int(image_width), int(image_height)),
-            interpolation=cv2.INTER_NEAREST,
-        )
+        if CV2_AVAILABLE:
+            mask = cv2.resize(
+                mask.astype(np.uint8),
+                (int(image_width), int(image_height)),
+                interpolation=cv2.INTER_NEAREST,
+            )
+        else:
+            mask = np.asarray(
+                Image.fromarray(mask.astype(np.uint8)).resize(
+                    (int(image_width), int(image_height)),
+                    Image.NEAREST,
+                )
+            )
 
     for class_id, cost in PATH_COSTS.items():
         cost_map[mask == class_id] = cost
@@ -96,6 +152,7 @@ def astar(cost_map, start, goal):
             "total_cost": 0.0,
             "path_length": 1,
             "message": "起点与目标点重合，返回单点路径。",
+            **_path_metadata(),
         }
 
     moves = [
@@ -131,6 +188,7 @@ def astar(cost_map, start, goal):
                 "total_cost": round(float(g_score[goal]), 2),
                 "path_length": len(path),
                 "message": "A* 路径规划成功。",
+                **_path_metadata(),
             }
 
         closed.add(current)
@@ -157,6 +215,7 @@ def astar(cost_map, start, goal):
         "total_cost": 0.0,
         "path_length": 0,
         "message": "未能在当前代价地图中找到可用路径。",
+        **_path_metadata(status="degraded" if not CV2_AVAILABLE else "ok"),
     }
 
 
@@ -173,6 +232,7 @@ def plan_rescue_path(ranked_targets, segmentation_mask, image_width, image_heigh
             "total_cost": 0.0,
             "path_length": 0,
             "message": "当前未检测到明确救援目标，无法规划路径。",
+            **_path_metadata(status="degraded"),
         }
 
     cost_map = build_cost_map(segmentation_mask, image_width, image_height)
@@ -210,6 +270,7 @@ def _plan_with_cost_map(ranked_targets, cost_map, image_width, image_height, sta
             "path_length": 0,
             "mode": mode,
             "message": "当前未检测到明确救援目标，无法规划路径。",
+            **_path_metadata(status="degraded"),
         }
 
     target = ranked_targets[0]
@@ -227,6 +288,7 @@ def _plan_with_cost_map(ranked_targets, cost_map, image_width, image_height, sta
             "target_id": target.get("target_id") or target.get("id"),
             "target_class": target.get("class_name"),
             "mode": mode,
+            **_path_metadata(status="degraded" if not CV2_AVAILABLE else "ok"),
         }
     )
     return result
@@ -323,7 +385,17 @@ def compare_path_plans(baseline_result, risk_aware_result, segmentation_mask):
         "risk_aware_environment_risk": risk_aware_environment_risk,
         "risk_reduction": risk_reduction,
         "message": message,
+        **_path_metadata(status="degraded" if not CV2_AVAILABLE else "ok"),
     }
+
+
+def _draw_line_pil(draw, pt1, pt2, color, width=2):
+    draw.line([tuple(pt1), tuple(pt2)], fill=tuple(color), width=int(width))
+
+
+def _draw_circle_pil(draw, center, radius, color):
+    x, y = center
+    draw.ellipse((x - radius, y - radius, x + radius, y + radius), fill=tuple(color))
 
 
 def create_dual_path_overlay(image, baseline_result, risk_aware_result):
@@ -332,6 +404,26 @@ def create_dual_path_overlay(image, baseline_result, risk_aware_result):
         return None
 
     overlay = _as_rgb_array(image).copy()
+    if not CV2_AVAILABLE:
+        pil = Image.fromarray(overlay)
+        draw = ImageDraw.Draw(pil)
+
+        def _draw_path_pil(path_result, color, label):
+            if not path_result or not path_result.get("found"):
+                return
+            path = path_result.get("path") or []
+            for index in range(1, len(path)):
+                _draw_line_pil(draw, path[index - 1], path[index], color, width=2)
+            if path:
+                start = tuple(int(value) for value in path_result.get("start", path[0]))
+                goal = tuple(int(value) for value in path_result.get("goal", path[-1]))
+                _draw_circle_pil(draw, start, 6, (0, 200, 0))
+                _draw_circle_pil(draw, goal, 6, (220, 0, 0))
+                draw.text((goal[0] + 8, goal[1] + 14), label, fill=tuple(color))
+
+        _draw_path_pil(baseline_result, (255, 160, 0), "B")
+        _draw_path_pil(risk_aware_result, (0, 220, 255), "R")
+        return np.asarray(pil)
 
     def _draw_path(path_result, color, label):
         if not path_result or not path_result.get("found"):
@@ -367,6 +459,19 @@ def create_path_overlay(image, path_result):
         return image_rgb
 
     overlay = image_rgb.copy()
+    if not CV2_AVAILABLE:
+        pil = Image.fromarray(overlay)
+        draw = ImageDraw.Draw(pil)
+        for index in range(1, len(path)):
+            _draw_line_pil(draw, path[index - 1], path[index], (255, 215, 0), width=3)
+        start = tuple(int(value) for value in path_result.get("start", path[0]))
+        goal = tuple(int(value) for value in path_result.get("goal", path[-1]))
+        _draw_circle_pil(draw, start, 7, (0, 200, 0))
+        _draw_circle_pil(draw, goal, 7, (220, 0, 0))
+        draw.text((start[0] + 8, start[1] - 8), "S", fill=(0, 120, 0))
+        draw.text((goal[0] + 8, goal[1] - 8), "T", fill=(170, 0, 0))
+        return np.asarray(pil)
+
     for index in range(1, len(path)):
         pt1 = tuple(int(value) for value in path[index - 1])
         pt2 = tuple(int(value) for value in path[index])

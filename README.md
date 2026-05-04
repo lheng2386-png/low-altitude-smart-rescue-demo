@@ -64,6 +64,7 @@ See:
 | Report Module | Implemented | Chinese rescue assistance report |
 | Platform Mockup Module | Integrated | Mission dashboard, report center, case archive design |
 | Model Comparison Module | Integrated | Reference benchmark assets and reproducible evaluation scaffold |
+| 3D Reconstruction Module | Added external-tool wrappers | Video frame extraction, quality filtering, COLMAP/ODM command preparation, truthfulness report |
 
 ## Detection Gallery
 
@@ -206,10 +207,105 @@ Run model comparison help:
 python model_comparison/evaluate_detection_models.py --help
 ```
 
+Run 3D reconstruction frame extraction:
+
+```bash
+python -m modules.reconstruction_3d.video_to_frames --video data/demo/input.mp4 --output outputs/reconstruction_3d/frames --fps 1
+```
+
+## 3D Reconstruction Module
+
+The `modules/reconstruction_3d/` package adds a real reconstruction workflow boundary for normal UAV imagery, extracted UAV video frames, and 360 panorama sequences without fabricating geometry:
+
+- `video_to_frames.py` extracts sampled frames from a video and writes `frames_metadata.json`.
+- `frame_quality_filter.py` removes blurry, too-dark, and optionally near-duplicate frames before reconstruction.
+- `colmap_standard_pipeline.py` runs the standard COLMAP SfM chain for normal UAV images or extracted video frames: `feature_extractor`, `sequential_matcher` or `exhaustive_matcher`, and `mapper`, with optional dense stereo and meshing.
+- `colmap_360_pipeline.py` runs a COLMAP `panorama_sfm.py` workflow for true 360 equirectangular panorama frame sequences. If COLMAP or the panorama script is unavailable, it writes a transparent missing-dependency status in `reconstruction_status.json`.
+- `odm_pipeline.py` prepares or runs an OpenDroneMap Docker workflow for UAV image folders and supports `auto`, `perspective`, `fisheye`, `spherical`, and `equirectangular` camera lens settings.
+- `reconstruction_report.py` writes `reconstruction_report.json` and `reconstruction_report.md` with explicit truthfulness boundaries.
+
+Normal UAV reconstruction and 360 panorama reconstruction are not interchangeable. Standard UAV reconstruction expects perspective images with sufficient overlap and parallax. The 360 pipeline expects multiple equirectangular panorama frames from real camera motion; a single panorama image is not 3D reconstruction.
+
+Required external dependencies for real COLMAP execution:
+
+- COLMAP executable available on `PATH`.
+- For 360 panorama reconstruction, a real `panorama_sfm.py` script path.
+- Optional dense reconstruction requires enough compute for COLMAP PatchMatch stereo.
+
+Example standard COLMAP command:
+
+```bash
+python -m modules.reconstruction_3d.colmap_standard_pipeline \
+  --image-dir outputs/reconstruction_3d/selected_frames \
+  --output-dir outputs/reconstruction_3d/colmap_standard \
+  --matcher sequential \
+  --run-dense false
+```
+
+Example 360 panorama COLMAP command:
+
+```bash
+python -m modules.reconstruction_3d.colmap_360_pipeline \
+  --panorama-image-dir outputs/reconstruction_3d/selected_frames \
+  --output-dir outputs/reconstruction_3d/colmap_360 \
+  --panorama-sfm-script third_party/colmap/python/examples/panorama_sfm.py
+```
+
+This module can output extracted frames, selected reconstruction frames, prepared COLMAP/ODM command templates, verified external-tool output paths, and a reconstruction report. It reports real output paths only when files exist after an actual external-tool run.
+
+Expected COLMAP workspace outputs include `database.db`, `sparse/0/` with COLMAP cameras/images/points3D files, optional `dense/fused.ply`, optional mesh outputs, `logs/`, and `reconstruction_status.json`.
+
+Limitations are intentional and competition-critical: Fast Preview is not a real ODM orthophoto, 360 panorama viewing is not true 3D reconstruction, reconstruction is relative-scale unless GPS/GCP constraints are available, RGB frames do not contain true temperature matrices, no GPS/GCP means no absolute georeferenced rescue route, and all outputs remain human-reviewed auxiliary decision support rather than autonomous rescue commands or GPS navigation routes.
+
+## OpenDroneMap / ODM Photogrammetry Pipeline
+
+The ODM pipeline under `modules/reconstruction_3d/odm_pipeline.py` is the project path for real UAV photogrammetry products such as orthophoto, DSM/DTM, point cloud, textured model, and ODM report files. It uses Docker and the local OpenDroneMap image; it does not generate placeholder orthophotos, DEMs, meshes, GPS coordinates, or georeferenced outputs.
+
+Fast Preview and real ODM output are different. Fast Preview is only a quick visual aid. A real ODM orthophoto is reported only when the Docker ODM command runs successfully and `odm_orthophoto/odm_orthophoto.tif` actually exists in the ODM project folder.
+
+COLMAP and ODM also serve different roles:
+
+- COLMAP standard/360 pipelines focus on SfM reconstruction, sparse models, optional dense point clouds, and mesh outputs.
+- ODM is an end-to-end UAV photogrammetry workflow that can produce orthophotos, DSM/DTM, point clouds, textured models, and reports when the input imagery and metadata support it.
+
+Required dependencies:
+
+- Docker executable available on `PATH`.
+- Local ODM Docker image, usually `opendronemap/odm`.
+- The module does not auto-pull the image unless `auto_pull` is explicitly enabled.
+
+Example ODM command:
+
+```bash
+python -m modules.reconstruction_3d.odm_pipeline \
+  --image-dir outputs/reconstruction_3d/selected_frames \
+  --output-dir outputs/reconstruction_3d/odm \
+  --project-name aerorescue_odm \
+  --camera-lens auto \
+  --feature-quality medium \
+  --pc-quality medium \
+  --dsm true \
+  --dtm false
+```
+
+Expected ODM output files are detected only when they exist:
+
+- `odm_orthophoto/odm_orthophoto.tif`
+- `odm_dem/dsm.tif`
+- `odm_dem/dtm.tif`
+- `odm_georeferencing/odm_georeferenced_model.laz`
+- `odm_georeferencing/odm_georeferenced_model.las`
+- `odm_texturing/odm_textured_model.obj`
+- `odm_texturing/odm_textured_model_geo.obj`
+- `odm_report/report.pdf`
+
+ODM reconstruction requires sufficient image overlap, parallax, texture, lighting, and sharpness. Without GPS/GCP/RTK or reliable EXIF geotags, outputs should not be treated as survey-grade georeferenced products or rescue navigation routes. All ODM outputs are auxiliary spatial evidence for human-reviewed disaster assessment.
+
 ## Repository Structure
 
 ```text
 app/                         Gradio app and decision modules
+modules/reconstruction_3d/   Real 3D reconstruction wrappers and reports
 integrated_modules/          Copied / migrated reference code and README material
 static/images/reference/     Reference assets separated by source
 static/images/showcase/      AeroRescue-AI generated outputs
@@ -225,6 +321,7 @@ docs/                        Static site and design documents
 - Current system is a competition-stage local prototype, not a complete cloud platform.
 - Path planning is image-plane reference planning, not real GPS navigation.
 - No real road network, GIS engine, UAV localization, or flight-control system is connected.
+- 3D reconstruction wrappers do not invent point clouds, camera poses, ODM outputs, GPS routes, or reconstruction success.
 - Automatic segmentation requires a trained local checkpoint; without one, the system falls back to uploaded masks or no segmentation.
 - Reference benchmark figures are not AeroRescue-AI reproduced results.
 - Manual demo masks are not automatic segmentation predictions.

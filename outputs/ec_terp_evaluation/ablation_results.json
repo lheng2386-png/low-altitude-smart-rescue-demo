@@ -1,0 +1,426 @@
+{
+  "success": true,
+  "ablation_results": [
+    {
+      "ablation_name": "without_environment_risk",
+      "case_id": "case_001_flood_road_blocked",
+      "base_order": [
+        "T001",
+        "T002"
+      ],
+      "ablated_order": [
+        "T001",
+        "T002"
+      ],
+      "top1_changed": false,
+      "top3_stability": 1.0,
+      "average_rank_shift": 0.0,
+      "interpretation": "去掉环境风险后，建筑损毁、水域和道路阻断对排序影响减弱，说明 E 项用于表达灾害环境压力。Top-1 未发生变化，平均排名变化 0.0。"
+    },
+    {
+      "ablation_name": "without_environment_risk",
+      "case_id": "case_002_damaged_building_human_candidate",
+      "base_order": [
+        "T011",
+        "TR012"
+      ],
+      "ablated_order": [
+        "T011",
+        "TR012"
+      ],
+      "top1_changed": false,
+      "top3_stability": 1.0,
+      "average_rank_shift": 0.0,
+      "interpretation": "去掉环境风险后，建筑损毁、水域和道路阻断对排序影响减弱，说明 E 项用于表达灾害环境压力。Top-1 未发生变化，平均排名变化 0.0。"
+    },
+    {
+      "ablation_name": "without_environment_risk",
+      "case_id": "case_003_low_confidence_target",
+      "base_order": [
+        "T022",
+        "T021"
+      ],
+      "ablated_order": [
+        "T022",
+        "T021"
+      ],
+      "top1_changed": false,
+      "top3_stability": 1.0,
+      "average_rank_shift": 0.0,
+      "interpretation": "去掉环境风险后，建筑损毁、水域和道路阻断对排序影响减弱，说明 E 项用于表达灾害环境压力。Top-1 未发生变化，平均排名变化 0.0。"
+    },
+    {
+      "ablation_name": "without_environment_risk",
+      "case_id": "case_004_path_unavailable_high_risk",
+      "base_order": [
+        "T032",
+        "T031"
+      ],
+      "ablated_order": [
+        "T032",
+        "T031"
+      ],
+      "top1_changed": false,
+      "top3_stability": 1.0,
+      "average_rank_shift": 0.0,
+      "interpretation": "去掉环境风险后，建筑损毁、水域和道路阻断对排序影响减弱，说明 E 项用于表达灾害环境压力。Top-1 未发生变化，平均排名变化 0.0。"
+    },
+    {
+      "ablation_name": "without_environment_risk",
+      "case_id": "case_005_coverage_gap_case",
+      "base_order": [
+        "T041",
+        "T042",
+        "TR043"
+      ],
+      "ablated_order": [
+        "T041",
+        "T042",
+        "TR043"
+      ],
+      "top1_changed": false,
+      "top3_stability": 1.0,
+      "average_rank_shift": 0.0,
+      "interpretation": "去掉环境风险后，建筑损毁、水域和道路阻断对排序影响减弱，说明 E 项用于表达灾害环境压力。Top-1 未发生变化，平均排名变化 0.0。"
+    },
+    {
+      "ablation_name": "without_route_accessibility",
+      "case_id": "case_001_flood_road_blocked",
+      "base_order": [
+        "T001",
+        "T002"
+      ],
+      "ablated_order": [
+        "T001",
+        "T002"
+      ],
+      "top1_changed": false,
+      "top3_stability": 1.0,
+      "average_rank_shift": 0.0,
+      "interpretation": "去掉路径可达性后，路径不可达目标可能被排得过高，说明 R 项对救援可执行性有约束作用。Top-1 未发生变化，平均排名变化 0.0。"
+    },
+    {
+      "ablation_name": "without_route_accessibility",
+      "case_id": "case_002_damaged_building_human_candidate",
+      "base_order": [
+        "T011",
+        "TR012"
+      ],
+      "ablated_order": [
+        "T011",
+        "TR012"
+      ],
+      "top1_changed": false,
+      "top3_stability": 1.0,
+      "average_rank_shift": 0.0,
+      "interpretation": "去掉路径可达性后，路径不可达目标可能被排得过高，说明 R 项对救援可执行性有约束作用。Top-1 未发生变化，平均排名变化 0.0。"
+    },
+    {
+      "ablation_name": "without_route_accessibility",
+      "case_id": "case_003_low_confidence_target",
+      "base_order": [
+        "T022",
+        "T021"
+      ],
+      "ablated_order": [
+        "T022",
+        "T021"
+      ],
+      "top1_changed": false,
+      "top3_stability": 1.0,
+      "average_rank_shift": 0.0,
+      "interpretation": "去掉路径可达性后，路径不可达目标可能被排得过高，说明 R 项对救援可执行性有约束作用。Top-1 未发生变化，平均排名变化 0.0。"
+    },
+    {
+      "ablation_name": "without_route_accessibility",
+      "case_id": "case_004_path_unavailable_high_risk",
+      "base_order": [
+        "T032",
+        "T031"
+      ],
+      "ablated_order": [
+        "T032",
+        "T031"
+      ],
+      "top1_changed": false,
+      "top3_stability": 1.0,
+      "average_rank_shift": 0.0,
+      "interpretation": "去掉路径可达性后，路径不可达目标可能被排得过高，说明 R 项对救援可执行性有约束作用。Top-1 未发生变化，平均排名变化 0.0。"
+    },
+    {
+      "ablation_name": "without_route_accessibility",
+      "case_id": "case_005_coverage_gap_case",
+      "base_order": [
+        "T041",
+        "T042",
+        "TR043"
+      ],
+      "ablated_order": [
+        "T041",
+        "T042",
+        "TR043"
+      ],
+      "top1_changed": false,
+      "top3_stability": 1.0,
+      "average_rank_shift": 0.0,
+      "interpretation": "去掉路径可达性后，路径不可达目标可能被排得过高，说明 R 项对救援可执行性有约束作用。Top-1 未发生变化，平均排名变化 0.0。"
+    },
+    {
+      "ablation_name": "without_coverage_gap",
+      "case_id": "case_001_flood_road_blocked",
+      "base_order": [
+        "T001",
+        "T002"
+      ],
+      "ablated_order": [
+        "T001",
+        "T002"
+      ],
+      "top1_changed": false,
+      "top3_stability": 1.0,
+      "average_rank_shift": 0.0,
+      "interpretation": "去掉覆盖缺口后，未搜索高优先级区域对排序约束减弱，说明 C 项用于提醒补充巡检需求。Top-1 未发生变化，平均排名变化 0.0。"
+    },
+    {
+      "ablation_name": "without_coverage_gap",
+      "case_id": "case_002_damaged_building_human_candidate",
+      "base_order": [
+        "T011",
+        "TR012"
+      ],
+      "ablated_order": [
+        "T011",
+        "TR012"
+      ],
+      "top1_changed": false,
+      "top3_stability": 1.0,
+      "average_rank_shift": 0.0,
+      "interpretation": "去掉覆盖缺口后，未搜索高优先级区域对排序约束减弱，说明 C 项用于提醒补充巡检需求。Top-1 未发生变化，平均排名变化 0.0。"
+    },
+    {
+      "ablation_name": "without_coverage_gap",
+      "case_id": "case_003_low_confidence_target",
+      "base_order": [
+        "T022",
+        "T021"
+      ],
+      "ablated_order": [
+        "T022",
+        "T021"
+      ],
+      "top1_changed": false,
+      "top3_stability": 1.0,
+      "average_rank_shift": 0.0,
+      "interpretation": "去掉覆盖缺口后，未搜索高优先级区域对排序约束减弱，说明 C 项用于提醒补充巡检需求。Top-1 未发生变化，平均排名变化 0.0。"
+    },
+    {
+      "ablation_name": "without_coverage_gap",
+      "case_id": "case_004_path_unavailable_high_risk",
+      "base_order": [
+        "T032",
+        "T031"
+      ],
+      "ablated_order": [
+        "T032",
+        "T031"
+      ],
+      "top1_changed": false,
+      "top3_stability": 1.0,
+      "average_rank_shift": 0.0,
+      "interpretation": "去掉覆盖缺口后，未搜索高优先级区域对排序约束减弱，说明 C 项用于提醒补充巡检需求。Top-1 未发生变化，平均排名变化 0.0。"
+    },
+    {
+      "ablation_name": "without_coverage_gap",
+      "case_id": "case_005_coverage_gap_case",
+      "base_order": [
+        "T041",
+        "T042",
+        "TR043"
+      ],
+      "ablated_order": [
+        "T041",
+        "T042",
+        "TR043"
+      ],
+      "top1_changed": false,
+      "top3_stability": 1.0,
+      "average_rank_shift": 0.0,
+      "interpretation": "去掉覆盖缺口后，未搜索高优先级区域对排序约束减弱，说明 C 项用于提醒补充巡检需求。Top-1 未发生变化，平均排名变化 0.0。"
+    },
+    {
+      "ablation_name": "without_evidence_quality",
+      "case_id": "case_001_flood_road_blocked",
+      "base_order": [
+        "T001",
+        "T002"
+      ],
+      "ablated_order": [
+        "T001",
+        "T002"
+      ],
+      "top1_changed": false,
+      "top3_stability": 1.0,
+      "average_rank_shift": 0.0,
+      "interpretation": "去掉证据质量项后，弱证据目标可能更容易上升，说明 Q 项有助于抑制低可信结果对排序的过度影响。Top-1 未发生变化，平均排名变化 0.0。"
+    },
+    {
+      "ablation_name": "without_evidence_quality",
+      "case_id": "case_002_damaged_building_human_candidate",
+      "base_order": [
+        "T011",
+        "TR012"
+      ],
+      "ablated_order": [
+        "T011",
+        "TR012"
+      ],
+      "top1_changed": false,
+      "top3_stability": 1.0,
+      "average_rank_shift": 0.0,
+      "interpretation": "去掉证据质量项后，弱证据目标可能更容易上升，说明 Q 项有助于抑制低可信结果对排序的过度影响。Top-1 未发生变化，平均排名变化 0.0。"
+    },
+    {
+      "ablation_name": "without_evidence_quality",
+      "case_id": "case_003_low_confidence_target",
+      "base_order": [
+        "T022",
+        "T021"
+      ],
+      "ablated_order": [
+        "T021",
+        "T022"
+      ],
+      "top1_changed": true,
+      "top3_stability": 1.0,
+      "average_rank_shift": 1.0,
+      "interpretation": "去掉证据质量项后，弱证据目标可能更容易上升，说明 Q 项有助于抑制低可信结果对排序的过度影响。Top-1 发生变化，平均排名变化 1.0。"
+    },
+    {
+      "ablation_name": "without_evidence_quality",
+      "case_id": "case_004_path_unavailable_high_risk",
+      "base_order": [
+        "T032",
+        "T031"
+      ],
+      "ablated_order": [
+        "T032",
+        "T031"
+      ],
+      "top1_changed": false,
+      "top3_stability": 1.0,
+      "average_rank_shift": 0.0,
+      "interpretation": "去掉证据质量项后，弱证据目标可能更容易上升，说明 Q 项有助于抑制低可信结果对排序的过度影响。Top-1 未发生变化，平均排名变化 0.0。"
+    },
+    {
+      "ablation_name": "without_evidence_quality",
+      "case_id": "case_005_coverage_gap_case",
+      "base_order": [
+        "T041",
+        "T042",
+        "TR043"
+      ],
+      "ablated_order": [
+        "T041",
+        "T042",
+        "TR043"
+      ],
+      "top1_changed": false,
+      "top3_stability": 1.0,
+      "average_rank_shift": 0.0,
+      "interpretation": "去掉证据质量项后，弱证据目标可能更容易上升，说明 Q 项有助于抑制低可信结果对排序的过度影响。Top-1 未发生变化，平均排名变化 0.0。"
+    },
+    {
+      "ablation_name": "without_uncertainty_penalty",
+      "case_id": "case_001_flood_road_blocked",
+      "base_order": [
+        "T001",
+        "T002"
+      ],
+      "ablated_order": [
+        "T001",
+        "T002"
+      ],
+      "top1_changed": false,
+      "top3_stability": 1.0,
+      "average_rank_shift": 0.0,
+      "interpretation": "去掉不确定性惩罚后，低置信度或 human_candidate 目标可能排名上升，说明 U 项有助于保持人工复核约束。Top-1 未发生变化，平均排名变化 0.0。"
+    },
+    {
+      "ablation_name": "without_uncertainty_penalty",
+      "case_id": "case_002_damaged_building_human_candidate",
+      "base_order": [
+        "T011",
+        "TR012"
+      ],
+      "ablated_order": [
+        "T011",
+        "TR012"
+      ],
+      "top1_changed": false,
+      "top3_stability": 1.0,
+      "average_rank_shift": 0.0,
+      "interpretation": "去掉不确定性惩罚后，低置信度或 human_candidate 目标可能排名上升，说明 U 项有助于保持人工复核约束。Top-1 未发生变化，平均排名变化 0.0。"
+    },
+    {
+      "ablation_name": "without_uncertainty_penalty",
+      "case_id": "case_003_low_confidence_target",
+      "base_order": [
+        "T022",
+        "T021"
+      ],
+      "ablated_order": [
+        "T021",
+        "T022"
+      ],
+      "top1_changed": true,
+      "top3_stability": 1.0,
+      "average_rank_shift": 1.0,
+      "interpretation": "去掉不确定性惩罚后，低置信度或 human_candidate 目标可能排名上升，说明 U 项有助于保持人工复核约束。Top-1 发生变化，平均排名变化 1.0。"
+    },
+    {
+      "ablation_name": "without_uncertainty_penalty",
+      "case_id": "case_004_path_unavailable_high_risk",
+      "base_order": [
+        "T032",
+        "T031"
+      ],
+      "ablated_order": [
+        "T032",
+        "T031"
+      ],
+      "top1_changed": false,
+      "top3_stability": 1.0,
+      "average_rank_shift": 0.0,
+      "interpretation": "去掉不确定性惩罚后，低置信度或 human_candidate 目标可能排名上升，说明 U 项有助于保持人工复核约束。Top-1 未发生变化，平均排名变化 0.0。"
+    },
+    {
+      "ablation_name": "without_uncertainty_penalty",
+      "case_id": "case_005_coverage_gap_case",
+      "base_order": [
+        "T041",
+        "T042",
+        "TR043"
+      ],
+      "ablated_order": [
+        "T041",
+        "T042",
+        "TR043"
+      ],
+      "top1_changed": false,
+      "top3_stability": 1.0,
+      "average_rank_shift": 0.0,
+      "interpretation": "去掉不确定性惩罚后，低置信度或 human_candidate 目标可能排名上升，说明 U 项有助于保持人工复核约束。Top-1 未发生变化，平均排名变化 0.0。"
+    }
+  ],
+  "summary": {
+    "most_impactful_ablation": "without_evidence_quality",
+    "mean_rank_shift_by_ablation": {
+      "without_environment_risk": 0.0,
+      "without_route_accessibility": 0.0,
+      "without_coverage_gap": 0.0,
+      "without_evidence_quality": 0.2,
+      "without_uncertainty_penalty": 0.2
+    }
+  },
+  "truthfulness_note": "Ablation study shows how EC-TERP ranking changes when individual components are removed."
+}
