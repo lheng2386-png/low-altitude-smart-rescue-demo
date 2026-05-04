@@ -1,0 +1,15 @@
+{
+  "repository_key": "python_robotics",
+  "repository_name": "AtsushiSakai/PythonRobotics",
+  "current_state": "adapter_created",
+  "target_final_state": "algorithm_adapter_and_comparison",
+  "dependency_status": "available",
+  "checkpoint_status": "not_required",
+  "dataset_status": "not_required",
+  "truthfulness_limitations": [
+    "No fake checkpoints, datasets, metrics, GPS routes, or full-integration claims are allowed.",
+    "Human review is required for all rescue-support outputs.",
+    "planned / adapter_created states are not evaluated executable integrations.",
+    "Image-plane path is not GPS/GIS navigation."
+  ]
+}

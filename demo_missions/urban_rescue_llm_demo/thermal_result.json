@@ -1,0 +1,10 @@
+{
+  "mission_id": "urban_rescue_llm_demo",
+  "thermal": {
+    "mode": "simulated",
+    "hotspots": 2,
+    "note": "simulated thermal; not real temperature measurement"
+  },
+  "human_review_required": true,
+  "truthfulness_note": "Simulated thermal is a visualization cue and not radiometric temperature measurement."
+}

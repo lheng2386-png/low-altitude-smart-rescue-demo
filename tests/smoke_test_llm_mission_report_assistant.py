@@ -34,8 +34,8 @@ def main():
         assert report["mission_summary"]
         assert report["human_review_required"] is True
         assert "simulated thermal" in " ".join(report["limitations"]).lower()
-        assert "not a real temperature measurement" in " ".join(report["limitations"]).lower()
-        assert "not a gps navigation route" in " ".join(report["limitations"]).lower()
+        assert "not a radiometric temperature measurement" in " ".join(report["limitations"]).lower()
+        assert "not a navigation route" in " ".join(report["limitations"]).lower()
         joined = " ".join(
             [
                 report["mission_summary"],

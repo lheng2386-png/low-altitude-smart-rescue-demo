@@ -222,6 +222,7 @@ The `modules/reconstruction_3d/` package adds a real reconstruction workflow bou
 - `colmap_standard_pipeline.py` runs the standard COLMAP SfM chain for normal UAV images or extracted video frames: `feature_extractor`, `sequential_matcher` or `exhaustive_matcher`, and `mapper`, with optional dense stereo and meshing.
 - `colmap_360_pipeline.py` runs a COLMAP `panorama_sfm.py` workflow for true 360 equirectangular panorama frame sequences. If COLMAP or the panorama script is unavailable, it writes a transparent missing-dependency status in `reconstruction_status.json`.
 - `odm_pipeline.py` prepares or runs an OpenDroneMap Docker workflow for UAV image folders and supports `auto`, `perspective`, `fisheye`, `spherical`, and `equirectangular` camera lens settings.
+- `reconstruction_workflow.py` orchestrates extraction, quality filtering, COLMAP/ODM execution, and report generation into one transparent workflow status.
 - `reconstruction_report.py` writes `reconstruction_report.json` and `reconstruction_report.md` with explicit truthfulness boundaries.
 
 Normal UAV reconstruction and 360 panorama reconstruction are not interchangeable. Standard UAV reconstruction expects perspective images with sufficient overlap and parallax. The 360 pipeline expects multiple equirectangular panorama frames from real camera motion; a single panorama image is not 3D reconstruction.
@@ -250,6 +251,29 @@ python -m modules.reconstruction_3d.colmap_360_pipeline \
   --output-dir outputs/reconstruction_3d/colmap_360 \
   --panorama-sfm-script third_party/colmap/python/examples/panorama_sfm.py
 ```
+
+Example unified workflow command:
+
+```bash
+python -m modules.reconstruction_3d.reconstruction_workflow \
+  --mode standard_uav \
+  --image-dir outputs/reconstruction_3d/selected_frames \
+  --output-dir outputs/reconstruction_3d/workflow \
+  --run-quality-filter false \
+  --matcher sequential \
+  --run-dense false
+```
+
+Supported workflow modes:
+
+- `standard_uav`: normal perspective UAV images or extracted video frames through COLMAP standard SfM.
+- `360_panorama`: true equirectangular panorama frame sequences through COLMAP panorama SfM.
+- `odm`: UAV image folders through OpenDroneMap.
+- `report_only`: generate a truthfulness report without running reconstruction.
+
+The workflow writes `workflow_status.json` and a report folder. Each step is explicitly marked as `success`, `skipped`, `dependency_missing`, `script_missing`, `invalid_input`, `command_failed`, or `output_missing`.
+
+The Gradio app exposes this workflow in the “360°视频 / 三维重建预处理” tab as the Real Workflow section. The older ORB/PLY preview remains available under a collapsed lightweight-preview section and is labeled as non-SfM/non-ODM.
 
 This module can output extracted frames, selected reconstruction frames, prepared COLMAP/ODM command templates, verified external-tool output paths, and a reconstruction report. It reports real output paths only when files exist after an actual external-tool run.
 
@@ -325,6 +349,41 @@ docs/                        Static site and design documents
 - Automatic segmentation requires a trained local checkpoint; without one, the system falls back to uploaded masks or no segmentation.
 - Reference benchmark figures are not AeroRescue-AI reproduced results.
 - Manual demo masks are not automatic segmentation predictions.
+
+## LLM Safety Regression Tests
+
+The optional LLM report assistant, mission copilot, tool-orchestrated mission planner, and evidence auditor are tested with mock providers by default. These tests do not require `OPENAI_API_KEY` and must not call external LLM APIs.
+
+Run the one-click LLM demo:
+
+```bash
+app/venv/bin/python scripts/run_llm_demo.py
+```
+
+With an already activated compatible environment, `python scripts/run_llm_demo.py` is equivalent.
+
+See [docs/llm_demo.md](docs/llm_demo.md) for the demo dataset pack, MockProvider flow, real API configuration, generated files, and authenticity boundaries.
+
+Run the LLM safety suite:
+
+```bash
+app/venv/bin/python tests/test_llm_safety.py
+```
+
+Useful related smoke tests:
+
+```bash
+app/venv/bin/python tests/smoke_test_llm_mission_report_assistant.py
+app/venv/bin/python tests/smoke_test_llm_report_panel.py
+app/venv/bin/python tests/smoke_test_mission_copilot.py
+app/venv/bin/python tests/smoke_test_mission_copilot_panel.py
+app/venv/bin/python tests/test_llm_mission_planner.py
+app/venv/bin/python tests/smoke_test_mission_planner_panel.py
+app/venv/bin/python tests/test_llm_evidence_auditor.py
+app/venv/bin/python tests/smoke_test_evidence_audit_panel.py
+```
+
+The suite checks that LLM outputs do not confirm civilians, survivors, casualties, real temperatures, GPS navigation routes, survey-grade orthomosaics, model-generated segmentation, or real rescue conclusions. The planner can only execute white-listed backend tools. The auditor reports consistency issues and suggestions without overwriting source evidence. All LLM outputs remain auxiliary explanations that require human review.
 
 ## Roadmap
 

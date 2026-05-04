@@ -27,9 +27,32 @@ def _exists_text(path):
     return str(path) if path.exists() else "该模块尚未执行。"
 
 
+def _read_latest_reconstruction_3d_result():
+    root = OUTPUT_ROOT / "reconstruction_3d"
+    if not root.exists():
+        return ""
+    candidates = sorted(
+        list(root.glob("workflow/*/workflow_status.json")) + list(root.glob("workflow_status.json")),
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    )
+    for path in candidates:
+        if path.exists():
+            return path.read_text(encoding="utf-8", errors="ignore")
+    report_candidates = sorted(
+        list(root.glob("workflow/*/report/reconstruction_report.json")) + list(root.glob("report/reconstruction_report.json")),
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    )
+    for path in report_candidates:
+        if path.exists():
+            return path.read_text(encoding="utf-8", errors="ignore")
+    return ""
+
+
 def _file_index():
     lines = []
-    for directory in ["orthomosaic", "thermal", "detection", "reconstruction", "reports"]:
+    for directory in ["orthomosaic", "thermal", "detection", "reconstruction", "reconstruction_3d", "reports"]:
         base = OUTPUT_ROOT / directory
         if not base.exists():
             lines.append(f"- outputs/{directory}/：该目录尚未生成")
@@ -129,7 +152,8 @@ def export_final_report():
     """Export final markdown and HTML reports from existing module outputs."""
     orthomosaic_log = _read(OUTPUT_ROOT / "orthomosaic" / "processing_log.json")
     thermal_result = _read(OUTPUT_ROOT / "thermal" / "thermal_result.json")
-    reconstruction_result = _read(OUTPUT_ROOT / "reconstruction" / "reconstruction_result.json")
+    reconstruction_workflow_result = _read_latest_reconstruction_3d_result()
+    reconstruction_result = reconstruction_workflow_result or _read(OUTPUT_ROOT / "reconstruction" / "reconstruction_result.json")
     scene_description = _read(REPORT_DIR / "scene_description.md")
 
     md = f"""# AeroRescue-AI 综合救援报告

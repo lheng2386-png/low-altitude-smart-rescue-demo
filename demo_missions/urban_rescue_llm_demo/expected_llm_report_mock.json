@@ -1,0 +1,19 @@
+{
+  "mission_summary": "Mission result contains unverified target and risk evidence for the urban rescue LLM demo.",
+  "risk_interpretation": "Risk interpretation is auxiliary and based on demo mask, simulated thermal cues, image-plane planning, and EC-TERP priority.",
+  "human_review_required": true,
+  "limitations": [
+    "human_candidate is not verified as a civilian or survivor without human review.",
+    "Simulated thermal is not radiometric temperature measurement.",
+    "image-plane path output is not a field navigation route.",
+    "Demo/uploaded mask is not necessarily automatic segmentation.",
+    "EC-TERP priority is decision-support only."
+  ],
+  "recommended_next_actions": [
+    "Review the source image and detection evidence manually.",
+    "Treat simulated thermal hotspots as cues, not measurements.",
+    "Use image-plane path only as planning context.",
+    "Record all assumptions in the final report."
+  ],
+  "report_paragraph": "This mock report summarizes a repeatable LLM demo mission. It preserves the evidence boundaries for human_candidate, simulated thermal, demo mask, image-plane path, and EC-TERP priority, and requires human review before operational use."
+}

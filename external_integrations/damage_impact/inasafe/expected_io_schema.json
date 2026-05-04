@@ -1,0 +1,26 @@
+{
+  "repository_key": "inasafe",
+  "expected_input_schema": [
+    "hazard layer",
+    "exposure layer",
+    "vulnerability assumptions"
+  ],
+  "expected_output_schema": [
+    "GIS impact report if QGIS/InaSAFE stack is actually run"
+  ],
+  "required_metadata": [
+    "repository_name",
+    "adapter_version",
+    "dependency_status",
+    "checkpoint_status",
+    "dataset_status",
+    "truthfulness_note",
+    "human_review_required"
+  ],
+  "truthfulness_boundary": [
+    "No fake checkpoints, datasets, metrics, GPS routes, or full-integration claims are allowed.",
+    "Human review is required for all rescue-support outputs.",
+    "planned / adapter_created states are not evaluated executable integrations.",
+    "Current impact score is image-plane lightweight adaptation, not full InaSAFE/QGIS analysis."
+  ]
+}

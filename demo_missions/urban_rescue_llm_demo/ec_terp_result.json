@@ -1,0 +1,10 @@
+{
+  "mission_id": "urban_rescue_llm_demo",
+  "ec_terp": {
+    "priority": "high",
+    "reason": "human_candidate near high-risk area with possible simulated thermal hotspot",
+    "note": "decision-support priority only; requires human review"
+  },
+  "human_review_required": true,
+  "truthfulness_note": "EC-TERP is an auxiliary priority score and not a rescue conclusion."
+}

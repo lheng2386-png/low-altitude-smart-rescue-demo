@@ -1,0 +1,14 @@
+{
+  "mission_id": "urban_rescue_llm_demo",
+  "scene_type": "low_altitude_urban_disaster_demo",
+  "created_for": "llm_api_demo",
+  "authenticity_notice": "This is a stable demo mission for LLM post-processing. It contains demo, simulated, and image-plane evidence only. It must not be used as a real rescue conclusion.",
+  "human_review_required": true,
+  "mission_notes": [
+    "human_candidate is an unverified possible person-like target.",
+    "simulated thermal is not radiometric temperature measurement.",
+    "image-plane path is a visual planning suggestion only.",
+    "demo/uploaded mask is not necessarily model-generated segmentation.",
+    "EC-TERP priority is decision-support only."
+  ]
+}

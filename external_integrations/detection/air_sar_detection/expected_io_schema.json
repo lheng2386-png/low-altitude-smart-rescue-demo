@@ -1,0 +1,24 @@
+{
+  "repository_key": "air_sar_detection",
+  "expected_input_schema": [
+    "SAR/search image after official repo reproduction"
+  ],
+  "expected_output_schema": [
+    "person candidate detections with review-required metadata"
+  ],
+  "required_metadata": [
+    "repository_name",
+    "adapter_version",
+    "dependency_status",
+    "checkpoint_status",
+    "dataset_status",
+    "truthfulness_note",
+    "human_review_required"
+  ],
+  "truthfulness_boundary": [
+    "No fake checkpoints, datasets, metrics, GPS routes, or full-integration claims are allowed.",
+    "Human review is required for all rescue-support outputs.",
+    "planned / adapter_created states are not evaluated executable integrations.",
+    "AIR outputs are not current AeroRescue-AI results."
+  ]
+}

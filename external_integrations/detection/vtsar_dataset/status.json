@@ -1,0 +1,15 @@
+{
+  "repository_key": "vtsar_dataset",
+  "repository_name": "zxq309/VTSaR",
+  "current_state": "planned",
+  "target_final_state": "dataset_validation_support",
+  "dependency_status": "not_required",
+  "checkpoint_status": "not_required",
+  "dataset_status": "to_prepare",
+  "truthfulness_limitations": [
+    "No fake checkpoints, datasets, metrics, GPS routes, or full-integration claims are allowed.",
+    "Human review is required for all rescue-support outputs.",
+    "planned / adapter_created states are not evaluated executable integrations.",
+    "Dataset reference is not a trained model and cannot produce detections by itself."
+  ]
+}

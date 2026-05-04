@@ -13,6 +13,9 @@ IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".tif", ".tiff"}
 
 def find_executable(name: str) -> Optional[str]:
     """Return an executable path from PATH, or None when missing."""
+    candidate = Path(name).expanduser()
+    if candidate.is_absolute() or len(candidate.parts) > 1:
+        return str(candidate) if candidate.exists() and candidate.is_file() else None
     return which(name)
 
 
@@ -28,6 +31,8 @@ def check_colmap_available(executable: str = "colmap") -> dict[str, Any]:
         }
 
     result = run_command([colmap_path, "--version"], cwd=None, timeout=30)
+    if result["returncode"] != 0:
+        result = run_command([colmap_path, "help"], cwd=None, timeout=30)
     version = "unknown"
     if result["returncode"] == 0:
         text = (result.get("stdout") or result.get("stderr") or "").strip()

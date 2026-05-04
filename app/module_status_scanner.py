@@ -162,6 +162,39 @@ MODULE_SCAN_TARGETS = {
         ],
         "truthfulness_note": "Decision fusion is a lightweight image-plane adaptation inspired by external references. It is not a full GIS or automated rescue decision system.",
     },
+    "ec_terp_ranking": {
+        "module_name": "ec_terp_ranking",
+        "display_name": "EC-TERP 救援辅助优先级排序",
+        "expected_outputs": [
+            "outputs/ec_terp/ec_terp_rankings.json",
+            "outputs/ec_terp/ec_terp_rankings.csv",
+            "outputs/ec_terp/ec_terp_metadata.json",
+            "outputs/ec_terp/ec_terp_limitations.json",
+            "outputs/ui/ec_terp_summary.json",
+            "outputs/ec_terp_visuals/ec_terp_visuals_metadata.json",
+            "outputs/ec_terp_visuals/ec_terp_topk_ranking.png",
+            "outputs/ec_terp_visuals/ec_terp_component_breakdown.png",
+            "outputs/ec_terp_visuals/ec_terp_evidence_quality_distribution.png",
+            "outputs/ec_terp_visuals/ec_terp_sensitivity_summary.png",
+        ],
+        "result_json_candidates": [
+            "outputs/ec_terp/ec_terp_rankings.json",
+            "outputs/ec_terp/ec_terp_metadata.json",
+            "outputs/ec_terp_evaluation/ec_terp_evaluation_summary.json",
+        ],
+        "metadata_json_candidates": [
+            "outputs/ec_terp/ec_terp_metadata.json",
+            "outputs/ec_terp/ec_terp_limitations.json",
+            "outputs/ui/ec_terp_summary.json",
+            "outputs/ec_terp_visuals/ec_terp_visuals_metadata.json",
+        ],
+        "implementation_files": [
+            "app/ec_terp_engine.py",
+            "app/ec_terp_evaluation_service.py",
+            "app/mission_demo_orchestrator.py",
+        ],
+        "truthfulness_note": "EC-TERP is an evidence-constrained assistive priority ranking algorithm. It is not an automatic rescue decision system and does not confirm real victims.",
+    },
     "thermal": {
         "module_name": "thermal",
         "display_name": "热红外分析",
@@ -1000,6 +1033,61 @@ def _scan_registry_only(module_key, root_dir=None):
     }
 
 
+def _scan_ec_terp_ranking(root_dir, config):
+    result_path, result = _select_json_candidate(root_dir, config["result_json_candidates"])
+    metadata_path, metadata = _select_json_candidate(root_dir, config.get("metadata_json_candidates", []))
+    if result is None:
+        if _module_implementation_exists("ec_terp_ranking", root_dir=root_dir):
+            data = _default_not_run_result("ec_terp_ranking", root_dir=root_dir)
+            data["status"] = MODULE_STATUS["implemented_but_not_run"]
+            return data
+        return _default_not_run_result("ec_terp_ranking", root_dir=root_dir)
+
+    if isinstance(result, dict) and result.get(_JSON_ERROR_KEY):
+        data = _default_not_run_result("ec_terp_ranking", root_dir=root_dir)
+        data["status"] = MODULE_STATUS["executed_failed"]
+        data["executed"] = True
+        data["success"] = False
+        data["result_json_path"] = str(result_path)
+        data["message"] = f"JSON parse error: {result.get('error', '')}"
+        data["raw_result_summary"] = result
+        data["capability_tags"] = ["json_parse_error"]
+        return data
+
+    if result_path and "outputs/ec_terp_evaluation/" in str(result_path):
+        status = MODULE_STATUS["simulated_result"]
+        success = bool(result.get("success", True))
+        capability_tags = ["synthetic_ec_terp_evaluation", "not_real_rescue_benchmark"]
+        message = "EC-TERP evaluation output detected. It is synthetic/demo evaluation, not mission ranking evidence."
+    else:
+        rankings = result.get("rankings") if isinstance(result, dict) else None
+        success = bool(result.get("success", True)) and bool(rankings)
+        status = MODULE_STATUS["executed_success"] if success else _error_status_from_code(result.get("error_code"))
+        capability_tags = ["assistive_priority_ranking", "rule_based_ec_terp", "image_plane_decision_support"]
+        if metadata and isinstance(metadata, dict):
+            if metadata.get("evidence_level"):
+                capability_tags.append(f"evidence_level_{metadata.get('evidence_level')}")
+        message = result.get("message") or f"EC-TERP ranking count: {len(rankings or [])}."
+
+    return {
+        "module_key": "ec_terp_ranking",
+        "module_name": config["module_name"],
+        "display_name": config["display_name"],
+        "status": status,
+        "executed": True,
+        "success": success,
+        "evidence_files": _collect_existing_paths(root_dir, config.get("expected_outputs", [])),
+        "missing_expected_outputs": _build_missing_expected_outputs(root_dir, config),
+        "result_json_path": str(result_path) if result_path else None,
+        "metadata_json_path": str(metadata_path) if metadata_path else None,
+        "error_code": result.get("error_code") if isinstance(result, dict) else None,
+        "message": message,
+        "capability_tags": capability_tags,
+        "truthfulness_note": result.get("truthfulness_note") or config["truthfulness_note"],
+        "raw_result_summary": result,
+    }
+
+
 def scan_single_module(module_key, root_dir=None):
     """Scan one module status from outputs and JSON artifacts."""
     if module_key not in MODULE_SCAN_TARGETS:
@@ -1031,6 +1119,8 @@ def scan_single_module(module_key, root_dir=None):
         return _scan_path_planning(root_dir, config)
     if module_key == "decision_fusion":
         return _scan_decision_fusion(root_dir, config)
+    if module_key == "ec_terp_ranking":
+        return _scan_ec_terp_ranking(root_dir, config)
 
     # Lightweight modules with no dedicated outputs yet.
     result_paths = _collect_existing_paths(root_dir, config.get("result_json_candidates", []))

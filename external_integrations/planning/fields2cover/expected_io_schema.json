@@ -1,0 +1,24 @@
+{
+  "repository_key": "fields2cover",
+  "expected_input_schema": [
+    "field polygon / obstacle geometry if C++ dependency is installed"
+  ],
+  "expected_output_schema": [
+    "coverage route candidate with non-GPS boundary unless geospatial data is provided"
+  ],
+  "required_metadata": [
+    "repository_name",
+    "adapter_version",
+    "dependency_status",
+    "checkpoint_status",
+    "dataset_status",
+    "truthfulness_note",
+    "human_review_required"
+  ],
+  "truthfulness_boundary": [
+    "No fake checkpoints, datasets, metrics, GPS routes, or full-integration claims are allowed.",
+    "Human review is required for all rescue-support outputs.",
+    "planned / adapter_created states are not evaluated executable integrations.",
+    "Current coverage score is lightweight image-plane adaptation, not Fields2Cover output."
+  ]
+}

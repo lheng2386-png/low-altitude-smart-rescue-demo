@@ -1,0 +1,10 @@
+{
+  "mission_id": "urban_rescue_llm_demo",
+  "segmentation": {
+    "source": "demo_mask",
+    "risk_areas": ["collapsed_building", "blocked_road"],
+    "note": "demo/uploaded mask; not necessarily model-generated segmentation"
+  },
+  "human_review_required": true,
+  "truthfulness_note": "Demo mask is supplied for repeatable risk-area demonstration and is not a verified automatic segmentation result."
+}

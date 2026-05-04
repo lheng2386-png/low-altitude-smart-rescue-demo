@@ -1,0 +1,15 @@
+{
+  "repository_key": "fields2cover",
+  "repository_name": "Fields2Cover/Fields2Cover",
+  "current_state": "planned",
+  "target_final_state": "coverage_planning_adapter_if_dependency_available",
+  "dependency_status": "missing",
+  "checkpoint_status": "not_required",
+  "dataset_status": "not_required",
+  "truthfulness_limitations": [
+    "No fake checkpoints, datasets, metrics, GPS routes, or full-integration claims are allowed.",
+    "Human review is required for all rescue-support outputs.",
+    "planned / adapter_created states are not evaluated executable integrations.",
+    "Current coverage score is lightweight image-plane adaptation, not Fields2Cover output."
+  ]
+}

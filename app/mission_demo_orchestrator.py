@@ -5,6 +5,7 @@ This module chains current runnable stages without fabricating missing results.
 
 import json
 import shutil
+import csv
 from datetime import datetime
 from pathlib import Path
 
@@ -61,6 +62,17 @@ def _save_json(path, payload):
     path = Path(path)
     _ensure_dir(path.parent)
     path.write_text(json.dumps(_json_safe(payload), ensure_ascii=False, indent=2), encoding="utf-8")
+    return str(path)
+
+
+def _write_csv(path, rows, fieldnames):
+    path = Path(path)
+    _ensure_dir(path.parent)
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in rows or []:
+            writer.writerow({field: row.get(field, "") for field in fieldnames})
     return str(path)
 
 
@@ -669,6 +681,170 @@ def _filter_decision_targets(detection_stage_result, segmentation_mask):
     return filtered
 
 
+def _ec_component_score(item, component_name):
+    component = (item.get("components") or {}).get(component_name) or {}
+    try:
+        return float(component.get("score", 0.0))
+    except Exception:
+        return 0.0
+
+
+def _source_modules_for_ec(detection_result, segmentation_result, path_result, decision_fusion_result):
+    modules = []
+    if detection_result and detection_result.get("success"):
+        modules.append("detection")
+    if segmentation_result and segmentation_result.get("mask_available"):
+        modules.append("segmentation")
+    if path_result:
+        modules.append("path_planning")
+    if decision_fusion_result:
+        modules.append("decision_fusion")
+    return modules
+
+
+def _normalize_ec_rankings_for_output(ec_rankings, raw_targets, evidence_level, source_modules, path_result):
+    target_lookup = {str(target.get("id") or target.get("target_id")): target for target in raw_targets or []}
+    normalized = []
+    for item in ec_rankings or []:
+        target_id = str(item.get("target_id") or "unknown")
+        target = target_lookup.get(target_id, {})
+        target_type = item.get("class_name") or target.get("class_name", "unknown")
+        target_type_lower = str(target_type).lower()
+        limitations = [
+            "EC-TERP is an assistive priority ranking algorithm.",
+            "It does not replace human rescue command decisions.",
+            "Image-plane route accessibility is not GPS navigation.",
+        ]
+        if target_type_lower == "human_candidate" or str(target.get("source_backend", "")).startswith("transformer"):
+            limitations.append("Transformer human_candidate is not a confirmed civilian and requires manual review.")
+        if not path_result or not path_result.get("found"):
+            limitations.append("Route accessibility is degraded or unavailable for this target.")
+        normalized.append(
+            {
+                "target_id": target_id,
+                "target_type": target_type,
+                "rank": int(item.get("rank", len(normalized) + 1)),
+                "ec_terp_score": float(item.get("ec_terp_score", 0.0)),
+                "ec_terp_level": item.get("ec_terp_level", "low"),
+                "score_components": {
+                    "target_urgency": _ec_component_score(item, "target_urgency"),
+                    "environment_risk": _ec_component_score(item, "environment_risk"),
+                    "route_accessibility": _ec_component_score(item, "route_accessibility"),
+                    "coverage_gap": _ec_component_score(item, "coverage_gap"),
+                    "evidence_quality": _ec_component_score(item, "evidence_quality"),
+                    "uncertainty_penalty": _ec_component_score(item, "uncertainty_penalty"),
+                },
+                "evidence_level": evidence_level,
+                "source_modules": list(source_modules),
+                "is_confirmed_rescue_target": False,
+                "human_review_required": True,
+                "recommendation_type": "assistive_priority_ranking",
+                "explanation": item.get("explanation", ""),
+                "limitations": limitations,
+                "truthfulness_note": "EC-TERP provides assistive image-plane priority ranking only and does not replace human rescue decisions.",
+            }
+        )
+    return normalized
+
+
+def _write_ec_terp_outputs(
+    output_dir,
+    raw_rankings,
+    normalized_rankings,
+    comparison,
+    metadata,
+    limitations,
+):
+    output_dir = _ensure_dir(output_dir)
+    artifacts = []
+    artifacts.append(_save_json(output_dir / "ec_terp_rankings.json", {
+        "success": bool(normalized_rankings),
+        "status": "executed_success" if normalized_rankings else "executed_failed",
+        "module": "ec_terp_ranking",
+        "rankings": normalized_rankings,
+        "raw_ec_terp_rankings": raw_rankings,
+        "comparison": comparison,
+        "truthfulness_note": "EC-TERP provides assistive image-plane priority ranking only and does not replace human rescue decisions.",
+    }))
+    artifacts.append(
+        _write_csv(
+            output_dir / "ec_terp_rankings.csv",
+            normalized_rankings,
+            [
+                "rank",
+                "target_id",
+                "target_type",
+                "ec_terp_score",
+                "ec_terp_level",
+                "evidence_level",
+                "is_confirmed_rescue_target",
+                "human_review_required",
+                "recommendation_type",
+            ],
+        )
+    )
+    artifacts.append(_save_json(output_dir / "ec_terp_metadata.json", metadata))
+    artifacts.append(_save_json(output_dir / "ec_terp_limitations.json", {
+        "limitations": limitations,
+        "truthfulness_note": "EC-TERP is assistive decision support. It is not an automatic rescue decision system.",
+    }))
+    return artifacts
+
+
+def _write_ec_terp_ui_summary(output_dir, rankings, status, limitations, visuals_metadata=None):
+    output_dir = _ensure_dir(output_dir)
+    visuals = {}
+    if visuals_metadata:
+        try:
+            from ec_terp_visualization_service import build_visuals_map
+
+            visuals = build_visuals_map(visuals_metadata)
+        except Exception:
+            visuals = {}
+    summary = {
+        "module": "ec_terp",
+        "title": "EC-TERP Assistive Priority Ranking",
+        "status": status,
+        "top_rankings": rankings[:5],
+        "score_component_labels": {
+            "target_urgency": "Target Urgency",
+            "environment_risk": "Environment Risk",
+            "route_accessibility": "Route Accessibility",
+            "coverage_gap": "Coverage Gap",
+            "evidence_quality": "Evidence Quality",
+            "uncertainty_penalty": "Uncertainty Penalty",
+        },
+        "visuals": {
+            "topk_ranking_chart": visuals.get("topk_ranking_chart"),
+            "component_breakdown_chart": visuals.get("component_breakdown_chart"),
+            "evidence_quality_distribution_chart": visuals.get("evidence_quality_distribution_chart"),
+            "sensitivity_summary_chart": visuals.get("sensitivity_summary_chart"),
+        },
+        "explainability": {
+            "formula": "EC-TERP = αT + βE + γR + δC + λQ - μU",
+            "component_meanings": {
+                "T": "Target urgency",
+                "E": "Environment risk",
+                "R": "Route accessibility",
+                "C": "Coverage gap",
+                "Q": "Evidence quality",
+                "U": "Uncertainty penalty",
+            },
+            "key_message": "Higher priority means the target should be reviewed earlier by human operators, not automatically rescued.",
+        },
+        "truthfulness_badges": [
+            "Assistive ranking",
+            "Human review required",
+            "Image-plane path only",
+            "Not GPS navigation",
+            "Not automatic rescue decision",
+        ],
+        "limitations": limitations,
+        "human_review_required": True,
+    }
+    return _save_json(output_dir / "ec_terp_summary.json", summary)
+
+
 def run_decision_stage(
     image,
     detection_stage_result,
@@ -984,20 +1160,109 @@ def run_decision_stage(
             )
 
             target_evidence_level = "strong" if detection_result.get("is_model_output") else "none"
+            if not detection_result.get("is_model_output") and segmentation_mask is not None:
+                target_evidence_level = "medium"
             transformer_only = str(detection_result.get("detection_mode", "")).startswith("transformer")
+            if transformer_only:
+                target_evidence_level = "medium" if segmentation_mask is not None else "weak"
+            safe_coverage_result = coverage_result if isinstance(coverage_result, dict) else None
+            safe_decision_fusion_result = decision_fusion_result if isinstance(decision_fusion_result, dict) else None
             ec_terp_rankings = rank_targets_by_ec_terp(
                 raw_targets,
                 segmentation_summary=(segmentation_result.get("segmentation_summary") if isinstance(segmentation_result, dict) else None),
                 path_result=path_result,
                 path_comparison=path_comparison,
-                coverage_result=coverage_result,
-                decision_fusion_result=decision_fusion_result,
+                coverage_result=safe_coverage_result,
+                decision_fusion_result=safe_decision_fusion_result,
                 target_evidence_level=target_evidence_level,
                 segmentation_available=segmentation_mask is not None,
                 transformer_only=transformer_only,
             )
             ec_terp_comparison = compare_terp_and_ec_terp(terp_rankings, ec_terp_rankings)
             ec_markdown = format_ec_terp_result_markdown(ec_terp_rankings)
+            source_modules = _source_modules_for_ec(detection_result, segmentation_result, path_result, decision_fusion_result)
+            normalized_ec_rankings = _normalize_ec_rankings_for_output(
+                ec_terp_rankings,
+                raw_targets,
+                target_evidence_level,
+                source_modules,
+                path_result,
+            )
+            ec_limitations = [
+                "EC-TERP is an assistive priority ranking algorithm.",
+                "It does not replace human rescue command decisions.",
+                "Image-plane route accessibility is not GPS navigation.",
+                "Synthetic demo cases are not real rescue data.",
+            ]
+            if segmentation_mask is None:
+                ec_limitations.append("Segmentation/environment evidence is missing or unavailable.")
+            if not path_result or not path_result.get("found"):
+                ec_limitations.append("Route accessibility evidence is missing, degraded, or unavailable.")
+            ec_metadata = {
+                "success": bool(normalized_ec_rankings),
+                "module": "ec_terp_ranking",
+                "formula": "EC-TERP = αT + βE + γR + δC + λQ - μU",
+                "evidence_level": target_evidence_level,
+                "source_modules": source_modules,
+                "ranking_count": len(normalized_ec_rankings),
+                "is_real_measurement": False,
+                "is_automatic_rescue_decision": False,
+                "is_gps_navigation": False,
+                "is_gis_route": False,
+                "human_review_required": True,
+                "truthfulness_note": "EC-TERP provides assistive image-plane priority ranking only and does not replace human rescue decisions.",
+            }
+            ec_output_dir = _ensure_dir(output_dir.parent / "ec_terp")
+            ec_artifacts = _write_ec_terp_outputs(
+                ec_output_dir,
+                ec_terp_rankings,
+                normalized_ec_rankings,
+                ec_terp_comparison,
+                ec_metadata,
+                ec_limitations,
+            )
+            artifacts.extend(ec_artifacts)
+            visuals_metadata = None
+            try:
+                from ec_terp_visualization_service import generate_ec_terp_visuals
+
+                visuals_metadata = generate_ec_terp_visuals(
+                    ranking_path=ec_output_dir / "ec_terp_rankings.json",
+                    eval_dir=output_dir.parent / "ec_terp_evaluation",
+                    output_dir=output_dir.parent / "ec_terp_visuals",
+                )
+                if visuals_metadata.get("metadata_path"):
+                    artifacts.append(visuals_metadata["metadata_path"])
+                for figure in visuals_metadata.get("generated_figures", []):
+                    if isinstance(figure, dict) and figure.get("path"):
+                        artifacts.append(figure["path"])
+                if visuals_metadata.get("limitations"):
+                    ec_limitations.extend(
+                        limitation
+                        for limitation in visuals_metadata.get("limitations", [])
+                        if limitation not in ec_limitations
+                    )
+            except Exception as exc:
+                visuals_metadata = {
+                    "status": "degraded",
+                    "generated_figures": [],
+                    "limitations": [f"EC-TERP visualization was not generated: {exc}"],
+                    "truthfulness_notes": [
+                        "EC-TERP provides assistive image-plane priority ranking only.",
+                        "It does not replace human rescue command decisions.",
+                        "Image-plane path planning is not GPS navigation.",
+                        "Synthetic demo cases are not real rescue data.",
+                    ],
+                }
+                ec_limitations.extend(visuals_metadata["limitations"])
+            ui_artifact = _write_ec_terp_ui_summary(
+                output_dir.parent / "ui",
+                normalized_ec_rankings,
+                "executed_success" if normalized_ec_rankings else "failed",
+                ec_limitations,
+                visuals_metadata=visuals_metadata,
+            )
+            artifacts.append(ui_artifact)
             _save_json(output_dir / "ec_terp_ranking.json", ec_terp_rankings)
             _save_json(output_dir / "ec_terp_comparison.json", ec_terp_comparison)
             ec_markdown_path = output_dir / "ec_terp_summary.md"

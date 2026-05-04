@@ -1,0 +1,15 @@
+{
+  "repository_key": "qazi_disaster_management",
+  "repository_name": "qazi0/real-time-disaster-management",
+  "current_state": "planned",
+  "target_final_state": "adapter_wrapped_reference_or_executable_if_reproduced",
+  "dependency_status": "unknown",
+  "checkpoint_status": "unknown",
+  "dataset_status": "unknown",
+  "truthfulness_limitations": [
+    "No fake checkpoints, datasets, metrics, GPS routes, or full-integration claims are allowed.",
+    "Human review is required for all rescue-support outputs.",
+    "planned / adapter_created states are not evaluated executable integrations.",
+    "Currently not an executable AeroRescue-AI backend."
+  ]
+}

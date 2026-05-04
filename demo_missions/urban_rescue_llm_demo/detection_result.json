@@ -1,0 +1,13 @@
+{
+  "mission_id": "urban_rescue_llm_demo",
+  "detections": [
+    {
+      "class": "human_candidate",
+      "confidence": 0.82,
+      "bbox": [120, 88, 220, 260],
+      "note": "possible person-like target; requires manual verification"
+    }
+  ],
+  "human_review_required": true,
+  "truthfulness_note": "human_candidate is an auxiliary candidate and must be manually verified."
+}

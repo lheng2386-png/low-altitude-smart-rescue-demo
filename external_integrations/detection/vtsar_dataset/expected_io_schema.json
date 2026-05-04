@@ -1,0 +1,25 @@
+{
+  "repository_key": "vtsar_dataset",
+  "expected_input_schema": [
+    "official dataset files if license and storage allow"
+  ],
+  "expected_output_schema": [
+    "dataset split manifest",
+    "evaluation-ready annotations"
+  ],
+  "required_metadata": [
+    "repository_name",
+    "adapter_version",
+    "dependency_status",
+    "checkpoint_status",
+    "dataset_status",
+    "truthfulness_note",
+    "human_review_required"
+  ],
+  "truthfulness_boundary": [
+    "No fake checkpoints, datasets, metrics, GPS routes, or full-integration claims are allowed.",
+    "Human review is required for all rescue-support outputs.",
+    "planned / adapter_created states are not evaluated executable integrations.",
+    "Dataset reference is not a trained model and cannot produce detections by itself."
+  ]
+}

@@ -48,6 +48,7 @@ def build_report_context(ledger=None, root_dir=None):
         human_review_items = get_human_review_items(ledger)
         return {
             "success": True,
+            "root_dir": str(Path(root_dir) if root_dir else ROOT_DIR),
             "ledger": ledger,
             "summary": summary,
             "sections": sections,
@@ -218,6 +219,147 @@ def format_evidence_section(title, records, empty_message):
     return "\n".join(lines)
 
 
+def _load_first_existing_json(paths):
+    for item in paths or []:
+        path = Path(item)
+        if not path.exists() or path.suffix.lower() != ".json":
+            continue
+        try:
+            return json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+    return None
+
+
+def _load_ec_terp_visual_metadata(context):
+    root_dir = Path(context.get("root_dir") or ROOT_DIR)
+    candidates = [
+        root_dir / "outputs" / "ec_terp_visuals" / "ec_terp_visuals_metadata.json",
+        ROOT_DIR / "outputs" / "ec_terp_visuals" / "ec_terp_visuals_metadata.json",
+    ]
+    return _load_first_existing_json(candidates)
+
+
+def build_ec_terp_section(context, sections):
+    """Build an EC-TERP ranking section when runtime artifacts exist."""
+    records = []
+    for record in sections.get("auxiliary_decision_evidence", []) or []:
+        if record.get("module_key") == "ec_terp_ranking":
+            records.append(record)
+    for record in sections.get("simulated_or_preview_results", []) or []:
+        if record.get("module_key") == "ec_terp_ranking":
+            records.append(record)
+
+    lines = [
+        "## EC-TERP 救援辅助优先级排序",
+        "",
+        "### 算法说明",
+        "- 公式：`EC-TERP = αT + βE + γR + δC + λQ - μU`",
+        "- T：Target urgency，目标紧急度",
+        "- E：Environment risk，环境风险",
+        "- R：Route accessibility，路径可达性",
+        "- C：Coverage gap，覆盖缺口",
+        "- Q：Evidence quality，证据质量",
+        "- U：Uncertainty penalty，不确定性惩罚，属于扣分项",
+        "",
+    ]
+
+    if not records:
+        lines.extend(
+            [
+                "当前没有 EC-TERP runtime ranking 产物。",
+                "",
+                "### 真实性边界",
+                "- EC-TERP 是辅助优先级排序算法，不是自动救援决策系统。",
+                "- Image-plane path planning is not GPS navigation.",
+                "- Synthetic demo cases are not real rescue data.",
+            ]
+        )
+        return "\n".join(lines)
+
+    record = records[0]
+    ranking_payload = _load_first_existing_json(
+        [path for path in record.get("evidence_files", []) if str(path).endswith("ec_terp_rankings.json")]
+    )
+    rankings = []
+    if isinstance(ranking_payload, dict):
+        rankings = ranking_payload.get("rankings", []) or []
+
+    lines.extend(["### Top-K Ranking Table"])
+    if rankings:
+        lines.extend(
+            [
+                "| Rank | Target ID | Target Type | EC-TERP Score | Evidence | Human Review | Key Reason |",
+                "| --- | --- | --- | ---: | --- | --- | --- |",
+            ]
+        )
+        for item in rankings[:10]:
+            explanation = str(item.get("explanation", "")).replace("\n", " ")
+            lines.append(
+                f"| {item.get('rank', '')} | {item.get('target_id', '')} | {item.get('target_type', '')} | "
+                f"{item.get('ec_terp_score', 0.0)} | {item.get('evidence_level', '')} | "
+                f"{'是' if item.get('human_review_required') else '否'} | {explanation[:120]} |"
+            )
+    else:
+        lines.append("当前 EC-TERP 模块已记录，但未找到可展示 ranking items。")
+
+    lines.extend(["", "### 解释文本"])
+    if rankings:
+        top = rankings[0]
+        lines.append(
+            f"- 当前最高优先级目标为 `{top.get('target_id')}`，类型 `{top.get('target_type')}`，EC-TERP 分数为 {top.get('ec_terp_score')}。"
+        )
+        lines.append("- Top-1 排名由目标紧急度、环境风险、路径可达性、覆盖缺口、证据质量和不确定性惩罚共同决定。")
+        lines.append("- Top-3 主要排序原因：")
+        for item in rankings[:3]:
+            components = item.get("score_components", {}) or {}
+            positive_components = {
+                "target_urgency": components.get("target_urgency", 0.0),
+                "environment_risk": components.get("environment_risk", 0.0),
+                "route_accessibility": components.get("route_accessibility", 0.0),
+                "coverage_gap": components.get("coverage_gap", 0.0),
+                "evidence_quality": components.get("evidence_quality", 0.0),
+            }
+            top_factor = max(positive_components, key=lambda key: float(positive_components.get(key) or 0.0))
+            uncertainty = float(components.get("uncertainty_penalty", 0.0) or 0.0)
+            lines.append(
+                f"  - Rank {item.get('rank')}: `{item.get('target_id')}` 的主要贡献项为 `{top_factor}`，"
+                f"不确定性惩罚 U={uncertainty}。"
+            )
+        review_targets = [
+            item.get("target_id")
+            for item in rankings
+            if item.get("human_review_required") or str(item.get("evidence_level", "")).lower() in {"weak", "none"}
+        ]
+        if review_targets:
+            lines.append(f"- 需要重点人工复核的目标：{', '.join(str(item) for item in review_targets[:8])}。")
+    lines.append("- 所有 EC-TERP ranking items 均需要人工复核。")
+
+    visual_metadata = _load_ec_terp_visual_metadata(context)
+    lines.extend(["", "### 图表引用"])
+    if isinstance(visual_metadata, dict) and visual_metadata.get("generated_figures"):
+        for figure in visual_metadata.get("generated_figures", []):
+            if isinstance(figure, dict) and figure.get("path"):
+                lines.append(f"- {figure.get('name', 'figure')}: `{figure.get('path')}`")
+        for limitation in visual_metadata.get("limitations", []) or []:
+            lines.append(f"- 图表 limitation：{limitation}")
+    else:
+        lines.append("- 当前未检测到 `outputs/ec_terp_visuals/` 下的 EC-TERP 图表产物；报告仅展示表格和文字解释。")
+
+    lines.extend(
+        [
+            "",
+            "### 真实性边界",
+            "- EC-TERP is an assistive priority ranking algorithm.",
+            "- It is not an automatic rescue decision system.",
+            "- Image-plane path planning is not GPS navigation.",
+            "- Synthetic demo cases are not real rescue data.",
+            "- human_candidate 不等于 confirmed civilian。",
+        ]
+    )
+    return "\n".join(lines)
+
+
 def build_human_review_section(human_review_items):
     """Build the human review section."""
     human_review_items = _normalize_record_list(human_review_items)
@@ -287,7 +429,7 @@ def build_truthfulness_boundary_section(context, sections):
         "- Fast Preview 不是真 ODM。\n"
         "- Uploaded/Demo Mask 不是自动模型预测。\n"
         "- Registry / Reference 模块不是运行结果。\n"
-        "- Transformer human_candidate 不是 confirmed civilian。\n"
+        "- Transformer human_candidate 不是已核实人员身份，不能确认幸存者或平民状态。\n"
         "- Decision Fusion 是 lightweight image-plane adaptation，不是完整 GIS / SAREnv / SKAI / InaSAFE / Fields2Cover 输出。\n"
         "- 报告不能替代现场人工判断。"
     )
@@ -321,6 +463,11 @@ def build_final_report_v2(ledger=None, root_dir=None):
         "main_model_evidence": sections["main_model_evidence"],
         "real_measurement_evidence": sections["real_measurement_evidence"],
         "auxiliary_decision_evidence": sections["auxiliary_decision_evidence"],
+        "ec_terp_ranking": [
+            record
+            for record in sections["auxiliary_decision_evidence"] + sections["simulated_or_preview_results"]
+            if record.get("module_key") == "ec_terp_ranking"
+        ],
         "simulated_or_preview_results": sections["simulated_or_preview_results"],
         "failed_or_unavailable_modules": sections["failed_or_unavailable_modules"],
         "not_run_modules": sections["not_run_modules"],
@@ -348,6 +495,8 @@ def build_final_report_v2(ledger=None, root_dir=None):
         _format_section_by_records("四、真实测量 / 真实产物证据", sections["real_measurement_evidence"], "当前没有真实测量 / 真实产物证据。"),
         "",
         _format_section_by_records("五、辅助决策证据", sections["auxiliary_decision_evidence"], "当前没有辅助决策证据。"),
+        "",
+        build_ec_terp_section(context, sections),
         "",
         _format_section_by_records("六、模拟 / 预览结果", sections["simulated_or_preview_results"], "当前没有模拟 / 预览结果。"),
         "",

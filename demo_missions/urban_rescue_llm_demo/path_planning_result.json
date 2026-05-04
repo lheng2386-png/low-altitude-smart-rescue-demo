@@ -1,0 +1,10 @@
+{
+  "mission_id": "urban_rescue_llm_demo",
+  "path_planning": {
+    "type": "image_plane_path",
+    "risk_score": 0.73,
+    "note": "image-plane planning only; not GPS navigation route"
+  },
+  "human_review_required": true,
+  "truthfulness_note": "Path planning is in image-plane coordinates and is not a field navigation route."
+}

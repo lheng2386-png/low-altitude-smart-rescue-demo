@@ -31,6 +31,7 @@ EVIDENCE_TYPES = {
     "uploaded_or_demo_input": "uploaded_or_demo_input",
     "reference_only": "reference_only",
     "not_available": "not_available",
+    "assistive_decision_support": "assistive_decision_support",
 }
 
 
@@ -280,6 +281,11 @@ def build_evidence_record(module_scan_result):
         elif module_key == "decision_fusion":
             evidence_type = EVIDENCE_TYPES["image_plane_decision"]
             with_status_note("Decision Fusion 是轻量 image-plane adaptation，不是完整 GIS / SAREnv / SKAI / InaSAFE 输出。")
+        elif module_key == "ec_terp_ranking":
+            evidence_type = EVIDENCE_TYPES["assistive_decision_support"]
+            with_status_note("EC-TERP is an assistive priority ranking algorithm.")
+            with_status_note("It does not replace human rescue command decisions.")
+            with_status_note("Image-plane route accessibility is not GPS navigation.")
         elif module_key == "report_export":
             evidence_type = EVIDENCE_TYPES["rule_based_decision"]
             can_support_decision = False

@@ -1,0 +1,15 @@
+{
+  "repository_key": "sarenv",
+  "repository_name": "namurproject/SAREnv",
+  "current_state": "planned",
+  "target_final_state": "search_evaluation_adapter_if_reproduced",
+  "dependency_status": "unknown",
+  "checkpoint_status": "not_required",
+  "dataset_status": "to_prepare",
+  "truthfulness_limitations": [
+    "No fake checkpoints, datasets, metrics, GPS routes, or full-integration claims are allowed.",
+    "Human review is required for all rescue-support outputs.",
+    "planned / adapter_created states are not evaluated executable integrations.",
+    "Current search priority map is inspired by SAREnv but is not full SAREnv runtime."
+  ]
+}

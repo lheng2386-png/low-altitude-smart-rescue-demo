@@ -27,10 +27,10 @@ def extract_evidence_flags(mission_result: dict[str, Any]) -> dict[str, bool]:
     text = " ".join(_flatten_strings(mission_result)).lower()
     return {
         "human_candidate": "human_candidate" in text,
-        "simulated_thermal": "simulated thermal" in text or "simulated_thermal" in text or "thermal_mode simulated" in text or "thermal_mode simulated" in text.replace(":", " "),
-        "fast_preview": "fast preview" in text or "opencv 拼接预览" in text,
-        "image_plane_path": "image-plane" in text or "image plane" in text or "图像平面" in text,
-        "uploaded_or_demo_mask": "uploaded mask" in text or "uploaded_mask" in text or "demo mask" in text or "demo/uploaded mask" in text or "demo_fallback" in text,
+        "simulated_thermal": "simulated thermal" in text or "simulated_thermal" in text or "thermal mode simulated" in text or "mode simulated" in text,
+        "fast_preview": "fast preview" in text or "fast_preview" in text or "image_stitch_preview" in text or "opencv 拼接预览" in text,
+        "image_plane_path": "image-plane" in text or "image plane" in text or "image_plane_path" in text or "图像平面" in text,
+        "uploaded_or_demo_mask": "uploaded mask" in text or "uploaded_mask" in text or "demo mask" in text or "demo_mask" in text or "demo/uploaded mask" in text or "demo_fallback" in text,
         "auto_segmentation": "auto segmentation" in text or "auto_model" in text or "automatic segmentation" in text,
     }
 
@@ -41,15 +41,15 @@ def build_truthfulness_limitations(mission_result: dict[str, Any]) -> list[str]:
         "This LLM report is a post-processing draft only; it does not replace detection, measurement, routing, or human command review."
     ]
     if flags["human_candidate"]:
-        limitations.append("human_candidate is an auxiliary candidate and must not be treated as confirmed civilian without human review.")
+        limitations.append("human_candidate is an auxiliary candidate and is not verified as a civilian or survivor without human review.")
     if flags["simulated_thermal"]:
-        limitations.append("Simulated thermal output is based on image-derived visualization and is not a real temperature measurement.")
+        limitations.append("Simulated thermal output is based on image-derived visualization and is not a radiometric temperature measurement.")
     if flags["fast_preview"]:
-        limitations.append("Fast Preview / OpenCV stitching is a preview artifact and is not a real ODM orthomosaic.")
+        limitations.append("Fast Preview / OpenCV stitching is a preview artifact and is not an ODM mapping artifact.")
     if flags["image_plane_path"]:
-        limitations.append("image-plane path output is a reference path in image coordinates and is not a GPS navigation route.")
+        limitations.append("image-plane path output is a reference path in image coordinates and is not a navigation route.")
     if flags["uploaded_or_demo_mask"]:
-        limitations.append("Uploaded or demo masks are supplied artifacts and must not be described as automatic model segmentation.")
+        limitations.append("Demo/uploaded mask is a supplied risk-area mask and is not necessarily model-generated segmentation.")
     return limitations
 
 

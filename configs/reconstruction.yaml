@@ -9,15 +9,25 @@ frame_quality_filter:
   duplicate_hash_distance: 4
   output_dir: outputs/reconstruction_3d/selected_frames
 
+workflow:
+  mode: "standard_uav"
+  output_dir: outputs/reconstruction_3d/workflow
+  run_quality_filter: true
+  supported_modes:
+    - "standard_uav"
+    - "360_panorama"
+    - "odm"
+    - "report_only"
+
 colmap:
-  executable: "colmap"
+  executable: "/Users/Apple/miniconda3/envs/aerorescue-colmap/bin/colmap"
   use_gpu: true
   max_image_size: 2000
   matcher: "sequential"
   run_dense: false
   run_mesher: false
   timeout_seconds: 3600
-  panorama_sfm_script: null
+  panorama_sfm_script: "third_party/colmap/python/examples/panorama_sfm.py"
   standard_output_dir: outputs/reconstruction_3d/colmap_standard
   panorama_output_dir: outputs/reconstruction_3d/colmap_360
   execute_by_default: false

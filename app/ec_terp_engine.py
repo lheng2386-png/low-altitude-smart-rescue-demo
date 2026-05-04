@@ -440,11 +440,31 @@ def compute_ec_terp_score(
         f"环境风险 {environment_result['score']}、路径可达性 {route_result['score']}、覆盖缺口 {coverage_result_detail['score']}、"
         f"证据质量 {evidence_result['score']} 与不确定性惩罚 {uncertainty_result['score']} 共同决定。"
     )
+    limitations = [
+        "EC-TERP is an assistive priority ranking algorithm.",
+        "It is not an automatic rescue decision system.",
+        "Image-plane route accessibility is not GPS navigation.",
+        "Synthetic/demo evaluation cases are not real rescue data.",
+    ]
+    if class_name.lower() in {"human_candidate", "person"} or transformer_only:
+        limitations.append("human_candidate is not a confirmed civilian or confirmed survivor and requires manual review.")
+    if target_evidence_level:
+        limitations.append(f"Evidence level is {target_evidence_level}; weak/preview/simulated evidence must not be upgraded to strong.")
+    score_components = {
+        "target_urgency": target_result["score"],
+        "environment_risk": environment_result["score"],
+        "route_accessibility": route_result["score"],
+        "coverage_gap": coverage_result_detail["score"],
+        "evidence_quality": evidence_result["score"],
+        "uncertainty_penalty": uncertainty_result["score"],
+    }
     return {
         "target_id": _target_id(target),
+        "target_type": class_name,
         "class_name": class_name,
         "ec_terp_score": score,
         "ec_terp_level": _level_from_score(score),
+        "score_components": score_components,
         "components": {
             "target_urgency": target_result,
             "environment_risk": environment_result,
@@ -462,9 +482,14 @@ def compute_ec_terp_score(
             "uncertainty_penalty_weight": weights.get("uncertainty_penalty_weight", 0.15),
         },
         "formula": "EC-TERP = αT + βE + γR + δC + λQ - μU",
+        "evidence_level": str(target_evidence_level or "none"),
+        "source_modules": [],
+        "is_confirmed_rescue_target": False,
         "human_review_required": human_review_required,
+        "recommendation_type": "assistive_priority_ranking",
         "truthfulness_note": "EC-TERP is an evidence-constrained auxiliary priority score. It does not confirm victims or replace human rescue decisions.",
         "explanation": explanation,
+        "limitations": limitations,
     }
 
 

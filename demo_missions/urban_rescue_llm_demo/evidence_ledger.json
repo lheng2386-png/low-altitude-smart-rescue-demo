@@ -1,0 +1,53 @@
+{
+  "mission_id": "urban_rescue_llm_demo",
+  "events": [
+    {
+      "event_type": "mission_loaded",
+      "timestamp": "2026-05-04T00:00:00Z",
+      "source_module": "demo_dataset_pack",
+      "summary": "Demo mission package loaded for LLM API demonstration.",
+      "authenticity_boundary": "Demo data supports repeatable explanation testing only.",
+      "human_review_required": true
+    },
+    {
+      "event_type": "detection_completed",
+      "timestamp": "2026-05-04T00:01:00Z",
+      "source_module": "detection_result",
+      "summary": "One human_candidate detection is available as an unverified candidate.",
+      "authenticity_boundary": "human_candidate requires manual verification.",
+      "human_review_required": true
+    },
+    {
+      "event_type": "segmentation_loaded",
+      "timestamp": "2026-05-04T00:02:00Z",
+      "source_module": "segmentation_result",
+      "summary": "Demo mask marks collapsed building and blocked road risk areas.",
+      "authenticity_boundary": "Demo/uploaded mask is not necessarily automatic segmentation.",
+      "human_review_required": true
+    },
+    {
+      "event_type": "thermal_simulation_completed",
+      "timestamp": "2026-05-04T00:03:00Z",
+      "source_module": "thermal_result",
+      "summary": "Simulated thermal contains two hotspot cues.",
+      "authenticity_boundary": "Simulated thermal is not radiometric temperature measurement.",
+      "human_review_required": true
+    },
+    {
+      "event_type": "path_planning_completed",
+      "timestamp": "2026-05-04T00:04:00Z",
+      "source_module": "path_planning_result",
+      "summary": "Image-plane planning result has risk score 0.73.",
+      "authenticity_boundary": "Image-plane path is not field navigation.",
+      "human_review_required": true
+    },
+    {
+      "event_type": "ec_terp_priority_computed",
+      "timestamp": "2026-05-04T00:05:00Z",
+      "source_module": "ec_terp_result",
+      "summary": "EC-TERP marks high auxiliary priority due to candidate target near risk cues.",
+      "authenticity_boundary": "EC-TERP priority is decision-support only and requires human review.",
+      "human_review_required": true
+    }
+  ]
+}
