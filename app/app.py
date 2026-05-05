@@ -10,6 +10,7 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
+from fastapi import HTTPException, Request
 
 ROOT_DIR_FOR_IMPORT = Path(__file__).resolve().parents[1]
 if str(ROOT_DIR_FOR_IMPORT) not in sys.path:
@@ -82,6 +83,15 @@ from damage_segmentation_visualizer import (
     create_segmentation_panel,
     render_segmentation_mask,
 )
+from external_impact_assessment import (
+    build_external_impact_assessment_status,
+    format_external_output_file_summary,
+    format_external_impact_assessment_status,
+    format_external_unavailable_reasons,
+    format_inasafe_impact_assessment_panel,
+    format_skai_building_damage_panel,
+    save_external_impact_assessment_status,
+)
 from segmentation_source_metadata import (
     build_segmentation_source_metadata,
     format_segmentation_source_status,
@@ -134,6 +144,7 @@ VIDEO_CLASS_MIN_CONF = {
     "dog": 0.45,
     "cat": 0.45,
 }
+LOOPBACK_HOSTS = {"127.0.0.1", "::1", "localhost"}
 
 TEXT = {
     "zh": {
@@ -401,7 +412,7 @@ def demo_gallery_markdown(language):
 
 无人机图像 / 视频  
 → YOLOv11 目标检测  
-→ 语义分割来源  
+→ 已训练语义分割模型生成 pred_mask  
 → 环境风险融合  
 → TERP 优先级模型  
 → 场景适用性门控  
@@ -418,11 +429,9 @@ def demo_gallery_markdown(language):
 
 **当前能力说明**
 
-- 上传掩码：支持类别编号掩码或彩色掩码融合。
-- 自动分割模型：实验性功能，需要本地权重文件。
-- 无分割：可用回退，仅基于目标与默认代价进行风险评分。
+- 灾情感知：固定使用本地已训练语义分割模型，不生成伪造分割结果。
 - TERP：融合目标、环境与路径可达性优先级。
-- 场景适用性门控：目标、掩码或权重不足时自动回退，不夸大能力。
+- 场景适用性门控：目标或模型权重不足时明确提示，不夸大能力。
 - 风险感知 A*：对比均匀代价基线路径与分割代价路径。
 - 路径规划：图像平面参考路径，不是真实定位路线。
 
@@ -1076,7 +1085,7 @@ def run_damage_segmentation_inference(image, segmentation_mode, mask_file, check
     status_lines = []
     mask = None
 
-    if mode.startswith("Auto"):
+    if mode.startswith("Auto") or mode.startswith("自动"):
         checkpoint = str(checkpoint_path).strip() if checkpoint_path else None
         if not checkpoint:
             checkpoint = None
@@ -1643,31 +1652,149 @@ def disaster_perception_only(
     model_variant,
     language="zh",
 ):
-    result = image_detection(
+    legend_image = create_legend_image()
+    external_status = build_external_impact_assessment_status()
+    try:
+        status_path = save_external_impact_assessment_status(external_status)
+    except Exception:
+        status_path = ""
+    external_text = format_external_impact_assessment_status(external_status)
+    unavailable_external = (
+        "SKAI 外部源码级建筑灾损评估：unavailable\n"
+        "InaSAFE 外部源码级灾害影响评估：unavailable"
+    )
+    if image is None:
+        return (
+            None,
+            None,
+            legend_image,
+            "模型来源：已训练语义分割模型\n状态：unavailable\n原因：请先上传图像。",
+            external_text,
+            "灾情感知与外部影响评估（高级深度版）：unavailable",
+            "未生成 pred_mask，无法计算统计信息。",
+            unavailable_external,
+            "辅助决策，人工复核。未生成替代假结果。",
+            [],
+            [],
+            [],
+        )
+
+    _detection_image, transformer_summary, target_rows, _detection_report = target_detection_only(
         image,
         detection_backend,
         transformer_model_key,
-        segmentation_source,
-        segmentation_mask_path,
-        20,
-        -1,
-        False,
-        False,
         conf_threshold,
         model_variant,
         language=language,
     )
+
+    weights_path = get_segmentation_weights_path()
+    model_status = get_segmentation_model_status(weights_path)
+    checkpoint_path = str(model_status.get("path") or weights_path)
+    if not model_status.get("available"):
+        return (
+            None,
+            None,
+            legend_image,
+            "模型来源：已训练语义分割模型\n"
+            f"Checkpoint 路径：{checkpoint_path}\n"
+            "状态：unavailable\n"
+            "原因：未找到已训练语义分割模型 checkpoint。\n"
+            "不会展示 uploaded/demo/none/来源选择，也不会生成替代假分割。",
+            external_text,
+            "灾情感知与外部影响评估（高级深度版）：unavailable",
+            "未生成 pred_mask，无法计算统计信息。",
+            unavailable_external,
+            "辅助决策，人工复核。未生成替代假结果。",
+            target_rows,
+            [],
+            [],
+        )
+
+    pred_mask, predict_message, predict_metadata = predict_trained_segmentation(
+        image,
+        checkpoint_path=checkpoint_path,
+        img_size=512,
+    )
+    if pred_mask is None:
+        return (
+            None,
+            None,
+            legend_image,
+            "模型来源：已训练语义分割模型\n"
+            f"Checkpoint 路径：{checkpoint_path}\n"
+            "状态：unavailable\n"
+            f"原因：{predict_message}\n"
+            "模型推理失败时不生成替代假结果。",
+            external_text,
+            "灾情感知与外部影响评估（高级深度版）：unavailable",
+            "模型推理失败，未生成 pred_mask。",
+            unavailable_external,
+            "辅助决策，人工复核。未生成替代假结果。",
+            target_rows,
+            [],
+            [],
+        )
+
+    validation = validate_segmentation_mask(pred_mask)
+    if not validation.get("valid"):
+        return (
+            None,
+            None,
+            legend_image,
+            "模型来源：已训练语义分割模型\n"
+            f"Checkpoint 路径：{checkpoint_path}\n"
+            "状态：unavailable\n"
+            f"原因：{validation.get('message', 'pred_mask 验证失败。')}\n"
+            "无效 pred_mask 不进入外部影响评估主展示。",
+            external_text,
+            "灾情感知与外部影响评估（高级深度版）：unavailable",
+            "pred_mask 验证失败，未计算统计信息。",
+            unavailable_external,
+            "辅助决策，人工复核。未生成替代假结果。",
+            target_rows,
+            [],
+            [],
+        )
+
+    overlay = create_segmentation_overlay(image, pred_mask)
+    color_mask = render_segmentation_mask(pred_mask)
+    stats = compute_damage_statistics(pred_mask)
+    damage_level = classify_damage_level(stats)
+    source_metadata = build_segmentation_source_metadata(
+        "auto_model",
+        checkpoint_path=checkpoint_path,
+        model_available=True,
+        prediction_success=True,
+    )
+    segmentation_summary = stats.get("class_area_ratios", {})
+    status_text = (
+        "模型来源：已训练语义分割模型\n"
+        f"Checkpoint 路径：{checkpoint_path}\n"
+        f"推理尺寸：{int(predict_metadata.get('img_size') or 512) if isinstance(predict_metadata, dict) else 512}\n"
+        "状态：pred_mask generated\n"
+        "同一个 pred_mask 已用于覆盖图、黑底彩色分割图、图例对应关系和统计信息。\n"
+        f"真实性边界：{segmentation_visualization_note(source_metadata)}\n"
+        f"外部评估状态文件：{status_path or '未写入'}"
+    )
+    external_summary = (
+        f"SKAI 外部源码级建筑灾损评估：{external_status['skai']['status']}\n"
+        f"InaSAFE 外部源码级灾害影响评估：{external_status['inasafe']['status']}\n"
+        "只有真实调用外部源码并验证到输出文件，才标记为真实 SKAI / InaSAFE 输出。"
+    )
     return (
-        result[1],
-        result[3],
-        result[4],
-        result[5],
-        result[6],
-        result[7],
-        result[8],
-        result[11],
-        result[12],
-        result[13],
+        overlay,
+        color_mask,
+        legend_image,
+        status_text,
+        external_text if not transformer_summary else f"{transformer_summary}\n\n{external_text}",
+        f"灾情感知与外部影响评估（高级深度版）：pred_mask ready；整体损毁等级：{damage_level}",
+        _build_damage_area_stats_text(stats),
+        external_summary,
+        _build_segmentation_impact_text(stats, damage_level),
+        target_rows,
+        segmentation_summary_rows(segmentation_summary, language=language),
+        [],
     )
 
 
@@ -1692,17 +1819,14 @@ def disaster_perception_with_source(
     stage_uploaded_image,
     detection_backend,
     transformer_model_key,
-    segmentation_source,
-    shared_segmentation_mask_path,
-    stage_segmentation_mask_path,
     conf_threshold,
     model_variant,
 ):
     """Run S2/S3 disaster perception from S1 preview, shared input, or local upload."""
-    source_text = str(image_source or "使用系统首页通用照片")
-    if source_text.startswith("使用 S1"):
+    source_text = str(image_source or "首页照片")
+    if source_text.startswith("S1") or source_text.startswith("S1预览") or source_text.startswith("预览"):
         selected_image = s1_preview_image
-    elif source_text.startswith("本阶段"):
+    elif source_text.startswith("本地") or source_text.startswith("上传"):
         selected_image = stage_uploaded_image
     else:
         selected_image = shared_image
@@ -1710,10 +1834,342 @@ def disaster_perception_with_source(
         _normalize_ui_image_value(selected_image),
         detection_backend,
         transformer_model_key,
-        segmentation_source,
-        stage_segmentation_mask_path or shared_segmentation_mask_path,
+        "自动分割模型",
+        None,
         conf_threshold,
         model_variant,
+    )
+
+
+def _format_segmentation_ratio(value):
+    return f"{float(value or 0.0) * 100:.2f}%"
+
+
+def _build_damage_area_stats_text(stats):
+    area_ratios = stats.get("class_area_ratios", {}) if isinstance(stats, dict) else {}
+    lines = [
+        f"水域占比：{_format_segmentation_ratio(area_ratios.get('water'))}",
+        f"积水/水池占比：{_format_segmentation_ratio(area_ratios.get('pool'))}",
+        f"可通行道路占比：{_format_segmentation_ratio(area_ratios.get('road_clear'))}",
+        f"道路阻断占比：{_format_segmentation_ratio(area_ratios.get('road_blocked'))}",
+        f"严重损毁建筑占比：{_format_segmentation_ratio(area_ratios.get('major_damage'))}",
+        f"完全毁坏建筑占比：{_format_segmentation_ratio(area_ratios.get('destroyed_building'))}",
+        f"树木占比：{_format_segmentation_ratio(area_ratios.get('tree'))}",
+        f"车辆占比：{_format_segmentation_ratio(area_ratios.get('vehicle'))}",
+    ]
+    return "\n".join(lines)
+
+
+def _build_damage_risk_summary_text(stats, damage_level):
+    road_stats = stats.get("road_stats", {}) if isinstance(stats, dict) else {}
+    environment_stats = stats.get("environment_stats", {}) if isinstance(stats, dict) else {}
+    major_damage = float(stats.get("major_damage_area", 0) or 0)
+    destroyed = float(stats.get("destroyed_building_area", 0) or 0)
+    road_blocked = float(road_stats.get("road_blocked_ratio", 0.0) or 0.0)
+    water_ratio = float(environment_stats.get("water_ratio", 0.0) or 0.0)
+
+    lines = [f"整体损毁等级：{damage_level}"]
+    if damage_level == "Major Damage":
+        lines.append("当前区域整体损毁较重，通常意味着救援通行和现场判断都需要优先复核。")
+    elif damage_level == "Medium Damage":
+        lines.append("当前区域存在明显损毁，应结合道路和积水情况继续人工复核。")
+    else:
+        lines.append("当前区域损毁相对较轻，但仍需结合环境风险和现场证据判断。")
+
+    if road_blocked > 0.02:
+        lines.append("道路阻断比例较高，可能影响救援队进入与回撤。")
+    if water_ratio > 0.03:
+        lines.append("水域/积水占比明显，建议将涉水通行作为重点风险项。")
+    if destroyed > 0 or major_damage > 0:
+        lines.append("严重损毁和完全毁坏建筑会抬高环境风险权重。")
+
+    return "\n".join(lines)
+
+
+def _build_segmentation_impact_text(stats, damage_level):
+    road_stats = stats.get("road_stats", {}) if isinstance(stats, dict) else {}
+    environment_stats = stats.get("environment_stats", {}) if isinstance(stats, dict) else {}
+    road_clear = float(road_stats.get("road_clear_ratio", 0.0) or 0.0)
+    road_blocked = float(road_stats.get("road_blocked_ratio", 0.0) or 0.0)
+    water_ratio = float(environment_stats.get("water_ratio", 0.0) or 0.0)
+    destroyed = float(stats.get("destroyed_building_area", 0) or 0)
+
+    lines = [
+        "对 TERP：该区域的环境风险会影响候选目标的优先级排序，积水、阻断道路和严重损毁建筑通常会提高风险权重。",
+        "对路径规划：可通行道路比例越低，绕行代价越高；道路阻断和积水区域应优先视为高代价或禁入区域。",
+        "对 Final Report：该结果应作为辅助决策证据写入报告，并标记为需要人工复核的灾情感知结果。",
+    ]
+    if road_blocked > 0.02 or water_ratio > 0.03 or destroyed > 0:
+        lines.insert(0, f"当前 {damage_level} 场景下，环境风险不宜直接转化为现场行动命令。")
+    if road_clear > 0.15:
+        lines.append("存在一定比例的可通行道路，但仍需结合局部阻断和积水情况判断实际可达性。")
+    return "\n".join(lines)
+
+
+def _format_external_module_box(item):
+    lines = [
+        f"模块：{item.get('module', '')}",
+        f"仓库：{item.get('repository', '')}",
+        f"状态：{item.get('status', 'unavailable')}",
+        f"源码路径：{item.get('source_root') or 'unavailable'}",
+        f"输出目录：{item.get('output_dir', '')}",
+        f"已验证输出文件数：{len(item.get('verified_output_files', []) or [])}",
+    ]
+    dependency_status = item.get("dependency_status", {}) or {}
+    if dependency_status:
+        dep_text = ", ".join(f"{name}={'ok' if ok else 'missing'}" for name, ok in dependency_status.items())
+        lines.append(f"依赖状态：{dep_text}")
+    reasons = item.get("unavailable_reasons", []) or []
+    if reasons:
+        lines.append("unavailable 原因：")
+        lines.extend([f"- {reason}" for reason in reasons])
+    verified_outputs = item.get("verified_output_files", []) or []
+    if verified_outputs:
+        lines.append("已验证输出：")
+        lines.extend([f"- {path}" for path in verified_outputs])
+    lines.append(f"真实性说明：{item.get('truthfulness_note', '')}")
+    return "\n".join(lines)
+
+
+def _format_skai_run_status(item):
+    item = item or {}
+    run_status = item.get("run_status_display", {}) or {}
+    lines = [
+        "SKAI 运行状态：",
+        f"- status：{item.get('status', 'unavailable')}",
+        f"- SKAI 源码：{run_status.get('skai_source', '缺失')}",
+        f"- 依赖环境：{run_status.get('dependency_environment', '缺失')}",
+        f"- 配置文件：{run_status.get('config_file', '缺失')}",
+        f"- Checkpoint：{run_status.get('checkpoint', '缺失')}",
+        f"- 输入数据：{run_status.get('input_data', '缺失')}",
+        f"- Runner：{run_status.get('runner', '未执行')}",
+        f"- 真实 SKAI 输出：{run_status.get('real_skai_output', '未产生')}",
+    ]
+    return "\n".join(lines)
+
+
+def _format_inasafe_run_status(item):
+    item = item or {}
+    run_status = item.get("run_status_display", {}) or {}
+    dependency_status = item.get("dependency_status", {}) or {}
+    dep_text = ", ".join(
+        f"{name}={'ok' if ok else 'missing'}" for name, ok in dependency_status.items()
+    ) or "unavailable"
+    lines = [
+        "InaSAFE 运行状态：",
+        f"- status：{item.get('status', 'unavailable')}",
+        f"- InaSAFE 源码：{run_status.get('inasafe_source', '缺失')}",
+        f"- 依赖环境：{run_status.get('dependency_environment', '缺失')}",
+        f"- 依赖明细：{dep_text}",
+        f"- 真实 InaSAFE 输出：{run_status.get('real_inasafe_output', '未产生')}",
+    ]
+    return "\n".join(lines)
+
+
+def _s2s3_truthfulness_text(extra=""):
+    base = (
+        "统一真实性边界：\n"
+        "- S2-S3 最终模块为：灾情感知与外部影响评估（高级深度版）。\n"
+        "- 固定使用本地已训练语义分割模型生成 pred_mask。\n"
+        "- 覆盖图、黑底彩色分割图、图例和统计信息必须来自同一个 pred_mask。\n"
+        "- SKAI 只有真实调用 google-research/skai 外部源码并验证输出文件后，才标记为真实 SKAI 输出。\n"
+        "- InaSAFE 只有真实调用 inasafe/inasafe 外部源码并验证输出文件后，才标记为真实 InaSAFE 输出。\n"
+        "- 依赖、权重、输入或 QGIS/GIS 环境缺失时只显示 unavailable，不生成替代假结果。\n"
+        "- legacy/internal lightweight_skai_inasafe_adaptation 不作为最终主展示，也不得称为真实 SKAI 或 InaSAFE 结果。\n"
+        "- 所有结果均为辅助决策，必须人工复核。"
+    )
+    return f"{base}\n- {extra}" if extra else base
+
+
+def _s2s3_response(
+    overlay,
+    color_mask,
+    legend,
+    model_status_text,
+    perception_summary,
+    skai_text,
+    inasafe_text,
+    skai_run_status,
+    inasafe_run_status,
+    external_files_text,
+    unavailable_text,
+    downstream_text,
+    truthfulness_text,
+    run_status_text,
+):
+    return (
+        overlay,
+        color_mask,
+        legend,
+        model_status_text,
+        perception_summary,
+        skai_text,
+        inasafe_text,
+        skai_run_status,
+        inasafe_run_status,
+        external_files_text,
+        unavailable_text,
+        downstream_text,
+        truthfulness_text,
+        run_status_text,
+    )
+
+
+def run_damage_segmentation_analysis(image, img_size=512, language="zh"):
+    """Run disaster perception with the locally trained segmentation checkpoint only."""
+    external_status = build_external_impact_assessment_status()
+    try:
+        external_status_path = save_external_impact_assessment_status(external_status)
+    except Exception:
+        external_status_path = ""
+    skai_text = format_skai_building_damage_panel(external_status.get("skai", {}))
+    inasafe_text = format_inasafe_impact_assessment_panel(external_status.get("inasafe", {}))
+    skai_run_status = _format_skai_run_status(external_status.get("skai", {}))
+    inasafe_run_status = _format_inasafe_run_status(external_status.get("inasafe", {}))
+    external_files_text = format_external_output_file_summary(external_status)
+    unavailable_text = format_external_unavailable_reasons(external_status)
+    if image is None:
+        return _s2s3_response(
+            None,
+            None,
+            None,
+            "语义分割模型状态：unavailable\n模型来源：已训练语义分割模型\nCheckpoint 路径：未提供\n原因：请先上传图像。",
+            "灾情感知摘要：unavailable\n原因：请先上传图像；未生成 pred_mask。",
+            skai_text,
+            inasafe_text,
+            skai_run_status,
+            inasafe_run_status,
+            external_files_text,
+            unavailable_text,
+            "下游决策建议：请先上传图像并成功生成 pred_mask。",
+            _s2s3_truthfulness_text("请先上传图像。"),
+            "请先上传一张图像。",
+        )
+
+    weights_path = get_segmentation_weights_path()
+    model_status = get_segmentation_model_status(weights_path)
+    checkpoint_path = str(model_status.get("path") or weights_path)
+    if not model_status.get("available"):
+        return _s2s3_response(
+            None,
+            None,
+            None,
+            "语义分割模型状态：unavailable\n"
+            "模型来源：已训练语义分割模型\n"
+            f"Checkpoint 路径：{checkpoint_path}\n"
+            "原因：未找到已训练语义分割模型 checkpoint，无法执行灾情感知分析。",
+            "灾情感知摘要：unavailable\n原因：未找到已训练语义分割模型 checkpoint；未生成 pred_mask。",
+            skai_text,
+            inasafe_text,
+            skai_run_status,
+            inasafe_run_status,
+            external_files_text,
+            unavailable_text,
+            "下游决策建议：未生成 pred_mask，不进入灾情统计、SKAI 或 InaSAFE 真实输出主展示。",
+            _s2s3_truthfulness_text("缺少 checkpoint 时不会生成替代假结果。"),
+            "未找到已训练语义分割模型 checkpoint，无法执行灾情感知分析。",
+        )
+
+    pred_mask, predict_message, predict_metadata = predict_trained_segmentation(
+        image,
+        checkpoint_path=checkpoint_path,
+        img_size=int(img_size or 512),
+    )
+    if pred_mask is None:
+        status_text = predict_metadata.get("message") if isinstance(predict_metadata, dict) else predict_message
+        return _s2s3_response(
+            None,
+            None,
+            None,
+            "语义分割模型状态：unavailable\n"
+            "模型来源：已训练语义分割模型\n"
+            f"Checkpoint 路径：{checkpoint_path}\n"
+            f"原因：{status_text or '模型推理失败，未生成 pred_mask。'}",
+            "灾情感知摘要：unavailable\n原因：模型推理失败；未生成 pred_mask。",
+            skai_text,
+            inasafe_text,
+            skai_run_status,
+            inasafe_run_status,
+            external_files_text,
+            unavailable_text,
+            "下游决策建议：模型推理失败，未生成 pred_mask，不生成替代假结果。",
+            _s2s3_truthfulness_text("模型推理失败时不会生成替代假结果。"),
+            status_text or "自动分割预测失败。",
+        )
+
+    validation = validate_segmentation_mask(pred_mask)
+    if not validation.get("valid"):
+        return _s2s3_response(
+            None,
+            None,
+            None,
+            "语义分割模型状态：unavailable\n"
+            "模型来源：已训练语义分割模型\n"
+            f"Checkpoint 路径：{checkpoint_path}\n"
+            f"原因：{validation.get('message', 'pred_mask 验证失败。')}",
+            "灾情感知摘要：unavailable\n原因：pred_mask 验证失败；未计算灾情统计。",
+            skai_text,
+            inasafe_text,
+            skai_run_status,
+            inasafe_run_status,
+            external_files_text,
+            unavailable_text,
+            "下游决策建议：pred_mask 验证失败，未继续评估。",
+            _s2s3_truthfulness_text("无效 pred_mask 不进入外部影响评估主展示。"),
+            validation.get("message", "分割结果无效。"),
+        )
+
+    overlay = create_segmentation_overlay(image, pred_mask)
+    color_mask = render_segmentation_mask(pred_mask)
+    legend = create_legend_image()
+    stats = compute_damage_statistics(pred_mask)
+    damage_level = classify_damage_level(stats)
+    stats["overall_damage_level"] = damage_level
+    source_metadata = build_segmentation_source_metadata(
+        "auto_model",
+        checkpoint_path=checkpoint_path,
+        model_available=True,
+        prediction_success=True,
+    )
+    stats["segmentation_source"] = source_metadata
+    stats["visualization_note"] = segmentation_visualization_note(source_metadata)
+    area_text = _build_damage_area_stats_text(stats)
+    perception_summary = (
+        "灾情感知摘要：pred_mask ready\n"
+        f"整体损毁等级：{damage_level}\n"
+        f"{area_text}\n"
+        "说明：以上统计来自本地已训练语义分割模型输出的同一个 pred_mask，需要人工复核。"
+    )
+    impact_text = (
+        f"整体损毁等级：{damage_level}\n"
+        f"{area_text}\n\n"
+        f"{_build_damage_risk_summary_text(stats, damage_level)}\n\n"
+        f"{_build_segmentation_impact_text(stats, damage_level)}"
+    )
+    status_text = (
+        "语义分割模型状态：pred_mask generated\n"
+        "模型来源：已训练语义分割模型\n"
+        f"Checkpoint 路径：{checkpoint_path}\n"
+        f"推理尺寸：{int(predict_metadata.get('img_size') or 512) if isinstance(predict_metadata, dict) else 512}\n"
+        f"整体损毁等级：{damage_level}\n"
+        "同一个 pred_mask 已用于覆盖图、黑底彩色分割图、图例和统计信息。\n"
+        f"外部影响评估状态文件：{external_status_path or '未写入'}"
+    )
+    return _s2s3_response(
+        overlay,
+        color_mask,
+        legend,
+        status_text,
+        perception_summary,
+        skai_text,
+        inasafe_text,
+        skai_run_status,
+        inasafe_run_status,
+        external_files_text,
+        unavailable_text,
+        impact_text,
+        _s2s3_truthfulness_text(),
+        "灾情感知与外部影响评估（高级深度版）运行完成。",
     )
 
 
@@ -1727,7 +2183,7 @@ def target_detection_with_source(
     model_variant,
 ):
     """Run S4 image detection from shared input or this tab's upload."""
-    selected_image = stage_image if str(image_source or "").startswith("本阶段") else shared_image
+    selected_image = stage_image if str(image_source or "").startswith(("本阶段", "本地", "上传")) else shared_image
     return target_detection_only(
         _normalize_ui_image_value(selected_image),
         detection_backend,
@@ -1747,7 +2203,7 @@ def video_detection_with_source(
     max_frames=0,
 ):
     """Run S4 video detection from shared input or this tab's upload."""
-    selected_video = stage_video if str(video_source or "").startswith("本阶段") else shared_video
+    selected_video = stage_video if str(video_source or "").startswith(("本阶段", "本地", "上传")) else shared_video
     return video_detection(selected_video, conf_threshold, model_variant, frame_skip=frame_skip, max_frames=max_frames)
 
 
@@ -1768,7 +2224,7 @@ def decision_detection_with_source(
     model_variant,
 ):
     """Run S7/S8 decision workflow from shared input or this tab's upload."""
-    selected_image = stage_image if str(image_source or "").startswith("本阶段") else shared_image
+    selected_image = stage_image if str(image_source or "").startswith(("本阶段", "本地", "上传")) else shared_image
     return image_detection(
         _normalize_ui_image_value(selected_image),
         detection_backend,
@@ -1863,51 +2319,6 @@ def video_detection(video_path, conf_threshold, model_variant, frame_skip=15, ma
     if max_frames > 0 and total_frames > max_frames:
         predictions += f" {t(language, 'limited_frames', max_frames=max_frames)}"
     return temp_video_path, predictions
-
-
-RESULT_POPUP_JS = r"""
-(...args) => {
-    const title = args[0] || "AeroRescue-AI 结果";
-    const parts = args.slice(1).filter((item) => item !== null && item !== undefined && String(item).trim() !== "");
-    const body = parts.length ? parts.map((item) => String(item)).join("\n\n---\n\n") : "结果尚未生成。请先运行当前阶段。";
-    const escapeHtml = (text) => String(text)
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
-    const win = window.open("", "_blank", "width=1100,height=820,noopener,noreferrer");
-    if (!win) {
-        alert("浏览器阻止了弹出窗口。请允许本站弹窗后再点击查看结果。");
-        return [];
-    }
-    win.document.open();
-    win.document.write(`<!doctype html>
-<html lang="zh-CN">
-<head>
-  <meta charset="utf-8" />
-  <title>${escapeHtml(title)}</title>
-  <style>
-    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f7f7f8; color: #202124; }
-    header { position: sticky; top: 0; background: #fff; border-bottom: 1px solid #e5e7eb; padding: 18px 28px; }
-    main { max-width: 1080px; margin: 0 auto; padding: 24px 28px 48px; }
-    h1 { margin: 0; font-size: 22px; }
-    .notice { margin: 12px 0 0; color: #6b7280; font-size: 14px; }
-    pre { white-space: pre-wrap; word-break: break-word; line-height: 1.6; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 18px; font-size: 14px; }
-  </style>
-</head>
-<body>
-  <header>
-    <h1>${escapeHtml(title)}</h1>
-    <p class="notice">结果仅为辅助决策信息，关键结论仍需人工复核。</p>
-  </header>
-  <main><pre>${escapeHtml(body)}</pre></main>
-</body>
-</html>`);
-    win.document.close();
-    return [];
-}
-"""
 
 
 MISSION_FIRST_LAYOUT_CSS = """
@@ -2028,29 +2439,181 @@ MISSION_FIRST_LAYOUT_CSS = """
 #aerorescue-mission-app .prose li {
     line-height: 1.6;
 }
+.mission-stage-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+    margin: 12px 0 14px 0;
+}
+.mission-stage-card {
+    height: 128px;
+    border: 1px solid var(--border-color-primary);
+    border-radius: 12px;
+    padding: 12px;
+    background: var(--background-fill-primary);
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    overflow: hidden;
+}
+.mission-stage-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+.mission-stage-id {
+    font-weight: 700;
+    color: var(--color-accent, #f97316);
+}
+.mission-stage-status {
+    font-size: 12px;
+    color: var(--body-text-color-subdued);
+}
+.mission-stage-name {
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1.35;
+}
+.mission-stage-action {
+    color: var(--body-text-color-subdued);
+    font-size: 13px;
+    line-height: 1.45;
+    margin-top: 8px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
 .stage-input-card {
     border: 1px solid var(--border-color-primary);
     border-radius: 10px;
-    padding: 14px;
+    padding: 10px;
     background: var(--background-fill-primary);
+}
+.stage-action-panel {
+    border: 1px solid var(--border-color-primary);
+    border-radius: 12px;
+    background: var(--background-fill-primary);
+    margin: 8px 0 !important;
+    padding: 12px !important;
+}
+.stage-action-panel .wrap,
+.stage-action-panel .form,
+.stage-action-panel .block {
+    max-width: 100% !important;
+}
+.stage-action-panel .upload-container {
+    min-height: 76px !important;
+    padding: 10px !important;
+}
+.stage-action-panel .image-container,
+.stage-action-panel .file-preview,
+.stage-action-panel video {
+    max-height: 170px !important;
+    overflow: hidden !important;
+}
+.stage-brief {
+    border-left: 4px solid var(--color-accent, #f97316);
+    padding: 10px 14px;
+    border-radius: 8px;
+    background: var(--background-fill-secondary);
+    margin: 8px 0 12px 0;
+}
+.stage-run-row {
+    align-items: end !important;
+    gap: 10px !important;
+    margin: 10px 0 10px 0;
+    flex-wrap: wrap !important;
+}
+.stage-run-row button {
+    min-height: 42px !important;
+    white-space: nowrap !important;
+    min-width: 148px !important;
+}
+.stage-run-row > div {
+    min-width: 0 !important;
+}
+.stage-run-row > div:has(button) {
+    flex: 0 0 auto !important;
+}
+.stage-run-row .compact-status {
+    flex: 1 1 360px !important;
+}
+.stage-toolbar {
+    align-items: end !important;
+    gap: 10px !important;
+}
+.stage-toolbar > .form,
+.stage-toolbar > div {
+    min-width: 0 !important;
+}
+.stage-toolbar button {
+    min-height: 42px !important;
+}
+.stage-toolbar textarea {
+    min-height: 44px !important;
+}
+.stage-toolbar .upload-container,
+.stage-toolbar .file-preview,
+.stage-toolbar .image-container,
+.stage-toolbar .wrap {
+    min-height: 44px !important;
+}
+.stage-toolbar .upload-container {
+    padding: 8px !important;
+}
+.stage-toolbar .label-wrap {
+    margin-bottom: 4px !important;
 }
 .stage-result-window {
     border: 1px solid var(--border-color-primary);
     border-radius: 12px;
     padding: 16px;
     background: var(--background-fill-primary);
-    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.16);
-    margin-top: 14px;
+    margin: 8px 0 !important;
 }
 .stage-result-window::before {
-    content: "结果窗口";
-    display: block;
-    font-weight: 700;
-    font-size: 18px;
-    margin-bottom: 12px;
+    display: none;
 }
 .compact-status textarea {
     min-height: 56px !important;
+}
+.stage-action-panel .label-wrap,
+.stage-result-window .label-wrap {
+    font-size: 14px !important;
+}
+.stage-result-window textarea {
+    font-size: 14px !important;
+}
+.s2s3-triptych {
+    gap: 0 !important;
+    margin-top: 8px !important;
+    margin-bottom: 8px !important;
+}
+.s2s3-triptych > div {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+}
+.s2s3-triptych .image-container {
+    margin: 0 !important;
+    height: 260px !important;
+}
+.seg-eval-triptych {
+    gap: 12px !important;
+    margin-top: 10px !important;
+    margin-bottom: 10px !important;
+    align-items: stretch !important;
+}
+.seg-eval-triptych > div {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+}
+.seg-eval-triptych .image-container {
+    margin: 0 !important;
+    height: 280px !important;
 }
 """
 
@@ -2065,126 +2628,129 @@ with gr.Blocks(
     """)
 
     with gr.Tab("任务总览"):
-        attach_mission_dashboard_panel()
+        with gr.Accordion("任务总览", open=False, elem_classes=["stage-action-panel"]):
+            attach_mission_dashboard_panel()
 
     with gr.Tab("一键任务演示"):
-        if attach_mission_control_panel is None:
-            gr.Markdown(f"一键任务演示面板暂不可用：{MISSION_CONTROL_PANEL_IMPORT_ERROR}")
-        else:
-            attach_mission_control_panel()
+        with gr.Accordion("一键任务演示", open=False, elem_classes=["stage-action-panel"]):
+            if attach_mission_control_panel is None:
+                gr.Markdown(f"一键任务演示面板暂不可用：{MISSION_CONTROL_PANEL_IMPORT_ERROR}")
+            else:
+                attach_mission_control_panel()
 
     with gr.Tab("真实能力验证路线图"):
-        if attach_validation_roadmap_panel is None:
-            gr.Markdown(f"真实能力验证路线图面板暂不可用：{VALIDATION_ROADMAP_PANEL_IMPORT_ERROR}")
-        else:
-            attach_validation_roadmap_panel()
+        with gr.Accordion("真实能力验证路线图", open=False, elem_classes=["stage-action-panel"]):
+            if attach_validation_roadmap_panel is None:
+                gr.Markdown(f"真实能力验证路线图面板暂不可用：{VALIDATION_ROADMAP_PANEL_IMPORT_ERROR}")
+            else:
+                attach_validation_roadmap_panel()
 
     with gr.Tab("流程导览"):
-        gr.Markdown(
-            """
-## AeroRescue-AI 系统功能说明
-
-AeroRescue-AI 是面向低空无人机应急救援场景的智能感知（让系统看懂图像）与辅助决策（给救援排序和路线建议）原型系统。系统围绕“无人机数据输入 → 灾情目标识别 → 环境风险理解 → 救援优先级排序 → 路径规划 → 灾情报告生成”构建完整演示链路，用于展示灾后城市区域的目标发现、风险研判和救援辅助决策能力。
-
-### 一、系统总体流程
-
-1. 数据采集与上传  
-   用户上传无人机图像、视频、航测照片、热红外图像或三维重建素材。系统首先完成输入检查、文件整理和基础可用性判断。
-
-2. 航测与场景预处理  
-   对多张航测图像执行快速拼接预览，或在本机 Docker（容器运行环境）与 OpenDroneMap / ODM（开源无人机正射影像处理工具）可用时运行真实正射处理；对 360° 视频或多视角图像提取关键帧、特征点和匹配关系，为后续三维重建预处理提供基础数据。
-
-3. 热红外与热点分析  
-   系统支持普通图像的模拟热力分析，也预留真实 radiometric thermal 文件解析入口。普通 JPG 只生成模拟热点结果，只有成功解析温度矩阵的热红外文件才被标记为真实测温。
-
-4. 目标检测与灾情感知  
-   图像和视频输入进入目标检测模块。系统以 YOLOv11（快速目标识别模型）灾害目标检测为主，同时提供 Transformer RescueDet（另一类深度学习检测模型）和双后端对比模式，用于识别平民、救援人员、动物等救援相关目标，并输出检测框、类别、置信度（模型有多确定）和目标位置。
-
-5. 语义分割与环境风险融合  
-   用户可以上传语义分割掩码（每个像素属于哪类区域的标注图），或在本地权重（训练好的模型文件）可用时启用自动分割模型。系统将水域、道路阻断、建筑损毁、可通行道路等环境类别转化为风险和路径代价，用于解释目标周边环境。
-
-6. 灾损评估与场景适用性门控  
-   系统统计建筑损毁、道路阻断、水域等灾损信息，并判断当前画面属于局部侦察还是广域评估。若缺少目标、分割掩码或模型权重，系统会进入 Target Only（只有目标）、Fallback（证据不足时回退）或 No Target（没有目标）模式，避免在证据不足时给出过度结论。
-
-7. TERP 救援优先级排序  
-   TERP（目标-环境-可达性联合优先级模型）综合目标类型、检测置信度、环境风险和可达性信息，对多个候选目标进行救援优先级排序。输出包括目标编号、综合分数、风险等级、排序原因和人工复核提示。
-
-8. 普通 A* 与风险感知 A* 路径规划  
-   系统在图像平面内生成参考救援路径，并对比普通 A*（经典自动寻路算法）路径与风险感知 A*（会避开危险区域的寻路算法）路径。风险感知路径会尽量避开水域、阻断道路和严重损毁区域。该路径是图像平面辅助参考，不是真实 GPS 导航路线。
-
-9. AI 灾情描述与综合报告导出  
-   系统汇总检测、分割、路径、热红外、正射影像、三维重建和人工输入信息，生成中文灾情描述、模块摘要、Markdown 报告和 HTML 报告。若本机 Ollama 可用，可作为可选增强；不可用时自动使用规则模板生成稳定输出。
-
-### 二、主要功能模块
-
-| 功能页 | 主要用途 | 输出结果 |
-| --- | --- | --- |
-| 正射影像 / 航测拼接预览 | 检查航测照片质量、重叠关系和 ODM（无人机正射处理工具）环境，生成快速拼接或真实 ODM 输出 | 拼接预览图、处理状态、运行日志、结果 JSON |
-| 模拟热红外 / 红外热点分析 | 对普通图像生成模拟热力图，或解析真实热红外温度矩阵 | 热力图、热点叠加图、真实性说明、温度/热点 JSON |
-| 通用数据输入 | 在系统首页折叠区统一导入照片、视频和可选分割掩码 | 共享照片、共享视频、共享掩码 |
-| 目标检测 | 识别救援相关目标，输出类别、置信度和检测框 | 检测图、检测详情、后端对比摘要 |
-| 灾情感知 | 融合目标检测、语义分割、环境风险和灾损统计 | 分割叠加图、灾损摘要、场景模式、环境风险排序 |
-| 综合决策 | 汇总灾情感知结果，生成 TERP（救援优先级）排序、路径规划和救援报告 | 路径图、救援优先级排名、路径可靠性、中文救援报告 |
-| 视频目标检测 | 对上传视频抽帧检测并生成标注视频 | 处理后视频、目标类别摘要 |
-| 360°视频 / 三维重建预处理 | 提取关键帧、特征点、匹配关系和简化点云预览 | 关键帧、匹配可视化、相机轨迹、PLY 点云预览 |
-| AI 灾情描述 | 根据已有模块结果和人工输入生成灾情描述 | 灾情描述 Markdown、生成日志 |
-| 综合报告导出 | 汇总所有已执行模块结果形成最终交付材料 | Markdown 报告、HTML 报告、报告摘要 |
-
-### 三、核心决策链路
-
-无人机图像 / 视频  
-→ 目标检测  
-→ 语义分割来源判断  
-→ 环境风险与灾损评估  
-→ 场景适用性门控  
-→ TERP 救援优先级排序  
-→ 救援入口建议  
-→ 普通 A*（常规自动寻路）/ 风险感知 A*（避开危险区域的自动寻路）路径对比
-→ 中文救援报告  
-→ 综合报告导出
-
-### 四、能力边界说明
-
-- 当前系统是本地 Gradio 竞赛原型，不接入真实飞控系统，也不直接控制无人机。
-- 路径规划结果基于图像平面像素坐标，仅用于辅助研判，不等同于真实地理坐标路径。
-- 普通 RGB 图像生成的热力图属于模拟分析，不代表真实温度测量。
-- 自动语义分割属于可选实验功能，需要本地模型权重；无权重时可使用上传掩码或无分割回退模式。
-- 系统会把各模块产物统一写入 `outputs/` 目录，便于复核、归档和导出报告。
-            """
-        )
-        gallery_items = gallery_image_items("zh")
-        if gallery_items:
-            gr.Gallery(value=gallery_items, label="系统素材与参考输出", columns=3, height=320, allow_preview=True)
-
-        with gr.Accordion("通用数据输入（照片 / 视频 / 分割掩码）", open=False):
+        with gr.Accordion("系统说明", open=False, elem_classes=["stage-action-panel"]):
             gr.Markdown(
                 """
-这里保留原来的共享输入能力，但不再单独占用一个 Tab。S4 局部精查、S2-S3 灾情感知和 S7-S8 综合决策会继续读取这里的照片、视频和可选语义分割掩码。
+    ## AeroRescue-AI 系统功能说明
+
+    AeroRescue-AI 是面向低空无人机应急救援场景的智能感知（让系统看懂图像）与辅助决策（给救援排序和路线建议）原型系统。系统围绕“无人机数据输入 → 灾情目标识别 → 环境风险理解 → 救援优先级排序 → 路径规划 → 灾情报告生成”构建完整演示链路，用于展示灾后城市区域的目标发现、风险研判和救援辅助决策能力。
+
+    ### 一、系统总体流程
+
+    1. 数据采集与上传  
+       用户上传无人机图像、视频、航测照片、热红外图像或三维重建素材。系统首先完成输入检查、文件整理和基础可用性判断。
+
+    2. 航测与场景预处理  
+       对多张航测图像执行快速拼接预览，或在本机 Docker（容器运行环境）与 OpenDroneMap / ODM（开源无人机正射影像处理工具）可用时运行真实正射处理；对 360° 视频或多视角图像提取关键帧、特征点和匹配关系，为后续三维重建预处理提供基础数据。
+
+    3. 热红外与热点分析  
+       系统支持普通图像的模拟热力分析，也预留真实 radiometric thermal 文件解析入口。普通 JPG 只生成模拟热点结果，只有成功解析温度矩阵的热红外文件才被标记为真实测温。
+
+    4. 目标检测与灾情感知  
+       图像和视频输入进入目标检测模块。系统以 YOLOv11（快速目标识别模型）灾害目标检测为主，同时提供 Transformer RescueDet（另一类深度学习检测模型）和双后端对比模式，用于识别平民、救援人员、动物等救援相关目标，并输出检测框、类别、置信度（模型有多确定）和目标位置。
+
+    5. 已训练语义分割模型与环境风险融合  
+       系统使用本地已训练语义分割模型生成 pred_mask，并将水域、道路阻断、建筑损毁、可通行道路等环境类别转化为风险和路径代价，用于解释目标周边环境。
+
+    6. 灾损评估与场景适用性门控  
+       系统统计建筑损毁、道路阻断、水域等灾损信息，并判断当前画面属于局部侦察还是广域评估。若缺少图像、目标或模型权重，系统会明确提示证据不足，避免在证据不足时给出过度结论。
+
+    7. TERP 救援优先级排序  
+       TERP（目标-环境-可达性联合优先级模型）综合目标类型、检测置信度、环境风险和可达性信息，对多个候选目标进行救援优先级排序。输出包括目标编号、综合分数、风险等级、排序原因和人工复核提示。
+
+    8. 普通 A* 与风险感知 A* 路径规划  
+       系统在图像平面内生成参考救援路径，并对比普通 A*（经典自动寻路算法）路径与风险感知 A*（会避开危险区域的寻路算法）路径。风险感知路径会尽量避开水域、阻断道路和严重损毁区域。该路径是图像平面辅助参考，不是真实 GPS 导航路线。
+
+    9. AI 灾情描述与综合报告导出  
+       系统汇总检测、分割、路径、热红外、正射影像、三维重建和人工输入信息，生成中文灾情描述、模块摘要、Markdown 报告和 HTML 报告。若本机 Ollama 可用，可作为可选增强；不可用时自动使用规则模板生成稳定输出。
+
+    ### 二、主要功能模块
+
+    | 功能页 | 主要用途 | 输出结果 |
+    | --- | --- | --- |
+    | 正射影像 / 航测拼接预览 | 检查航测照片质量、重叠关系和 ODM（无人机正射处理工具）环境，生成快速拼接或真实 ODM 输出 | 拼接预览图、处理状态、运行日志、结果 JSON |
+    | 模拟热红外 / 红外热点分析 | 对普通图像生成模拟热力图，或解析真实热红外温度矩阵 | 热力图、热点叠加图、真实性说明、温度/热点 JSON |
+    | 通用数据输入 | 在系统首页折叠区统一导入照片和视频 | 共享照片、共享视频 |
+    | 目标检测 | 识别救援相关目标，输出类别、置信度和检测框 | 检测图、检测详情、后端对比摘要 |
+    | 灾情感知 | 融合目标检测、语义分割、环境风险和灾损统计 | 分割叠加图、灾损摘要、场景模式、环境风险排序 |
+    | 综合决策 | 汇总灾情感知结果，生成 TERP（救援优先级）排序、路径规划和救援报告 | 路径图、救援优先级排名、路径可靠性、中文救援报告 |
+    | 视频目标检测 | 对上传视频抽帧检测并生成标注视频 | 处理后视频、目标类别摘要 |
+    | 360°视频 / 三维重建预处理 | 提取关键帧、特征点、匹配关系和简化点云预览 | 关键帧、匹配可视化、相机轨迹、PLY 点云预览 |
+    | AI 灾情描述 | 根据已有模块结果和人工输入生成灾情描述 | 灾情描述 Markdown、生成日志 |
+    | 综合报告导出 | 汇总所有已执行模块结果形成最终交付材料 | Markdown 报告、HTML 报告、报告摘要 |
+
+    ### 三、核心决策链路
+
+    无人机图像 / 视频  
+    → 目标检测  
+    → 已训练语义分割模型生成 pred_mask  
+    → 环境风险与灾损评估  
+    → 场景适用性门控  
+    → TERP 救援优先级排序  
+    → 救援入口建议  
+    → 普通 A*（常规自动寻路）/ 风险感知 A*（避开危险区域的自动寻路）路径对比
+    → 中文救援报告  
+    → 综合报告导出
+
+    ### 四、能力边界说明
+
+    - 当前系统是本地 Gradio 竞赛原型，不接入真实飞控系统，也不直接控制无人机。
+    - 路径规划结果基于图像平面像素坐标，仅用于辅助研判，不等同于真实地理坐标路径。
+    - 普通 RGB 图像生成的热力图属于模拟分析，不代表真实温度测量。
+    - 灾情感知结果必须来自本地已训练语义分割模型；未找到 checkpoint 时不会生成伪造分割结果。
+    - 系统会把各模块产物统一写入 `outputs/` 目录，便于复核、归档和导出报告。
+                """
+                )
+            gallery_items = gallery_image_items("zh")
+            if gallery_items:
+                with gr.Accordion("系统素材与参考输出", open=False, elem_classes=["stage-action-panel"]):
+                    gr.Gallery(value=gallery_items, label="系统素材与参考输出", columns=3, height=320, allow_preview=True)
+
+        with gr.Accordion("通用数据输入（照片 / 视频）", open=False):
+            gr.Markdown(
+                """
+    这里保留共享输入能力，但不再单独占用一个 Tab。S4 局部精查、S2-S3 灾情感知和 S7-S8 综合决策会继续读取这里的照片或视频。
                 """
             )
-            with gr.Row():
-                with gr.Column(elem_classes=["stage-input-card"]):
-                    imported_image = gr.Image(label="导入照片 / 无人机图像", type="pil")
-                    imported_video = gr.Video(label="导入视频", autoplay=True)
-                    imported_segmentation_mask = gr.File(
-                        label="导入语义分割掩码（可选）",
-                        file_types=[".png", ".jpg", ".jpeg"],
-                    )
-                with gr.Column():
-                    selected_features = gr.CheckboxGroup(
-                        ["目标检测", "灾情感知", "综合决策"],
-                        label="选择要使用的功能",
-                        value=["目标检测", "灾情感知", "综合决策"],
-                    )
-                    gr.Markdown(
-                        """
-**推荐流程**
+            imported_image = gr.Image(label="导入照片 / 无人机图像", type="pil", elem_classes=["stage-input-card"])
+            imported_video = gr.Video(label="导入视频", autoplay=True)
+            imported_segmentation_mask = gr.File(
+                label="内部兼容输入",
+                file_types=[".png", ".jpg", ".jpeg"],
+                visible=False,
+            )
+            selected_features = gr.CheckboxGroup(
+                ["目标检测", "灾情感知", "综合决策"],
+                label="选择要使用的功能",
+                value=["目标检测", "灾情感知", "综合决策"],
+            )
+            gr.Markdown(
+                """
+    **推荐流程**
 
-1. 在这里导入照片或视频。
-2. 如已有分割结果，导入语义分割掩码；没有 mask 时可在灾情感知或综合决策中选择自动分割或无分割。
-3. 进入对应 S 阶段页面点击运行按钮。
-                        """
-                    )
+    1. 在这里导入照片或视频。
+    2. 进入对应 S 阶段页面点击运行按钮。
+    3. 灾情感知阶段会固定使用本地已训练语义分割模型。
+                """
+            )
             gr.Examples(
                 examples=[
                     ["examples/1019715_jpg.rf.58a43da4e0959d4e75f1eceb0d288bd0.jpg"],
@@ -2204,44 +2770,44 @@ AeroRescue-AI 是面向低空无人机应急救援场景的智能感知（让系
             )
 
     with gr.Tab("S1 高空建图"):
-        gr.Markdown(
-            """
-## 正射影像 / 航测拼接预览
+        with gr.Accordion("1. 阶段说明", open=False, elem_classes=["stage-action-panel"]):
+            gr.Markdown(
+                """
+    ## 正射影像 / 航测拼接预览
 
-该模块提供两种处理模式：
+    该模块提供两种处理模式：
 
-- Fast Preview / OpenCV 拼接预览：用于快速检查图像质量和重叠关系，不是专业正射影像。
-- Real ODM Orthomosaic / OpenDroneMap 真实正射处理：调用本机 Docker 运行 `opendronemap/odm`，需要 Docker 可用并准备具有 70%-80% 重叠度的无人机航测照片。该模式不会伪造 ODM 输出。
-            """
-        )
-        with gr.Row():
-            with gr.Column(elem_classes=["stage-input-card"]):
-                orthomosaic_mode = gr.Radio(
-                    [
-                        "Fast Preview / OpenCV 拼接预览",
-                        "Real ODM Orthomosaic / OpenDroneMap 真实正射处理",
-                    ],
-                    label="Processing Mode / 处理模式",
-                    value="Fast Preview / OpenCV 拼接预览",
+    - Fast Preview / OpenCV 拼接预览：用于快速检查图像质量和重叠关系，不是专业正射影像。
+    - Real ODM Orthomosaic / OpenDroneMap 真实正射处理：调用本机 Docker 运行 `opendronemap/odm`，需要 Docker 可用并准备具有 70%-80% 重叠度的无人机航测照片。该模式不会伪造 ODM 输出。
+                """
                 )
-                orthomosaic_files = gr.File(
-                    label="上传航测图像（可多选）",
-                    file_count="multiple",
-                    file_types=[".jpg", ".jpeg", ".png", ".webp", ".tif", ".tiff"],
-                )
+        with gr.Accordion("2. 输入与运行", open=False, elem_classes=["stage-action-panel"]):
+            orthomosaic_files = gr.File(
+                label="航测图像（可多选）",
+                file_count="multiple",
+                file_types=[".jpg", ".jpeg", ".png", ".webp", ".tif", ".tiff"],
+            )
+            orthomosaic_mode = gr.Radio(
+                [
+                    "Fast Preview / OpenCV 拼接预览",
+                    "Real ODM Orthomosaic / OpenDroneMap 真实正射处理",
+                ],
+                label="处理模式",
+                value="Fast Preview / OpenCV 拼接预览",
+            )
+            with gr.Accordion("高级 ODM 参数", open=False):
                 odm_task_name = gr.Textbox(label="ODM 任务名称", value="aerorescue_odm_task")
                 odm_max_images = gr.Number(label="最多使用图像数（0 表示不限制）", value=0, precision=0)
                 odm_fast_orthophoto = gr.Checkbox(label="ODM 快速正射参数 --fast-orthophoto", value=False)
-                odm_env_btn = gr.Button("检查 ODM 环境（Docker / 镜像）")
-                orthomosaic_btn = gr.Button("运行正射 / 拼接处理", variant="primary")
-            with gr.Column():
-                orthomosaic_status = gr.Textbox(label="生成状态", lines=3, elem_classes=["compact-status"])
-                s1_result_title = gr.Textbox(value="S1 高空建图结果", visible=False)
-                s1_result_popup_btn = gr.Button("打开结果窗口", variant="secondary")
-                with gr.Accordion("页面内结果备份", open=False, elem_classes=["stage-result-window"]):
-                    orthomosaic_image = gr.Image(label="拼接 / 预览图")
-                    orthomosaic_log = gr.Code(label="结果 JSON", language="json", lines=12)
-                    orthomosaic_run_log = gr.Textbox(label="运行日志", lines=12)
+            with gr.Row(elem_classes=["stage-run-row"]):
+                orthomosaic_btn = gr.Button("运行高空建图", variant="primary")
+                odm_env_btn = gr.Button("检查 ODM 环境", variant="secondary")
+        with gr.Accordion("3. 核心结果", open=False, elem_classes=["stage-result-window"]):
+            orthomosaic_status = gr.Textbox(label="生成提示", lines=2, elem_classes=["compact-status"])
+            orthomosaic_image = gr.Image(label="拼接 / 预览图")
+            with gr.Accordion("4. 详细日志与数据", open=False):
+                orthomosaic_log = gr.Code(label="结果 JSON", language="json", lines=12)
+                orthomosaic_run_log = gr.Textbox(label="运行日志", lines=12)
         orthomosaic_btn.click(
             fn=run_orthomosaic_mode,
             inputs=[orthomosaic_files, orthomosaic_mode, odm_task_name, odm_max_images, odm_fast_orthophoto],
@@ -2252,248 +2818,133 @@ AeroRescue-AI 是面向低空无人机应急救援场景的智能感知（让系
             inputs=[],
             outputs=[orthomosaic_status, orthomosaic_log, orthomosaic_run_log],
         )
-        s1_result_popup_btn.click(
-            fn=None,
-            inputs=[s1_result_title, orthomosaic_status, orthomosaic_log, orthomosaic_run_log],
-            outputs=[],
-            js=RESULT_POPUP_JS,
-        )
 
-    with gr.Tab("S2-S3 灾情感知"):
-        gr.Markdown(
-            """
-## 灾情感知
+    with gr.Tab("S2-S3 灾情感知与外部影响评估（高级深度版）"):
+        with gr.Accordion("① 上传图像 + 运行按钮", open=True, elem_classes=["stage-action-panel"]):
+            gr.Markdown(
+                """
+    固定使用本地已训练语义分割模型生成 pred_mask。覆盖图、黑底彩色分割图、图例和统计信息都来自同一个 pred_mask。
 
-该页面负责把目标检测结果与语义分割来源结合起来，形成灾区环境风险、灾损统计、场景模式和救援入口线索。这里不生成最终路径和综合救援报告，重点是回答“灾区有什么、风险在哪里、证据是否充分”。
-            """
-        )
-        with gr.Row():
-            with gr.Column(elem_classes=["stage-input-card"]):
-                gr.Markdown("灾情感知可以承接 S1 高空建图预览，也可以使用系统首页通用照片，或在本阶段独立上传一张图。")
-                perception_image_source = gr.Radio(
-                    [
-                        "使用系统首页通用照片",
-                        "使用 S1 高空建图预览图",
-                        "本阶段独立上传",
-                    ],
-                    label="灾情感知图像来源",
-                    value="使用系统首页通用照片",
-                )
-                perception_stage_image = gr.Image(label="本阶段独立上传图像（可选）", type="pil")
-                perception_stage_mask = gr.File(
-                    label="本阶段独立上传语义分割掩码（可选）",
-                    file_types=[".png", ".jpg", ".jpeg"],
-                )
-                perception_detection_backend = gr.Radio(
-                    ["YOLO Rescue Targets", "Transformer RescueDet", "YOLO + Transformer Compare"],
-                    label="目标识别方式（选择用哪种模型识别目标）",
-                    value="YOLO Rescue Targets",
-                )
-                perception_transformer_model_key = gr.Dropdown(
-                    list(TRANSFORMER_DETECTION_MODELS.keys()),
-                    label="备用检测模型（Transformer RescueDet，用于对比复核）",
-                    value="rescuedet_deformable_detr",
-                )
-                perception_segmentation_source = gr.Radio(
-                    ["上传掩码", "自动分割模型", "无分割"],
-                    label="环境区域来源（语义分割：把图像分成水域、道路、建筑等区域）",
-                    value="上传掩码",
-                )
-                perception_conf_threshold = gr.Slider(label="最低识别把握度（越高越严格）", minimum=0.0, maximum=1.0, step=0.05, value=0.30)
-                perception_model = gr.Dropdown(["yolov11n", "yolov11s", "yolov11m", "yolov11l"], label="主检测模型大小（YOLOv11）", value="yolov11m")
-                perception_btn = gr.Button("运行灾情感知", variant="primary")
-            with gr.Column():
-                perception_scene_gate_status = gr.Textbox(label="生成状态 / 证据状态", lines=3, elem_classes=["compact-status"])
-                s2_result_title = gr.Textbox(value="S2-S3 灾情感知结果", visible=False)
-                s2_result_popup_btn = gr.Button("打开结果窗口", variant="secondary")
-                with gr.Accordion("页面内结果备份", open=False, elem_classes=["stage-result-window"]):
-                    perception_segmentation_overlay = gr.Image(label="灾情感知图（环境区域叠加图）")
-                    perception_segmentation_status = gr.Textbox(label="环境区域识别状态（分割来源是否可用）", lines=6)
-                    perception_transformer_summary = gr.Textbox(label="备用模型对比摘要", lines=6)
-                    perception_damage_summary = gr.Textbox(label="灾损评估摘要（道路、水域、建筑损毁等统计）", lines=8)
-                    perception_scene_mode = gr.Textbox(label="场景模式（局部侦察或广域评估）", lines=4)
-                    perception_rescue_entry = gr.Textbox(label="救援入口线索", lines=4)
-                    perception_details = gr.Dataframe(
-                        headers=["编号", "目标类别", "识别把握度", "检测框位置", "中心点", "目标面积"],
-                        label="检测详情（目标类别、位置和模型把握度）",
-                        interactive=False,
-                    )
-                    perception_segmentation_summary = gr.Dataframe(
-                        headers=["区域类别", "中文名称", "面积占比(%)"],
-                        label="环境区域汇总（水域、道路、建筑等占比）",
-                        interactive=False,
-                    )
-                    perception_ranking = gr.Dataframe(
-                        headers=["排名", "目标ID", "目标类别", "识别把握度", "检测框位置", "风险分数", "风险等级", "环境分数", "主要风险环境", "原因"],
-                        label="环境风险排序（哪些目标周围更危险）",
-                        interactive=False,
-                    )
+    SKAI 作为外部源码级建筑灾损评估模块接入，InaSAFE 作为外部源码级灾害影响评估模块接入；只有真实调用外部源码并验证到输出文件，才标记为真实 SKAI / InaSAFE 输出。依赖、权重、输入或 QGIS/GIS 环境缺失时只显示 unavailable，不生成替代假结果。
+                """
+            )
+            perception_stage_image = gr.Image(label="上传高空图 / UAV 图像", type="pil")
+            perception_img_size = gr.Number(label="推理尺寸", value=512, precision=0)
+            with gr.Row(elem_classes=["stage-run-row"]):
+                perception_btn = gr.Button("运行灾情感知分析", variant="primary")
+        with gr.Accordion("② 已训练语义分割模型状态", open=True, elem_classes=["stage-result-window"]):
+            perception_segmentation_status = gr.Textbox(label="已训练语义分割模型状态", lines=7)
+            perception_model_status = gr.Textbox(label="运行状态", lines=3)
+        with gr.Accordion("③ 覆盖图", open=True, elem_classes=["stage-result-window"]):
+            perception_segmentation_overlay = gr.Image(label="覆盖图：原图 + pred_mask 半透明叠加")
+        with gr.Accordion("④ 黑底彩色分割图", open=True, elem_classes=["stage-result-window"]):
+            perception_segmentation_color = gr.Image(label="黑底彩色分割图：pred_mask 类别渲染")
+        with gr.Accordion("⑤ 图例", open=True, elem_classes=["stage-result-window"]):
+            perception_segmentation_legend = gr.Image(label="图例：类别颜色说明")
+        with gr.Accordion("⑥ 灾情感知摘要", open=True, elem_classes=["stage-result-window"]):
+            perception_summary = gr.Textbox(label="灾情感知摘要", lines=10)
+        with gr.Accordion("⑦ 灾损与影响评估", open=True, elem_classes=["stage-result-window"]):
+            with gr.Row():
+                perception_skai_assessment = gr.Textbox(label="SKAI 建筑灾损结果", lines=13)
+                perception_inasafe_assessment = gr.Textbox(label="InaSAFE 影响评估结果", lines=13)
+            perception_skai_run_status = gr.Textbox(label="SKAI 运行状态", lines=8)
+            perception_inasafe_run_status = gr.Textbox(label="InaSAFE 运行状态", lines=6)
+            perception_external_files = gr.Textbox(label="外部输出文件摘要", lines=7)
+            perception_unavailable_reasons = gr.Textbox(label="不可用原因 / 真实性边界", lines=10)
+        with gr.Accordion("⑧ 下游决策建议", open=True, elem_classes=["stage-result-window"]):
+            perception_downstream_impact = gr.Textbox(label="下游决策建议", lines=10)
+        with gr.Accordion("⑨ 统一真实性边界", open=True, elem_classes=["stage-result-window"]):
+            perception_truthfulness = gr.Textbox(label="统一真实性边界", lines=10)
         perception_btn.click(
-            fn=disaster_perception_with_source,
-            inputs=[
-                perception_image_source,
-                imported_image,
-                orthomosaic_image,
-                perception_stage_image,
-                perception_detection_backend,
-                perception_transformer_model_key,
-                perception_segmentation_source,
-                imported_segmentation_mask,
-                perception_stage_mask,
-                perception_conf_threshold,
-                perception_model,
-            ],
+            fn=run_damage_segmentation_analysis,
+            inputs=[perception_stage_image, perception_img_size],
             outputs=[
                 perception_segmentation_overlay,
+                perception_segmentation_color,
+                perception_segmentation_legend,
                 perception_segmentation_status,
-                perception_transformer_summary,
-                perception_scene_gate_status,
-                perception_damage_summary,
-                perception_scene_mode,
-                perception_rescue_entry,
-                perception_details,
-                perception_segmentation_summary,
-                perception_ranking,
+                perception_summary,
+                perception_skai_assessment,
+                perception_inasafe_assessment,
+                perception_skai_run_status,
+                perception_inasafe_run_status,
+                perception_external_files,
+                perception_unavailable_reasons,
+                perception_downstream_impact,
+                perception_truthfulness,
+                perception_model_status,
             ],
         )
-        s2_result_popup_btn.click(
-            fn=None,
-            inputs=[
-                s2_result_title,
-                perception_scene_gate_status,
-                perception_segmentation_status,
-                perception_damage_summary,
-                perception_scene_mode,
-                perception_rescue_entry,
-                perception_transformer_summary,
-            ],
-            outputs=[],
-            js=RESULT_POPUP_JS,
-        )
-
-        with gr.Accordion("灾后场景分割与损毁评估（训练 checkpoint 推理 / 上传掩码）", open=False):
-            gr.Markdown(
-                """
-该区域用于验证真正训练出的本地语义分割模型文件。自动分割模型必须找到本地模型文件才会推理；没有模型文件时不会生成伪造分割结果。
-
-数据训练完成后，默认可使用 `outputs/segmentation_training/checkpoints/best.pth`。
-                """
-            )
-            with gr.Row():
-                with gr.Column():
-                    gr.Markdown("可使用系统首页“通用数据输入”中的照片和可选语义分割掩码。")
-                    seg_eval_mode = gr.Radio(
-                        ["Auto Segmentation Model", "Uploaded Mask", "Demo / Fallback"],
-                        label="分割模式（环境区域识别方式）",
-                        value="Auto Segmentation Model",
-                    )
-                    seg_eval_checkpoint = gr.Textbox(
-                        label="模型文件路径（Checkpoint，训练好的分割模型文件；留空使用默认 best.pth）",
-                        value="",
-                        placeholder="outputs/segmentation_training/checkpoints/best.pth",
-                    )
-                    seg_eval_img_size = gr.Number(label="推理尺寸", value=512, precision=0)
-                    seg_eval_btn = gr.Button("运行场景分割与损毁评估", variant="secondary")
-                with gr.Column():
-                    seg_eval_original = gr.Image(label="原图")
-                    seg_eval_color = gr.Image(label="黑底彩色分割图")
-                    seg_eval_panel = gr.Image(label="原图 / 分割图组合")
-                    seg_eval_stats = gr.Code(label="灾损统计 JSON（机器可读的统计结果）", language="json", lines=12)
-                    seg_eval_level = gr.Textbox(label="整体损毁等级", lines=1)
-                    seg_eval_legend = gr.Image(label="语义分割图例")
-                    seg_eval_source_status = gr.Textbox(label="分割来源状态", lines=8)
-                    seg_eval_status = gr.Textbox(label="运行状态说明", lines=6)
-            seg_eval_btn.click(
-                fn=run_damage_segmentation_inference,
-                inputs=[imported_image, seg_eval_mode, imported_segmentation_mask, seg_eval_checkpoint, seg_eval_img_size],
-                outputs=[
-                    seg_eval_original,
-                    seg_eval_color,
-                    seg_eval_panel,
-                    seg_eval_stats,
-                    seg_eval_level,
-                    seg_eval_legend,
-                    seg_eval_source_status,
-                    seg_eval_status,
-                ],
-            )
 
     with gr.Tab("S4 局部精查"):
-        gr.Markdown(
-            """
-## 目标检测
-
-该页面只负责从无人机图像或视频中识别救援相关目标，并输出检测框（目标在图中的位置）、类别、识别把握度（模型有多确定）和备用模型对比信息。语义分割与环境风险已拆分到“灾情感知”，救援排序和路径规划已拆分到“综合决策”。
-            """
-        )
-        detection_input_mode = gr.Radio(
-            ["图片检测", "视频检测"],
-            label="检测输入类型",
-            value="图片检测",
-        )
-        with gr.Group(visible=True) as image_detection_group:
+        with gr.Accordion("1. 阶段说明", open=False, elem_classes=["stage-action-panel"]):
             gr.Markdown(
                 """
-### 图片目标检测工作台
+    ## 目标检测
 
-当前模式可以读取系统首页“通用数据输入”中的照片，也可以使用本 Tab 单独上传的局部 RGB 图像。输出图片检测框（目标位置）、目标表格、备用模型辅助对比和检测说明。
+    该页面只负责从无人机图像或视频中识别救援相关目标，并输出检测框（目标在图中的位置）、类别、识别把握度（模型有多确定）和备用模型对比信息。语义分割与环境风险已拆分到“灾情感知”，救援排序和路径规划已拆分到“综合决策”。
                 """
+                )
+            detection_input_mode = gr.Radio(
+                ["图片检测", "视频检测"],
+                label="检测输入类型",
+                value="图片检测",
             )
-            with gr.Row():
-                with gr.Column():
-                    s4_image_source = gr.Radio(
-                        ["使用系统首页通用照片", "本阶段独立上传"],
-                        label="S4 图片来源",
-                        value="使用系统首页通用照片",
+        with gr.Group(visible=True) as image_detection_group:
+            with gr.Accordion("2. 图片检测：输入与运行", open=False, elem_classes=["stage-action-panel"]):
+                gr.Markdown("读取局部 RGB 图像，生成候选目标。检测到的人只作为候选目标，需要人工复核。")
+                s4_image_source = gr.Radio(
+                    ["首页照片", "本地上传"],
+                    label="图片来源",
+                    value="首页照片",
+                )
+                s4_stage_image = gr.Image(label="局部 RGB 图像（可选）", type="pil")
+                detection_backend = gr.Radio(
+                    [
+                        "YOLO Rescue Targets",
+                        "Transformer RescueDet",
+                        "YOLO + Transformer Compare",
+                    ],
+                    label="目标识别方式",
+                    value="YOLO Rescue Targets",
+                )
+                transformer_model_key = gr.Dropdown(
+                    list(TRANSFORMER_DETECTION_MODELS.keys()),
+                    label="备用检测模型",
+                    value="rescuedet_deformable_detr",
+                )
+                conf_threshold = gr.Slider(label="最低识别把握度", minimum=0.0, maximum=1.0, step=0.05, value=0.30)
+                output_model = gr.Dropdown(["yolov11n", "yolov11s", "yolov11m", "yolov11l"], label="主检测模型大小", info="选择要使用的 YOLOv11 模型版本。", value="yolov11m")
+                with gr.Accordion("目标识别方式说明", open=False):
+                    gr.Markdown(summarize_detection_backend_capabilities())
+                    gr.Markdown(
+                        "### 运行说明\n"
+                        "- YOLO Rescue Targets：主目标识别模型，用来识别救援候选目标。\n"
+                        "- Transformer RescueDet：备用检测模型，用来提供另一套候选结果，方便人工对比。\n"
+                        "- YOLO + Transformer Compare：双模型对比模式，用来检查两个模型结果是否一致。\n"
+                        "- 综合决策仍以主结果为准，备用模型只作为人工复核线索。"
                     )
-                    s4_stage_image = gr.Image(label="本阶段独立上传局部 RGB 图像（可选）", type="pil")
-                    detection_backend = gr.Radio(
-                        [
-                            "YOLO Rescue Targets",
-                            "Transformer RescueDet",
-                            "YOLO + Transformer Compare",
-                        ],
-                        label="目标识别方式（选择用哪种模型识别目标）",
-                        value="YOLO Rescue Targets",
+                with gr.Row(elem_classes=["stage-run-row"]):
+                    btn = gr.Button("运行图片检测", variant="primary")
+            with gr.Accordion("3. 图片检测：核心结果", open=False, elem_classes=["stage-result-window"]):
+                output_report = gr.Textbox(
+                    label="生成提示",
+                    lines=2,
+                    placeholder="运行后显示生成状态和关键提示。",
+                    elem_classes=["compact-status"],
+                )
+                output_image = gr.Image(label="处理后图像")
+                with gr.Accordion("详细数据", open=False):
+                    output_transformer_summary = gr.Textbox(
+                        label="备用模型对比摘要",
+                        lines=8,
+                        placeholder="备用检测模型输出、失败原因或双模型一致性分析会显示在这里……",
                     )
-                    transformer_model_key = gr.Dropdown(
-                        list(TRANSFORMER_DETECTION_MODELS.keys()),
-                        label="备用检测模型（Transformer RescueDet，一种用于对比复核的识别模型）",
-                        value="rescuedet_deformable_detr",
+                    output_details = gr.Dataframe(
+                        headers=["编号", "目标类别", "识别把握度", "检测框位置", "中心点", "目标面积"],
+                        label="检测详情",
+                        interactive=False,
                     )
-                    with gr.Accordion("目标识别方式说明", open=False):
-                        gr.Markdown(summarize_detection_backend_capabilities())
-                        gr.Markdown(
-                            "### 运行说明\n"
-                            "- YOLO Rescue Targets：主目标识别模型，速度快，用来识别平民、救援人员、动物等目标。\n"
-                            "- Transformer RescueDet：备用检测模型，用来提供另一套候选结果，方便人工对比。\n"
-                            "- YOLO + Transformer Compare：双模型对比模式，用来检查两个模型结果是否一致。\n"
-                            "- 综合决策仍以 YOLO 主结果为准，备用模型只作为人工复核线索。"
-                        )
-                    conf_threshold = gr.Slider(label="最低识别把握度（越高越严格，低于该值的目标会被过滤）", minimum=0.0, maximum=1.0, step=0.05, value=0.30)
-                    output_model = gr.Dropdown(["yolov11n", "yolov11s", "yolov11m", "yolov11l"], label="主检测模型大小（YOLOv11，n 最轻量，l 更大更慢）", info="选择要使用的 YOLOv11 模型版本。", value="yolov11m")
-                    btn = gr.Button("运行图片目标检测", variant="primary")
-                with gr.Column():
-                    output_report = gr.Textbox(
-                        label="生成状态",
-                        lines=3,
-                        placeholder="运行后显示生成状态和关键提示。",
-                        elem_classes=["compact-status"],
-                    )
-                    s4_image_result_title = gr.Textbox(value="S4 图片目标检测结果", visible=False)
-                    s4_image_result_popup_btn = gr.Button("打开结果窗口", variant="secondary")
-                    with gr.Accordion("页面内结果备份", open=False, elem_classes=["stage-result-window"]):
-                        output_image = gr.Image(label="处理后图像")
-                        output_transformer_summary = gr.Textbox(
-                            label="备用模型对比摘要（Transformer 输出、失败原因或一致性分析）",
-                            lines=8,
-                            placeholder="备用检测模型输出、失败原因或双模型一致性分析会显示在这里……",
-                        )
-                        output_details = gr.Dataframe(
-                            headers=["编号", "目标类别", "识别把握度", "检测框位置", "中心点", "目标面积"],
-                            label="检测详情（每个目标的类别、位置和模型把握度）",
-                            interactive=False,
-                        )
 
             btn.click(
                 fn=target_detection_with_source,
@@ -2513,58 +2964,35 @@ AeroRescue-AI 是面向低空无人机应急救援场景的智能感知（让系
                     output_report,
                 ],
             )
-            s4_image_result_popup_btn.click(
-                fn=None,
-                inputs=[s4_image_result_title, output_report, output_transformer_summary],
-                outputs=[],
-                js=RESULT_POPUP_JS,
-            )
-
         with gr.Group(visible=False) as video_detection_group:
-            gr.Markdown(
-                """
-### 视频目标检测工作台
-
-当前模式可以读取系统首页“通用数据输入”中的视频，也可以使用本 Tab 单独上传的视频。系统按帧抽样执行目标检测，并生成带检测标注的处理后视频和目标类别摘要。
-                """
-            )
-            with gr.Row():
-                with gr.Column(elem_classes=["stage-input-card"]):
-                    s4_video_source = gr.Radio(
-                        ["使用系统首页通用视频", "本阶段独立上传"],
-                        label="S4 视频来源",
-                        value="使用系统首页通用视频",
-                    )
-                    s4_stage_video = gr.Video(label="本阶段独立上传视频（可选）", autoplay=True)
-                    video_conf_threshold = gr.Slider(label="视频最低识别把握度（越高越严格）", minimum=0.0, maximum=1.0, step=0.05, value=0.30)
-                    frame_skip = gr.Slider(label="抽帧间隔（越大越快，但可能漏检）", minimum=1, maximum=60, step=1, value=15)
-                    max_frames = gr.Slider(label="最大处理帧数（0 = 全视频）", minimum=0, maximum=600, step=30, value=0)
-                    video_model = gr.Dropdown(
-                        ["yolov11n", "yolov11s", "yolov11m", "yolov11l"],
-                        label="视频检测模型大小（YOLOv11，n 最轻量，l 更大更慢）",
-                        info="选择要使用的 YOLOv11 模型版本。",
-                        value="yolov11m",
-                    )
-                    video_btn = gr.Button("运行视频目标检测", variant="primary")
-                with gr.Column():
-                    output_predictions = gr.Textbox(label="生成状态", lines=3, placeholder="运行后显示生成状态和目标摘要。", elem_classes=["compact-status"])
-                    s4_video_result_title = gr.Textbox(value="S4 视频目标检测结果", visible=False)
-                    s4_video_result_popup_btn = gr.Button("打开结果窗口", variant="secondary")
-                    with gr.Accordion("页面内结果备份", open=False, elem_classes=["stage-result-window"]):
-                        output_video = gr.Video(label="处理后视频", autoplay=True)
+            with gr.Accordion("2. 视频检测：输入与运行", open=False, elem_classes=["stage-action-panel"]):
+                gr.Markdown("读取局部视频并按帧抽样检测，结果仍然只是图像/视频证据，不是现场确认结论。")
+                s4_video_source = gr.Radio(
+                    ["首页视频", "本地上传"],
+                    label="视频来源",
+                    value="首页视频",
+                )
+                s4_stage_video = gr.Video(label="视频（可选）", autoplay=True)
+                video_conf_threshold = gr.Slider(label="视频最低识别把握度", minimum=0.0, maximum=1.0, step=0.05, value=0.30)
+                frame_skip = gr.Slider(label="抽帧间隔", minimum=1, maximum=60, step=1, value=15)
+                max_frames = gr.Slider(label="最大处理帧数（0 = 全视频）", minimum=0, maximum=600, step=30, value=0)
+                video_model = gr.Dropdown(
+                    ["yolov11n", "yolov11s", "yolov11m", "yolov11l"],
+                    label="视频检测模型大小",
+                    info="选择要使用的 YOLOv11 模型版本。",
+                    value="yolov11m",
+                )
+                with gr.Row(elem_classes=["stage-run-row"]):
+                    video_btn = gr.Button("运行视频检测", variant="primary")
+            with gr.Accordion("3. 视频检测：核心结果", open=False, elem_classes=["stage-result-window"]):
+                output_predictions = gr.Textbox(label="生成提示", lines=2, placeholder="运行后显示生成状态和目标摘要。", elem_classes=["compact-status"])
+                output_video = gr.Video(label="处理后视频", autoplay=True)
 
             video_btn.click(
                 fn=video_detection_with_source,
                 inputs=[s4_video_source, imported_video, s4_stage_video, video_conf_threshold, video_model, frame_skip, max_frames],
                 outputs=[output_video, output_predictions],
             )
-            s4_video_result_popup_btn.click(
-                fn=None,
-                inputs=[s4_video_result_title, output_predictions],
-                outputs=[],
-                js=RESULT_POPUP_JS,
-            )
-
         detection_input_mode.change(
             fn=lambda mode: (
                 gr.update(visible=mode == "图片检测"),
@@ -2575,131 +3003,131 @@ AeroRescue-AI 是面向低空无人机应急救援场景的智能感知（让系
         )
 
     with gr.Tab("S5 目标复核"):
-        gr.Markdown(
-            """
-## S5 低空目标复核
-
-S5 接收 S4 生成的救援候选目标，将候选目标整理成可人工复核的证据包。真实救援中，中高空局部精查发现疑似目标后，低空无人机需要靠近目标补拍更清晰的 RGB 图像或不同角度照片；系统只负责整理视觉证据，不直接宣布“发现被困人员”。
-
-**S5 标准输出**
-
-- 候选目标裁剪图 `target_crop`
-- 周边环境裁剪图 `context_crop`
-- 复核状态 `review_status`
-- 复核备注 `review_note`
-- 是否需要二次巡查 `need_recheck`
-- 是否进入 S6 热红外复查 `thermal_check_required`
-
-**真实性边界**
-
-- AI 检测结果只能作为候选目标，不能称为已确认平民或已确认被困人员。
-- 目标复核阶段只提供视觉证据，供人工复核使用，不构成最终救援结论。
-- 即使人工把目标标记为“保留候选目标”，也不等于已经确认救援结果。
-- 裁剪图来自图像像素，可能遗漏裁剪框之外的重要上下文。
-- 系统不能编造候选目标，也不能编造人工复核决定。
-
-	当前独立 S5 页面先作为流程入口和证据结构说明；完整可运行链路请使用 **一键任务演示**，它会自动执行 S4 → S5 → S6 并生成 `outputs/target_verification/target_verification_result.json`。
-	            """
-	        )
-        with gr.Accordion("S5 本阶段上传入口（候选目标与低空复核图像）", open=True):
+        with gr.Accordion("1. 阶段说明与真实性边界", open=False, elem_classes=["stage-action-panel"]):
             gr.Markdown(
                 """
-这里先提供独立上传入口，方便后续把 S4 生成的候选目标 JSON、低空近景 RGB 图像和人工复核记录接入 S5 证据裁剪流程。当前页面不伪造候选目标，也不自动生成复核结论。
+    ## S5 低空目标复核
+
+    S5 接收 S4 生成的救援候选目标，将候选目标整理成可人工复核的证据包。真实救援中，中高空局部精查发现疑似目标后，低空无人机需要靠近目标补拍更清晰的 RGB 图像或不同角度照片；系统只负责整理视觉证据，不直接宣布“发现被困人员”。
+
+    **S5 标准输出**
+
+    - 候选目标裁剪图 `target_crop`
+    - 周边环境裁剪图 `context_crop`
+    - 复核状态 `review_status`
+    - 复核备注 `review_note`
+    - 是否需要二次巡查 `need_recheck`
+    - 是否进入 S6 热红外复查 `thermal_check_required`
+
+    **真实性边界**
+
+    - AI 检测结果只能作为候选目标，不能称为已确认平民或已确认被困人员。
+    - 目标复核阶段只提供视觉证据，供人工复核使用，不构成最终救援结论。
+    - 即使人工把目标标记为“保留候选目标”，也不等于已经确认救援结果。
+    - 裁剪图来自图像像素，可能遗漏裁剪框之外的重要上下文。
+    - 系统不能编造候选目标，也不能编造人工复核决定。
+
+    	当前独立 S5 页面先作为流程入口和证据结构说明；完整可运行链路请使用 **一键任务演示**，它会自动执行 S4 → S5 → S6 并生成 `outputs/target_verification/target_verification_result.json`。
+    	            """
+    	        )
+        with gr.Accordion("2. 输入与运行", open=False, elem_classes=["stage-action-panel"]):
+            gr.Markdown(
+                """
+    这里先提供独立上传入口，方便后续把 S4 生成的候选目标 JSON、低空近景 RGB 图像和人工复核记录接入 S5 证据裁剪流程。当前页面不伪造候选目标，也不自动生成复核结论。
                 """
             )
-            with gr.Row():
-                s5_candidate_json = gr.File(label="上传候选目标 JSON（来自 S4，可选）", file_types=[".json"])
-                s5_close_view_images = gr.File(
-                    label="上传低空近景 RGB 图像（可多选，可选）",
-                    file_count="multiple",
-                    file_types=[".jpg", ".jpeg", ".png", ".webp"],
-                )
-                s5_review_json = gr.File(label="上传人工复核记录 JSON（可选）", file_types=[".json"])
+            s5_candidate_json = gr.File(label="候选目标 JSON（来自 S4，可选）", file_types=[".json"])
+            s5_close_view_images = gr.File(
+                label="低空近景 RGB 图像（可多选，可选）",
+                file_count="multiple",
+                file_types=[".jpg", ".jpeg", ".png", ".webp"],
+            )
+            s5_review_json = gr.File(label="人工复核记录 JSON（可选）", file_types=[".json"])
             gr.Markdown("提示：后续可将这些输入连接到 S5 target_verification stage，生成目标裁剪图、周边环境图和热红外复查需求。")
-        gr.Dataframe(
-            headers=[
-                "字段",
-                "含义",
-                "来源",
-                "真实性边界",
-            ],
-            value=[
-                [
-                    "candidate_id / target_id",
-                    "候选目标编号",
-                    "S4 局部精查候选目标",
-                    "候选目标不是已确认平民或已确认被困人员",
+        with gr.Accordion("3. 证据字段说明", open=False):
+            gr.Dataframe(
+                headers=[
+                    "字段",
+                    "含义",
+                    "来源",
+                    "真实性边界",
                 ],
-                [
-                    "target_crop_path",
-                    "目标本体裁剪图",
-                    "原始 RGB 图或低空近景图裁剪",
-                    "裁剪证据可能遗漏框外上下文",
+                value=[
+                    [
+                        "candidate_id / target_id",
+                        "候选目标编号",
+                        "S4 局部精查候选目标",
+                        "候选目标不是已确认平民或已确认被困人员",
+                    ],
+                    [
+                        "target_crop_path",
+                        "目标本体裁剪图",
+                        "原始 RGB 图或低空近景图裁剪",
+                        "裁剪证据可能遗漏框外上下文",
+                    ],
+                    [
+                        "context_crop_path",
+                        "目标周边环境裁剪图",
+                        "扩大 bbox 后的上下文区域",
+                        "仅为图像像素证据",
+                    ],
+                    [
+                        "review_status",
+                        "need_review / confirmed_candidate / rejected_false_positive / need_recheck / urgent_review",
+                        "人工复核动作",
+                        "保留候选目标不等于已确认平民或已确认被困人员",
+                    ],
+                    [
+                        "thermal_check_required",
+                        "是否建议进入 S6 热红外辅助复查",
+                        "候选类别与复核状态规则",
+                        "热红外仍然只是辅助证据",
+                    ],
                 ],
-                [
-                    "context_crop_path",
-                    "目标周边环境裁剪图",
-                    "扩大 bbox 后的上下文区域",
-                    "仅为图像像素证据",
-                ],
-                [
-                    "review_status",
-                    "need_review / confirmed_candidate / rejected_false_positive / need_recheck / urgent_review",
-                    "人工复核动作",
-                    "保留候选目标不等于已确认平民或已确认被困人员",
-                ],
-                [
-                    "thermal_check_required",
-                    "是否建议进入 S6 热红外辅助复查",
-                    "候选类别与复核状态规则",
-                    "热红外仍然只是辅助证据",
-                ],
-            ],
-            label="S5 目标复核证据结构",
-            interactive=False,
-        )
+                label="S5 目标复核证据结构",
+                interactive=False,
+            )
 
     with gr.Tab("S6 热红外复查"):
-        gr.Markdown(
-            """
-## 模拟热红外 / 红外热点分析
+        with gr.Accordion("1. 阶段说明", open=False, elem_classes=["stage-action-panel"]):
+            gr.Markdown(
+                """
+    ## 模拟热红外 / 红外热点分析
 
-该模块提供模拟热点分析、真实 radiometric thermal 测温解析入口和红外目标检测预留入口。普通 JPG 不能被当成真实温度矩阵；只有成功解析 radiometric thermal 文件中的 temperature matrix，才属于真实测温。
-            """
-        )
-        with gr.Row():
-            with gr.Column(elem_classes=["stage-input-card"]):
-                thermal_mode = gr.Radio(
-                    [
-                        "Simulated Thermal / 模拟热红外",
-                        "Radiometric Thermal / 真实热红外测温",
-                        "Infrared Detection / 红外目标检测（预留）",
-                    ],
-                    label="Thermal Analysis Mode / 热红外分析模式",
-                    value="Simulated Thermal / 模拟热红外",
+    该模块提供模拟热点分析、真实 radiometric thermal 测温解析入口和红外目标检测预留入口。普通 JPG 不能被当成真实温度矩阵；只有成功解析 radiometric thermal 文件中的 temperature matrix，才属于真实测温。
+                """
                 )
-                gr.Markdown(
-                    """
-- Simulated Thermal：基于普通图像灰度归一化生成热点图，不代表真实温度测量。
-- Radiometric Thermal：需要 FLIR radiometric JPG 或 DJI R-JPEG。只有成功解析 temperature matrix 时，才输出真实温度。
-- Infrared Detection：用于真实红外图像下的目标检测，不等同于真实测温；当前仅预留。
-                    """
-                )
-                thermal_image = gr.File(
-                    label="上传 RGB / 灰度 / FLIR Radiometric JPG / DJI R-JPEG",
-                    file_types=[".jpg", ".jpeg", ".png", ".tif", ".tiff", ".webp"],
-                )
-                thermal_threshold = gr.Number(label="热点阈值 °C（仅 Radiometric 模式可选）", value=None, precision=2)
-                thermal_btn = gr.Button("运行热红外分析", variant="primary")
-            with gr.Column():
-                thermal_status = gr.Textbox(label="生成状态", lines=3, elem_classes=["compact-status"])
-                thermal_truthfulness = gr.Textbox(label="真实性说明", lines=3, elem_classes=["compact-status"])
-                s6_result_title = gr.Textbox(value="S6 热红外复查结果", visible=False)
-                s6_result_popup_btn = gr.Button("打开结果窗口", variant="secondary")
-                with gr.Accordion("页面内结果备份", open=False, elem_classes=["stage-result-window"]):
-                    thermal_heatmap = gr.Image(label="热力图")
-                    thermal_overlay = gr.Image(label="热点叠加图")
-                    thermal_json = gr.Code(label="分析结果 JSON", language="json", lines=12)
+        with gr.Accordion("2. 输入与运行", open=False, elem_classes=["stage-action-panel"]):
+            thermal_mode = gr.Radio(
+                [
+                    "Simulated Thermal / 模拟热红外",
+                    "Radiometric Thermal / 真实热红外测温",
+                    "Infrared Detection / 红外目标检测（预留）",
+                ],
+                label="热红外分析模式",
+                value="Simulated Thermal / 模拟热红外",
+            )
+            thermal_image = gr.File(
+                label="热红外 / RGB 图像文件",
+                file_types=[".jpg", ".jpeg", ".png", ".tif", ".tiff", ".webp"],
+            )
+            thermal_threshold = gr.Number(label="热点阈值 °C（仅真实热红外可选）", value=None, precision=2)
+            gr.Markdown(
+                """
+    - 模拟热红外：只用于流程演示，不代表真实温度。
+    - 真实热红外：必须成功解析 radiometric temperature matrix。
+    - 红外目标检测：预留入口，不等同于真实测温。
+                """
+            )
+            with gr.Row(elem_classes=["stage-run-row"]):
+                thermal_btn = gr.Button("运行热红外复查", variant="primary")
+        with gr.Accordion("3. 核心结果", open=False, elem_classes=["stage-result-window"]):
+            thermal_status = gr.Textbox(label="生成提示", lines=2, elem_classes=["compact-status"])
+            thermal_truthfulness = gr.Textbox(label="真实性说明", lines=2, elem_classes=["compact-status"])
+            thermal_overlay = gr.Image(label="热点叠加图")
+            with gr.Accordion("4. 热图与详细数据", open=False):
+                thermal_heatmap = gr.Image(label="热力图")
+                thermal_json = gr.Code(label="分析结果 JSON", language="json", lines=12)
         thermal_btn.click(
             fn=lambda image_file, mode, threshold: (
                 lambda result: (
@@ -2712,106 +3140,96 @@ S5 接收 S4 生成的救援候选目标，将候选目标整理成可人工复�
             )(analyze_thermal(image_file, mode=mode, threshold_celsius=threshold)),
             inputs=[thermal_image, thermal_mode, thermal_threshold],
             outputs=[thermal_heatmap, thermal_overlay, thermal_status, thermal_truthfulness, thermal_json],
-        )
-        s6_result_popup_btn.click(
-            fn=None,
-            inputs=[s6_result_title, thermal_status, thermal_truthfulness, thermal_json],
-            outputs=[],
-            js=RESULT_POPUP_JS,
-        )
-
+            )
     with gr.Tab("S7-S8 决策路径"):
-        gr.Markdown(
-            """
-## 综合决策
+        with gr.Accordion("1. 阶段说明", open=False, elem_classes=["stage-action-panel"]):
+            gr.Markdown(
+                """
+    ## 综合决策
 
-该页面位于目标检测和灾情感知之后，负责把检测目标、环境风险、灾损评估和场景门控（证据是否足够）结果汇总为救援优先级、路径规划、路径可靠性说明和中文救援报告。
-            """
-        )
-        with gr.Row():
-            with gr.Column(elem_classes=["stage-input-card"]):
-                gr.Markdown("综合决策可以使用系统首页通用输入，也可以在本阶段单独上传照片和分割掩码。")
-                decision_image_source = gr.Radio(
-                    ["使用系统首页通用照片", "本阶段独立上传"],
-                    label="S7-S8 图像来源",
-                    value="使用系统首页通用照片",
+    该页面位于目标检测和灾情感知之后，负责把检测目标、环境风险、灾损评估和场景门控（证据是否足够）结果汇总为救援优先级、路径规划、路径可靠性说明和中文救援报告。
+                """
                 )
-                decision_stage_image = gr.Image(label="本阶段独立上传图像（可选）", type="pil")
-                decision_stage_mask = gr.File(
-                    label="本阶段独立上传语义分割掩码（可选）",
-                    file_types=[".png", ".jpg", ".jpeg"],
-                )
-                decision_detection_backend = gr.Radio(
-                    ["YOLO Rescue Targets", "Transformer RescueDet", "YOLO + Transformer Compare"],
-                    label="目标识别方式（选择用哪种模型识别目标）",
-                    value="YOLO Rescue Targets",
-                )
-                decision_transformer_model_key = gr.Dropdown(
-                    list(TRANSFORMER_DETECTION_MODELS.keys()),
-                    label="备用检测模型（Transformer RescueDet，用于对比复核）",
-                    value="rescuedet_deformable_detr",
-                )
-                decision_segmentation_source = gr.Radio(
-                    ["上传掩码", "自动分割模型", "无分割"],
-                    label="环境区域来源（语义分割：把图像分成水域、道路、建筑等区域）",
-                    value="上传掩码",
-                )
+        with gr.Accordion("2. 输入与运行", open=False, elem_classes=["stage-action-panel"]):
+            decision_image_source = gr.Radio(
+                ["首页照片", "本地上传"],
+                label="图像来源",
+                value="首页照片",
+            )
+            decision_stage_image = gr.Image(label="图像（可选）", type="pil")
+            decision_stage_mask = gr.File(
+                label="内部兼容输入",
+                file_types=[".png", ".jpg", ".jpeg"],
+                visible=False,
+            )
+            decision_detection_backend = gr.Radio(
+                ["YOLO Rescue Targets", "Transformer RescueDet", "YOLO + Transformer Compare"],
+                label="目标识别方式",
+                value="YOLO Rescue Targets",
+            )
+            decision_transformer_model_key = gr.Dropdown(
+                list(TRANSFORMER_DETECTION_MODELS.keys()),
+                label="备用检测模型",
+                value="rescuedet_deformable_detr",
+            )
+            decision_segmentation_source = gr.State("自动分割模型")
+            with gr.Accordion("路径与模型高级参数", open=False):
                 decision_start_x = gr.Number(label="救援起点 X", value=20, precision=0)
                 decision_start_y = gr.Number(label="救援起点 Y（-1 表示使用底部默认值）", value=-1, precision=0)
-                decision_use_manual_start = gr.Checkbox(label="使用手动起点（仅在场景通过门控时生效）", value=False)
-                decision_force_path_planning = gr.Checkbox(label="强制生成路径（调试用，证据不足时可能不可靠）", value=False)
-                decision_conf_threshold = gr.Slider(label="最低识别把握度（越高越严格）", minimum=0.0, maximum=1.0, step=0.05, value=0.30)
-                decision_model = gr.Dropdown(["yolov11n", "yolov11s", "yolov11m", "yolov11l"], label="主检测模型大小（YOLOv11）", value="yolov11m")
-                decision_btn = gr.Button("运行综合决策", variant="primary")
-            with gr.Column():
-                decision_scene_gate_status = gr.Textbox(label="生成状态 / 证据状态", lines=3, elem_classes=["compact-status"])
-                decision_path_reliability = gr.Textbox(label="路径真实性说明", lines=4, elem_classes=["compact-status"])
-                s7_result_title = gr.Textbox(value="S7-S8 决策融合与路径建议结果", visible=False)
-                s7_result_popup_btn = gr.Button("打开结果窗口", variant="secondary")
-                with gr.Accordion("页面内结果备份", open=False, elem_classes=["stage-result-window"]):
-                    decision_output_image = gr.Image(label="目标检测图")
-                    decision_segmentation_overlay = gr.Image(label="分割叠加图")
-                    decision_path_overlay = gr.Image(label="路径规划叠加图")
-                    decision_segmentation_status = gr.Textbox(label="环境区域识别状态（分割来源是否可用）", lines=4)
-                    decision_transformer_summary = gr.Textbox(label="备用模型对比摘要", lines=6)
-                    decision_damage_summary = gr.Textbox(label="灾损评估摘要（道路、水域、建筑损毁等统计）", lines=7)
-                    decision_scene_mode = gr.Textbox(label="场景模式（局部侦察或广域评估）", lines=3)
-                    decision_rescue_entry = gr.Textbox(label="救援入口建议", lines=4)
-                    decision_path_gate = gr.Textbox(label="路径规划门控（是否允许生成路径及原因）", lines=5)
-                    decision_details = gr.Dataframe(headers=["编号", "目标类别", "识别把握度", "检测框位置", "中心点", "目标面积"], label="检测详情", interactive=False)
-                    decision_segmentation_summary = gr.Dataframe(headers=["区域类别", "中文名称", "面积占比(%)"], label="环境区域汇总", interactive=False)
-                    decision_ranking = gr.Dataframe(
-                        headers=["排名", "目标ID", "目标类别", "识别把握度", "检测框位置", "风险分数", "风险等级", "环境分数", "主要风险环境", "原因"],
-                        label="风险排序（哪些目标周围更危险）",
-                        interactive=False,
-                    )
-                    decision_terp_ranking = gr.Dataframe(
-                        headers=["排名", "目标ID", "目标类别", "救援优先级分数", "优先级等级", "目标重要性", "环境风险", "可达性", "原因"],
-                        label="救援优先级排名（TERP：目标、环境、可达性综合排序）",
-                        interactive=False,
-                    )
-                    decision_path_summary = gr.Textbox(label="路径规划摘要", lines=6)
-                    decision_path_comparison = gr.Textbox(label="自动寻路对比（A*：普通路径 vs 避险路径）", lines=6)
-                    decision_report = gr.Textbox(label="生成的救援报告", lines=14)
-                    attach_llm_report_panel(
-                        [
-                            decision_report,
-                            decision_transformer_summary,
-                            decision_segmentation_status,
-                            decision_scene_gate_status,
-                            decision_damage_summary,
-                            decision_scene_mode,
-                            decision_rescue_entry,
-                            decision_path_gate,
-                            decision_path_reliability,
-                            decision_details,
-                            decision_segmentation_summary,
-                            decision_ranking,
-                            decision_terp_ranking,
-                            decision_path_summary,
-                            decision_path_comparison,
-                        ]
-                    )
+                decision_use_manual_start = gr.Checkbox(label="使用手动起点", value=False)
+                decision_force_path_planning = gr.Checkbox(label="强制生成路径（调试用）", value=False)
+                decision_conf_threshold = gr.Slider(label="最低识别把握度", minimum=0.0, maximum=1.0, step=0.05, value=0.30)
+                decision_model = gr.Dropdown(["yolov11n", "yolov11s", "yolov11m", "yolov11l"], label="主检测模型大小", value="yolov11m")
+            with gr.Row(elem_classes=["stage-run-row"]):
+                decision_btn = gr.Button("运行决策与路径建议", variant="primary")
+        with gr.Accordion("3. 核心结果", open=False, elem_classes=["stage-result-window"]):
+            decision_scene_gate_status = gr.Textbox(label="生成提示", lines=2, elem_classes=["compact-status"])
+            decision_path_reliability = gr.Textbox(label="路径真实性", lines=2, elem_classes=["compact-status"])
+            decision_path_overlay = gr.Image(label="路径规划叠加图")
+            decision_path_summary = gr.Textbox(label="路径规划摘要", lines=6)
+            decision_report = gr.Textbox(label="生成的救援报告", lines=14)
+            with gr.Accordion("4. 图像与环境证据", open=False):
+                decision_output_image = gr.Image(label="目标检测图")
+                decision_segmentation_overlay = gr.Image(label="分割叠加图")
+            with gr.Accordion("5. 详细表格与分析", open=False):
+                decision_segmentation_status = gr.Textbox(label="模型状态", lines=4)
+                decision_transformer_summary = gr.Textbox(label="备用模型对比摘要", lines=6)
+                decision_damage_summary = gr.Textbox(label="灾损评估摘要（道路、水域、建筑损毁等统计）", lines=7)
+                decision_scene_mode = gr.Textbox(label="场景模式（局部侦察或广域评估）", lines=3)
+                decision_rescue_entry = gr.Textbox(label="救援入口建议", lines=4)
+                decision_path_gate = gr.Textbox(label="路径规划门控（是否允许生成路径及原因）", lines=5)
+                decision_details = gr.Dataframe(headers=["编号", "目标类别", "识别把握度", "检测框位置", "中心点", "目标面积"], label="检测详情", interactive=False)
+                decision_segmentation_summary = gr.Dataframe(headers=["区域类别", "中文名称", "面积占比(%)"], label="环境区域汇总", interactive=False)
+                decision_ranking = gr.Dataframe(
+                    headers=["排名", "目标ID", "目标类别", "识别把握度", "检测框位置", "风险分数", "风险等级", "环境分数", "主要风险环境", "原因"],
+                    label="环境风险排序",
+                    interactive=False,
+                )
+                decision_terp_ranking = gr.Dataframe(
+                    headers=["排名", "目标ID", "目标类别", "救援优先级分数", "优先级等级", "目标重要性", "环境风险", "可达性", "原因"],
+                    label="救援优先级排名（EC-TERP）",
+                    interactive=False,
+                )
+                decision_path_comparison = gr.Textbox(label="自动寻路对比（A*：普通路径 vs 避险路径）", lines=6)
+            attach_llm_report_panel(
+                [
+                    decision_report,
+                    decision_transformer_summary,
+                    decision_segmentation_status,
+                    decision_scene_gate_status,
+                    decision_damage_summary,
+                    decision_scene_mode,
+                    decision_rescue_entry,
+                    decision_path_gate,
+                    decision_path_reliability,
+                    decision_details,
+                    decision_segmentation_summary,
+                    decision_ranking,
+                    decision_terp_ranking,
+                    decision_path_summary,
+                    decision_path_comparison,
+                ]
+            )
         decision_btn.click(
             fn=decision_detection_with_source,
             inputs=[
@@ -2851,134 +3269,113 @@ S5 接收 S4 生成的救援候选目标，将候选目标整理成可人工复�
                 decision_report,
             ],
         )
-        s7_result_popup_btn.click(
-            fn=None,
-            inputs=[
-                s7_result_title,
-                decision_scene_gate_status,
-                decision_path_reliability,
-                decision_damage_summary,
-                decision_rescue_entry,
-                decision_path_summary,
-                decision_path_comparison,
-                decision_report,
-            ],
-            outputs=[],
-            js=RESULT_POPUP_JS,
-        )
-
     with gr.Tab("S9 证据报告"):
-        gr.Markdown(
-            """
-## 综合报告导出
+        with gr.Accordion("1. 阶段说明", open=False, elem_classes=["stage-action-panel"]):
+            gr.Markdown(
+                """
+    ## S9 证据链与辅助决策报告
 
-点击按钮后，系统会汇总 `outputs/orthomosaic/`、`outputs/thermal/`、`outputs/reconstruction/` 和 `outputs/reports/` 中已有结果，生成 Markdown 与 HTML 综合报告。尚未执行的模块会在报告中标记为“该模块尚未执行”。
-            """
-        )
-        with gr.Row():
-            with gr.Column(elem_classes=["stage-input-card"]):
-                s9_evidence_ledger_upload = gr.File(
-                    label="上传 Evidence Ledger JSON（可选）",
-                    file_types=[".json"],
+    这一阶段只做最后汇总：把前面已经生成的阶段结果、证据链、真实性边界和人工复核要求整理成报告。报告用于辅助决策，不是最终救援结论，也不是现场行动命令。
+                """
                 )
-                s9_stage_result_uploads = gr.File(
-                    label="上传阶段结果 JSON（可多选，可选）",
-                    file_count="multiple",
-                    file_types=[".json"],
-                )
-                gr.Markdown("可选上传用于后续接入外部证据链；当前报告仍按本地 `outputs/` 汇总，不会伪造缺失阶段结果。")
-                final_report_btn = gr.Button("生成综合报告", variant="primary")
-                final_report_status = gr.Textbox(label="生成状态", lines=3, elem_classes=["compact-status"])
-            with gr.Column():
-                s9_result_title = gr.Textbox(value="S9 证据链与报告结果", visible=False)
-                s9_result_popup_btn = gr.Button("打开结果窗口", variant="secondary")
-                with gr.Accordion("页面内结果备份", open=False, elem_classes=["stage-result-window"]):
-                    final_report_md = gr.File(label="Markdown 报告下载")
-                    final_report_html = gr.File(label="HTML 报告下载")
-                    final_report_preview = gr.Textbox(label="报告预览", lines=24)
+        with gr.Accordion("2. 生成报告", open=False, elem_classes=["stage-action-panel"]):
+            gr.Markdown("点击生成报告后，系统只汇总已有结果；缺失阶段会标记为未生成，不会补造结论。")
+            with gr.Row(elem_classes=["stage-run-row"]):
+                final_report_btn = gr.Button("生成证据报告", variant="primary")
+        with gr.Accordion("3. 核心结果", open=False, elem_classes=["stage-result-window"]):
+            final_report_status = gr.Textbox(label="生成提示", lines=2, elem_classes=["compact-status"])
+            final_report_md = gr.File(label="Markdown 报告下载")
+            final_report_html = gr.File(label="HTML 报告下载")
+            with gr.Accordion("4. 报告正文预览", open=False):
+                final_report_preview = gr.Textbox(label="报告预览", lines=24)
         final_report_btn.click(
             fn=export_final_report,
             inputs=[],
             outputs=[final_report_status, final_report_md, final_report_html, final_report_preview],
         )
-        s9_result_popup_btn.click(
-            fn=None,
-            inputs=[s9_result_title, final_report_status, final_report_preview],
-            outputs=[],
-            js=RESULT_POPUP_JS,
-        )
-        attach_mission_copilot_panel()
-        attach_mission_planner_panel()
-        attach_evidence_audit_panel()
+        with gr.Accordion("5. 外部证据导入（预留）", open=False, elem_classes=["stage-action-panel"]):
+            s9_evidence_ledger_upload = gr.File(
+                label="Evidence Ledger JSON（可选）",
+                file_types=[".json"],
+            )
+            s9_stage_result_uploads = gr.File(
+                label="阶段结果 JSON（可多选，可选）",
+                file_count="multiple",
+                file_types=[".json"],
+            )
+            gr.Markdown("这里仅保留外部证据接入口；当前报告按钮仍按本地已生成结果汇总，不会伪造缺失阶段结果。")
+        with gr.Accordion("6. 高级辅助工具（可选）", open=False):
+            gr.Markdown("以下工具用于任务草案、复核沟通和证据审计；默认收起，避免干扰 S9 主报告流程。")
+            attach_mission_copilot_panel()
+            attach_mission_planner_panel()
+            attach_evidence_audit_panel()
     with gr.Tab("S1 扩展三维"):
-        gr.Markdown(
-            """
-## 真实三维重建 / 摄影测量工作流
+        with gr.Accordion("1. 阶段说明与真实性边界", open=False, elem_classes=["stage-action-panel"]):
+            gr.Markdown(
+                """
+    ## 真实三维重建 / 摄影测量工作流
 
-该页面现在包含两类能力：
+    该页面现在包含两类能力：
 
-- Real Workflow：调用 `modules/reconstruction_3d` 的真实 COLMAP / ODM 工作流。缺少 COLMAP、Docker、ODM 镜像或 panorama_sfm.py 时返回透明状态，不伪造结果。
-- Lightweight Preview：保留旧版 ORB 关键帧预览，仅用于快速可视检查，不是完整 SfM/MVS、真实 ODM 正射或 GPS 导航。
+    - Real Workflow：调用 `modules/reconstruction_3d` 的真实 COLMAP / ODM 工作流。缺少 COLMAP、Docker、ODM 镜像或 panorama_sfm.py 时返回透明状态，不伪造结果。
+    - Lightweight Preview：保留旧版 ORB 关键帧预览，仅用于快速可视检查，不是完整 SfM/MVS、真实 ODM 正射或 GPS 导航。
 
-真实性边界：360 全景查看不等于三维重建；无 GPS/GCP/EXIF geotag 时为相对尺度或非地理参考；所有输出仅供人工复核的辅助空间证据。
-            """
-        )
+    真实性边界：360 全景查看不等于三维重建；无 GPS/GCP/EXIF geotag 时为相对尺度或非地理参考；所有输出仅供人工复核的辅助空间证据。
+                """
+            )
 
-        with gr.Accordion("Real Workflow / 真实 COLMAP 与 ODM 工作流", open=True):
-            with gr.Row():
-                with gr.Column():
-                    real_reconstruction_mode = gr.Radio(
-                        ["standard_uav", "360_panorama", "odm", "report_only"],
-                        label="工作流模式",
-                        value="standard_uav",
-                    )
-                    real_reconstruction_video = gr.File(
-                        label="上传视频（可选，系统会先抽帧）",
-                        file_types=[".mp4", ".mov", ".avi", ".mkv", ".webm"],
-                    )
-                    real_reconstruction_images = gr.File(
-                        label="上传图像序列（可多选；视频和图像二选一）",
-                        file_count="multiple",
-                        file_types=[".jpg", ".jpeg", ".png", ".tif", ".tiff"],
-                    )
-                    real_fps = gr.Number(label="视频抽帧 FPS", value=1.0, precision=2)
-                    real_quality_filter = gr.Checkbox(label="启用画质过滤（模糊/过暗/近重复）", value=True)
-                    real_blur_threshold = gr.Number(label="模糊阈值 Laplacian variance", value=100.0, precision=2)
-                    real_brightness_threshold = gr.Number(label="亮度阈值", value=30.0, precision=2)
-                    real_dependency_btn = gr.Button("检查真实重建依赖")
-                    real_reconstruction_btn = gr.Button("运行真实重建工作流", variant="primary")
-                with gr.Column():
-                    colmap_matcher = gr.Radio(["sequential", "exhaustive"], label="COLMAP matcher", value="sequential")
-                    colmap_run_dense = gr.Checkbox(label="COLMAP dense / PatchMatch stereo", value=False)
-                    colmap_run_mesher = gr.Checkbox(label="COLMAP mesher", value=False)
-                    panorama_sfm_script = gr.Textbox(
-                        label="panorama_sfm.py 路径（360 模式必需）",
-                        value="third_party/colmap/python/examples/panorama_sfm.py",
-                    )
-                    odm_project_name = gr.Textbox(label="ODM project name", value="aerorescue_odm")
-                    odm_docker_image = gr.Textbox(label="ODM Docker image", value="opendronemap/odm")
-                    odm_camera_lens = gr.Dropdown(
-                        ["auto", "perspective", "fisheye", "spherical", "equirectangular"],
-                        label="ODM camera lens",
-                        value="auto",
-                    )
-                    odm_feature_quality = gr.Dropdown(["ultra", "high", "medium", "low", "lowest"], label="ODM feature quality", value="medium")
-                    odm_pc_quality = gr.Dropdown(["ultra", "high", "medium", "low", "lowest"], label="ODM point cloud quality", value="medium")
-                    odm_dsm = gr.Checkbox(label="ODM --dsm", value=True)
-                    odm_dtm = gr.Checkbox(label="ODM --dtm", value=False)
-                    odm_fast_orthophoto_real = gr.Checkbox(label="ODM --fast-orthophoto（不等于完整验证正射）", value=False)
-                    odm_auto_pull = gr.Checkbox(label="允许自动 docker pull ODM image", value=False)
-                    reconstruction_timeout = gr.Number(label="命令超时秒数（0 表示不设置）", value=0, precision=0)
-            with gr.Row():
-                with gr.Column():
-                    real_dependency_status = gr.Textbox(label="依赖状态摘要", lines=9)
-                    real_dependency_json = gr.Code(label="依赖状态 JSON", language="json", lines=12)
-                with gr.Column():
-                    real_workflow_status = gr.Textbox(label="工作流状态摘要", lines=14)
-                    real_workflow_json = gr.Code(label="Workflow status JSON", language="json", lines=18)
-                    real_workflow_status_file = gr.File(label="workflow_status.json")
-                    real_report_json_file = gr.File(label="reconstruction_report.json")
-                    real_report_md_file = gr.File(label="reconstruction_report.md")
+        with gr.Accordion("2. 真实三维重建与 ODM 验证", open=False, elem_classes=["stage-action-panel"]):
+            real_reconstruction_mode = gr.Radio(
+                ["standard_uav", "360_panorama", "odm", "report_only"],
+                label="工作流模式",
+                value="standard_uav",
+            )
+            real_reconstruction_video = gr.File(
+                label="上传视频（可选，系统会先抽帧）",
+                file_types=[".mp4", ".mov", ".avi", ".mkv", ".webm"],
+            )
+            real_reconstruction_images = gr.File(
+                label="上传图像序列（可多选；视频和图像二选一）",
+                file_count="multiple",
+                file_types=[".jpg", ".jpeg", ".png", ".tif", ".tiff"],
+            )
+            real_fps = gr.Number(label="视频抽帧 FPS", value=1.0, precision=2)
+            real_quality_filter = gr.Checkbox(label="启用画质过滤（模糊/过暗/近重复）", value=True)
+            real_blur_threshold = gr.Number(label="模糊阈值 Laplacian variance", value=100.0, precision=2)
+            real_brightness_threshold = gr.Number(label="亮度阈值", value=30.0, precision=2)
+            with gr.Accordion("高级重建参数", open=False):
+                colmap_matcher = gr.Radio(["sequential", "exhaustive"], label="COLMAP 匹配方式", value="sequential")
+                colmap_run_dense = gr.Checkbox(label="运行 COLMAP 稠密重建 / PatchMatch stereo", value=False)
+                colmap_run_mesher = gr.Checkbox(label="运行 COLMAP 网格生成", value=False)
+                panorama_sfm_script = gr.Textbox(
+                    label="panorama_sfm.py 路径（360 模式必需）",
+                    value="third_party/colmap/python/examples/panorama_sfm.py",
+                )
+                odm_project_name = gr.Textbox(label="ODM 项目名称", value="aerorescue_odm")
+                odm_docker_image = gr.Textbox(label="ODM Docker 镜像", value="opendronemap/odm")
+                odm_camera_lens = gr.Dropdown(
+                    ["auto", "perspective", "fisheye", "spherical", "equirectangular"],
+                    label="ODM 相机镜头类型",
+                    value="auto",
+                )
+                odm_feature_quality = gr.Dropdown(["ultra", "high", "medium", "low", "lowest"], label="ODM 特征质量", value="medium")
+                odm_pc_quality = gr.Dropdown(["ultra", "high", "medium", "low", "lowest"], label="ODM 点云质量", value="medium")
+                odm_dsm = gr.Checkbox(label="生成 DSM 高程模型", value=True)
+                odm_dtm = gr.Checkbox(label="生成 DTM 地形模型", value=False)
+                odm_fast_orthophoto_real = gr.Checkbox(label="ODM 快速正射参数（不等于完整验证正射）", value=False)
+                odm_auto_pull = gr.Checkbox(label="允许自动拉取 ODM 镜像", value=False)
+                reconstruction_timeout = gr.Number(label="命令超时秒数（0 表示不设置）", value=0, precision=0)
+            with gr.Row(elem_classes=["stage-run-row"]):
+                real_dependency_btn = gr.Button("检查真实重建依赖")
+                real_reconstruction_btn = gr.Button("运行真实重建工作流", variant="primary")
+            real_dependency_status = gr.Textbox(label="依赖状态摘要", lines=9)
+            real_workflow_status = gr.Textbox(label="工作流状态摘要", lines=14)
+            with gr.Accordion("重建输出文件与 JSON", open=False):
+                real_dependency_json = gr.Code(label="依赖状态 JSON", language="json", lines=12)
+                real_workflow_json = gr.Code(label="工作流状态 JSON", language="json", lines=18)
+                real_workflow_status_file = gr.File(label="workflow_status.json")
+                real_report_json_file = gr.File(label="reconstruction_report.json")
+                real_report_md_file = gr.File(label="reconstruction_report.md")
 
             real_dependency_btn.click(
                 fn=run_reconstruction_dependency_check,
@@ -3019,34 +3416,32 @@ S5 接收 S4 生成的救援候选目标，将候选目标整理成可人工复�
                 ],
             )
 
-        with gr.Accordion("Lightweight Preview / 旧版轻量预览（非真实 SfM/ODM）", open=False):
-            with gr.Row():
-                with gr.Column():
-                    reconstruction_video = gr.File(
-                        label="上传 360°视频 / 普通重建视频",
-                        file_types=[".mp4", ".mov", ".avi", ".mkv", ".webm"],
-                    )
-                    max_keyframes = gr.Slider(
-                        label="最多抽取关键帧数",
-                        minimum=2,
-                        maximum=20,
-                        step=1,
-                        value=20,
-                    )
-                    reconstruction_btn = gr.Button("运行轻量三维预览 / ORB 点云预览", variant="secondary")
-                with gr.Column():
-                    reconstruction_output = gr.Image(label="关键帧预览")
-                    reconstruction_features = gr.Image(label="特征点预览")
-                    reconstruction_matches = gr.Image(label="相邻帧匹配预览")
-                    reconstruction_trajectory = gr.Image(label="相机轨迹图")
-                    reconstruction_ply = gr.File(label="预览 PLY 文件（非真实重建成果）")
-                    reconstruction_status = gr.Textbox(label="预览状态", lines=5)
-                    reconstruction_json = gr.Code(label="预览结果 JSON", language="json", lines=12)
+        with gr.Accordion("3. 轻量三维预览（非真实 SfM / ODM）", open=False, elem_classes=["stage-action-panel"]):
+            reconstruction_video = gr.File(
+                label="上传 360°视频 / 普通重建视频",
+                file_types=[".mp4", ".mov", ".avi", ".mkv", ".webm"],
+            )
+            max_keyframes = gr.Slider(
+                label="最多抽取关键帧数",
+                minimum=2,
+                maximum=20,
+                step=1,
+                value=20,
+            )
+            reconstruction_btn = gr.Button("运行轻量三维预览 / ORB 点云预览", variant="secondary")
+            reconstruction_output = gr.Image(label="关键帧预览")
+            reconstruction_status = gr.Textbox(label="预览状态", lines=5)
+            with gr.Accordion("预览细节与文件", open=False):
+                reconstruction_features = gr.Image(label="特征点预览")
+                reconstruction_matches = gr.Image(label="相邻帧匹配预览")
+                reconstruction_trajectory = gr.Image(label="相机轨迹图")
+                reconstruction_ply = gr.File(label="预览 PLY 文件（非真实重建成果）")
+                reconstruction_json = gr.Code(label="预览结果 JSON", language="json", lines=12)
             reconstruction_btn.click(
                 fn=process_reconstruction,
                 inputs=[reconstruction_video, max_keyframes],
                 outputs=[
-                    reconstruction_output,
+            reconstruction_output,
                     reconstruction_features,
                     reconstruction_matches,
                     reconstruction_trajectory,
@@ -3057,32 +3452,34 @@ S5 接收 S4 生成的救援候选目标，将候选目标整理成可人工复�
             )
 
     with gr.Tab("AI 灾情描述"):
-        gr.Markdown(
-            """
-## AI 灾情描述
+        with gr.Accordion("1. 阶段说明", open=False, elem_classes=["stage-action-panel"]):
+            gr.Markdown(
+                """
+    ## AI 灾情描述
 
-该模块会汇总用户输入、目标检测与综合决策报告、正射影像日志、热红外分析结果和三维重建摘要。若本机 Ollama 可用，可调用本地模型补充描述；否则自动使用规则模板生成 Markdown 灾情描述。
-            """
-        )
-        with gr.Row():
-            with gr.Column():
-                scene_task_name = gr.Textbox(label="任务名称", value="AeroRescue-AI 应急救援任务")
-                scene_note = gr.Textbox(label="人工场景说明", lines=4, placeholder="可填写灾害类型、地点、无人机视角、现场关注点等。")
-                detection_report_text = gr.Textbox(
-                    label="目标检测与综合决策报告文本",
-                    lines=8,
-                    placeholder="可粘贴“目标检测与综合决策”页生成的救援报告。",
-                )
-                thermal_json_file = gr.File(label="热红外结果 JSON（可选）", file_types=[".json"])
-                reconstruction_json_file = gr.File(label="三维重建结果 JSON（可选）", file_types=[".json"])
-                orthomosaic_json_file = gr.File(label="正射影像处理日志 JSON（可选）", file_types=[".json"])
+    该模块会汇总用户输入、目标检测与综合决策报告、正射影像日志、热红外分析结果和三维重建摘要。若本机 Ollama 可用，可调用本地模型补充描述；否则自动使用规则模板生成 Markdown 灾情描述。
+                    """
+            )
+        with gr.Accordion("2. 输入与运行", open=False, elem_classes=["stage-action-panel"]):
+            scene_task_name = gr.Textbox(label="任务名称", value="AeroRescue-AI 应急救援任务")
+            scene_note = gr.Textbox(label="人工场景说明", lines=4, placeholder="可填写灾害类型、地点、无人机视角、现场关注点等。")
+            detection_report_text = gr.Textbox(
+                label="目标检测与综合决策报告文本",
+                lines=8,
+                placeholder="可粘贴“目标检测与综合决策”页生成的救援报告。",
+            )
+            thermal_json_file = gr.File(label="热红外结果 JSON（可选）", file_types=[".json"])
+            reconstruction_json_file = gr.File(label="三维重建结果 JSON（可选）", file_types=[".json"])
+            orthomosaic_json_file = gr.File(label="正射影像处理日志 JSON（可选）", file_types=[".json"])
+            with gr.Accordion("本地模型选项（可选）", open=False):
                 use_ollama = gr.Checkbox(label="尝试使用本地 Ollama", value=False)
                 ollama_url = gr.Textbox(label="本地 Ollama 地址", value="http://127.0.0.1:11434")
                 ollama_model = gr.Textbox(label="本地模型名称", value="llama3.2")
+            with gr.Row(elem_classes=["stage-run-row"]):
                 scene_btn = gr.Button("生成 AI 灾情描述", variant="primary")
-            with gr.Column():
-                scene_description_output = gr.Markdown(label="灾情描述 Markdown")
-                scene_description_file = gr.File(label="灾情描述文件下载")
+        with gr.Accordion("3. 核心结果", open=False, elem_classes=["stage-result-window"]):
+            scene_description_output = gr.Markdown(label="灾情描述 Markdown")
+            scene_description_file = gr.File(label="灾情描述文件下载")
         scene_btn.click(
             fn=generate_scene_description,
             inputs=[
@@ -3101,47 +3498,72 @@ S5 接收 S4 生成的救援候选目标，将候选目标整理成可人工复�
 
 
 
-@app.app.post("/api/llm/mission-report")
-async def llm_mission_report_api(payload: dict):
-    """Generate an optional LLM-assisted post-processing mission report."""
-    mission_result = payload.get("mission_result", payload) if isinstance(payload, dict) else {}
-    return generate_mission_report(mission_result)
+    def _authorize_llm_api_request(request: Request):
+        """Allow local UI self-calls and optional token-authenticated API calls."""
+        client_host = request.client.host if request.client else ""
+        if client_host in LOOPBACK_HOSTS:
+            return
+
+        expected_token = os.getenv("AERORESCUE_LLM_API_TOKEN", "").strip()
+        provided_token = request.headers.get("x-aerorescue-token", "").strip()
+        auth_header = request.headers.get("authorization", "").strip()
+        if auth_header.lower().startswith("bearer "):
+            provided_token = auth_header.split(" ", 1)[1].strip()
+
+        if expected_token and provided_token == expected_token:
+            return
+
+        raise HTTPException(
+            status_code=403,
+            detail="LLM API endpoints accept local requests only unless AERORESCUE_LLM_API_TOKEN is configured and provided.",
+        )
 
 
-@app.app.post("/api/llm/mission-copilot")
-async def llm_mission_copilot_api(payload: dict):
-    """Answer a mission question using only assembled mission evidence."""
-    payload = payload if isinstance(payload, dict) else {}
-    return answer_mission_copilot_question(
-        mission_id=payload.get("mission_id", "current_mission"),
-        question=payload.get("question", ""),
-    )
+    @app.app.post("/api/llm/mission-report")
+    async def llm_mission_report_api(payload: dict, request: Request):
+        """Generate an optional LLM-assisted post-processing mission report."""
+        _authorize_llm_api_request(request)
+        mission_result = payload.get("mission_result", payload) if isinstance(payload, dict) else {}
+        return generate_mission_report(mission_result)
 
 
-@app.app.post("/api/llm/mission-planner")
-async def llm_mission_planner_api(payload: dict):
-    """Generate, validate, and execute a white-listed mission tool plan."""
-    payload = payload if isinstance(payload, dict) else {}
-    return execute_mission_planner(
-        mission_id=payload.get("mission_id", "current_mission"),
-        user_goal=payload.get("user_goal", ""),
-    )
+    @app.app.post("/api/llm/mission-copilot")
+    async def llm_mission_copilot_api(payload: dict, request: Request):
+        """Answer a mission question using only assembled mission evidence."""
+        _authorize_llm_api_request(request)
+        payload = payload if isinstance(payload, dict) else {}
+        return answer_mission_copilot_question(
+            mission_id=payload.get("mission_id", "current_mission"),
+            question=payload.get("question", ""),
+        )
 
 
-@app.app.post("/api/llm/evidence-audit")
-async def llm_evidence_audit_api(payload: dict):
-    """Audit mission outputs for evidence consistency and authenticity boundaries."""
-    payload = payload if isinstance(payload, dict) else {}
-    return run_evidence_audit(
-        mission_id=payload.get("mission_id", "current_mission"),
-        audit_target=payload.get("audit_target", "all"),
-    )
+    @app.app.post("/api/llm/mission-planner")
+    async def llm_mission_planner_api(payload: dict, request: Request):
+        """Generate, validate, and execute a white-listed mission tool plan."""
+        _authorize_llm_api_request(request)
+        payload = payload if isinstance(payload, dict) else {}
+        return execute_mission_planner(
+            mission_id=payload.get("mission_id", "current_mission"),
+            user_goal=payload.get("user_goal", ""),
+        )
 
 
-if __name__ == "__main__":
-    app.launch(
-        server_name="0.0.0.0",
-        server_port=int(os.environ.get("GRADIO_SERVER_PORT", "9101")),
-        share=False,
-        allowed_paths=[str(APP_DIR), str(ROOT_DIR / "static"), str(ROOT_DIR / "outputs")],
-    )
+    @app.app.post("/api/llm/evidence-audit")
+    async def llm_evidence_audit_api(payload: dict, request: Request):
+        """Audit mission outputs for evidence consistency and authenticity boundaries."""
+        _authorize_llm_api_request(request)
+        payload = payload if isinstance(payload, dict) else {}
+        return run_evidence_audit(
+            mission_id=payload.get("mission_id", "current_mission"),
+            audit_target=payload.get("audit_target", "all"),
+        )
+
+
+    if __name__ == "__main__":
+        app.launch(
+            server_name=os.environ.get("GRADIO_SERVER_NAME", "127.0.0.1"),
+            server_port=int(os.environ.get("GRADIO_SERVER_PORT", "9101")),
+            share=False,
+            allowed_paths=[str(APP_DIR), str(ROOT_DIR / "static"), str(ROOT_DIR / "outputs")],
+        )

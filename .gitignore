@@ -206,15 +206,23 @@ app/venv/
 data/
 datasets/
 checkpoints/
+external_sources/
+models/yolov*/
+*.pt
 *.pth
 *.ckpt
 *.onnx
+*.mp4
+*.mov
 
 # Runtime outputs
 outputs/**
 !outputs/
 !outputs/**/
 !outputs/**/.gitkeep
+static/images/showcase/**
+!static/images/showcase/
+!static/images/showcase/README.md
 *.tif
 *.tiff
 *.laz

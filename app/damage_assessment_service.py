@@ -301,8 +301,30 @@ def format_damage_summary(assessment):
         return "暂无灾损评估结果。"
     bd = assessment.get("building_damage", {})
     road = assessment.get("road_stats", {})
+    no_connected_mask = (
+        assessment.get("overall_damage_level", "Unknown") == "Unknown"
+        and not any(
+            [
+                bd.get("no_damage_area", 0),
+                bd.get("medium_damage_area", 0),
+                bd.get("major_damage_area", 0),
+                bd.get("total_destruction_area", 0),
+                road.get("road_clear_area", 0),
+                road.get("road_blocked_area", 0),
+                assessment.get("water_area", 0),
+                assessment.get("tree_area", 0),
+                assessment.get("vehicle_area", 0),
+            ]
+        )
+    )
+    prefix = []
+    if no_connected_mask:
+        prefix.append("未接入有效语义分割 mask，以下统计为无分割回退结果，不代表真实灾损为 0。")
+        if assessment.get("scene_mode_reason"):
+            prefix.append(f"原因：{assessment.get('scene_mode_reason')}")
     return "\n".join(
-        [
+        prefix
+        + [
             f"整体灾损等级：{assessment.get('overall_damage_level', 'Unknown')}",
             f"无损建筑面积：{bd.get('no_damage_area', 0)} 像素",
             f"中度损毁建筑面积：{bd.get('medium_damage_area', 0)} 像素",

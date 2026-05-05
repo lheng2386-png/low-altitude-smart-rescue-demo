@@ -176,19 +176,23 @@ def attach_validation_roadmap_panel():
     import gradio as gr
 
     gr.Markdown(ROADMAP_INTRO)
-    gr.Markdown(format_capability_layers_markdown())
-    gr.Dataframe(
-        headers=VALIDATION_TASK_HEADERS,
-        value=format_validation_tasks_table(),
-        label="真实能力验证任务",
-        interactive=False,
-        wrap=True,
-    )
-    with gr.Row():
-        with gr.Column():
-            gr.Markdown(format_priority_tasks_markdown("Must"))
-        with gr.Column():
-            gr.Markdown(format_priority_tasks_markdown("High"))
-    gr.Markdown(format_lightweight_notes_markdown())
-    gr.Markdown(format_next_phase_order_markdown())
-    gr.Markdown(format_truthfulness_reminder_markdown())
+    with gr.Accordion("1. 当前能力层级", open=False):
+        gr.Markdown(format_capability_layers_markdown())
+    with gr.Accordion("2. 后续验证任务清单", open=False):
+        gr.Dataframe(
+            headers=VALIDATION_TASK_HEADERS,
+            value=format_validation_tasks_table(),
+            label="真实能力验证任务",
+            interactive=False,
+            wrap=True,
+        )
+    with gr.Accordion("3. 必须补齐任务", open=False):
+        gr.Markdown(format_priority_tasks_markdown("Must"))
+    with gr.Accordion("4. 高优先级任务", open=False):
+        gr.Markdown(format_priority_tasks_markdown("High"))
+    with gr.Accordion("5. 轻量能力边界", open=False):
+        gr.Markdown(format_lightweight_notes_markdown())
+    with gr.Accordion("6. 推荐推进顺序", open=False):
+        gr.Markdown(format_next_phase_order_markdown())
+    with gr.Accordion("7. 真实性提醒", open=False):
+        gr.Markdown(format_truthfulness_reminder_markdown())

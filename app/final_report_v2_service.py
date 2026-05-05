@@ -398,7 +398,7 @@ def build_rescue_recommendations(context, sections):
     if main_records:
         lines.append("- 建议优先人工复核检测出的救援目标。")
     if any(rec.get("evidence_type") in {"image_plane_decision", "rule_based_decision"} for rec in aux_records):
-        lines.append("- 可参考搜索优先级图、灾损影响评分和覆盖缺口，但仍需人工确认。")
+        lines.append("- 可参考已训练语义分割模型、外部源码级影响评估状态和覆盖缺口，但仍需人工确认。")
     if any(rec.get("module_key") == "path_planning" for rec in aux_records):
         lines.append("- 路径应作为图像平面参考路线，不应视为 GPS 导航路线。")
     if any(rec.get("module_key") == "thermal" and rec.get("evidence_level") == "weak" for rec in simulated_records):
@@ -427,10 +427,11 @@ def build_truthfulness_boundary_section(context, sections):
         "- 图像平面路径不是 GPS 导航。\n"
         "- Simulated Thermal 不是真测温。\n"
         "- Fast Preview 不是真 ODM。\n"
-        "- Uploaded/Demo Mask 不是自动模型预测。\n"
+        "- S2-S3 最终版固定使用已训练语义分割模型生成 pred_mask；Uploaded/Demo Mask 不作为最终主展示来源。\n"
         "- Registry / Reference 模块不是运行结果。\n"
         "- Transformer human_candidate 不是已核实人员身份，不能确认幸存者或平民状态。\n"
-        "- Decision Fusion 是 lightweight image-plane adaptation，不是完整 GIS / SAREnv / SKAI / InaSAFE / Fields2Cover 输出。\n"
+        "- SKAI 外部源码级建筑灾损评估和 InaSAFE 外部源码级灾害影响评估只有在真实调用源码并验证输出文件后才标记为真实输出。\n"
+        "- legacy/internal lightweight_skai_inasafe_adaptation 不得作为最终 S2-S3 高级深度版主展示，也不得称为真实 SKAI 或 InaSAFE 结果。\n"
         "- 报告不能替代现场人工判断。"
     )
 

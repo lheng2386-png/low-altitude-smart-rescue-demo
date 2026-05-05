@@ -1,5 +1,6 @@
 import sys
 import tempfile
+import shutil
 from pathlib import Path
 
 
@@ -12,6 +13,7 @@ from app.ui.mission_control_panel import (  # noqa: E402
     format_demo_result_summary,
     format_stage_result_table,
     load_final_report_preview,
+    resolve_allowed_missions_root,
     run_one_click_demo_from_ui,
 )
 
@@ -55,14 +57,22 @@ def main():
         preview = load_final_report_preview(report_path)
         assert "Final Report 2.0" in preview
         assert "Final Report 尚未生成" in load_final_report_preview(Path(tmp) / "missing.md")
+        try:
+            resolve_allowed_missions_root(Path(tmp) / "outside_outputs")
+            raise AssertionError("outside mission roots must be rejected")
+        except ValueError as exc:
+            assert "Missions Root must stay under" in str(exc)
 
-        outputs = run_one_click_demo_from_ui(Path(tmp) / "missions", "Smoke UI Demo")
+        smoke_root = ROOT_DIR / "outputs" / "mission_control_smoke_test"
+        shutil.rmtree(smoke_root, ignore_errors=True)
+        outputs = run_one_click_demo_from_ui(smoke_root, "Smoke UI Demo")
         summary_markdown, stage_table, candidate_markdown, final_report_preview, truthfulness_markdown = outputs
         assert "Mission" in summary_markdown or "Demo" in summary_markdown
         assert isinstance(stage_table, list)
         assert "Final Report" in final_report_preview or "报告" in final_report_preview
         assert "Demo data" in truthfulness_markdown or "workflow demonstration" in truthfulness_markdown
         assert "candidate_count" in candidate_markdown
+        shutil.rmtree(smoke_root, ignore_errors=True)
 
     print("AeroRescue-AI phase 11 mission control UI smoke test passed.")
 

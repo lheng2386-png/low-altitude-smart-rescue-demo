@@ -18,7 +18,7 @@ from damage_segmentation_visualizer import (  # noqa: E402
     create_segmentation_panel,
     render_segmentation_mask,
 )
-from segmentation_model_service import predict_segmentation  # noqa: E402
+from segmentation_model_service import predict_segmentation, resolve_allowed_checkpoint  # noqa: E402
 
 
 def main():
@@ -28,6 +28,9 @@ def main():
     assert pred is None
     assert "checkpoint_path" in metadata
     assert status
+    outside_checkpoint, outside_error = resolve_allowed_checkpoint(Path(tempfile.gettempdir()) / "unsafe_checkpoint.pth")
+    assert outside_checkpoint is None
+    assert "outside allowed project directories" in outside_error
 
     mask = np.zeros((64, 64), dtype=np.uint8)
     mask[8:24, 8:24] = 2

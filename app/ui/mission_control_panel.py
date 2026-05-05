@@ -10,10 +10,13 @@ from __future__ import annotations
 from pathlib import Path
 
 
-MISSION_CONTROL_INTRO = """
-## Mission Control / 一键任务演示
+ROOT_DIR = Path(__file__).resolve().parents[2]
+DEFAULT_MISSIONS_ROOT = ROOT_DIR / "outputs" / "demo_missions"
 
-AeroRescue-AI Mission Control 用于展示完整的低空无人机灾情智能辅助决策流程。该一键演示使用 demo/mock/imported 数据跑通 S1-S9 工作流，仅用于流程验证和比赛展示，不代表真实救援现场结论。
+MISSION_CONTROL_INTRO = """
+## 一键任务演示
+
+AeroRescue-AI 一键任务演示用于跑通完整的低空无人机灾情智能辅助决策流程。该演示使用明确标注的演示、模拟或导入数据跑通 S1-S9 工作流，仅用于流程验证和比赛展示，不代表真实救援现场结论。
 """.strip()
 
 FINAL_REPORT_PREVIEW_NOTICE = (
@@ -45,15 +48,15 @@ STAGE_ORDER = [
 ]
 
 STAGE_LABELS = {
-    "global_mapping": "S1 高空建图 / global_mapping",
-    "macro_analysis": "S2 宏观灾情分析 / macro_analysis",
-    "area_tasking": "S3 重点区域划分 / area_tasking",
-    "local_recon": "S4 中高空局部精查 / local_recon",
-    "target_verification": "S5 低空目标复核 / target_verification",
-    "thermal_check": "S6 热红外辅助复查 / thermal_check",
-    "decision_fusion": "S7 EC-TERP 决策融合 / decision_fusion",
-    "rescue_recommendation": "S8 路径与任务建议 / rescue_recommendation",
-    "evidence_report": "S9 证据链与报告 / evidence_report",
+    "global_mapping": "S1 高空建图（global_mapping）",
+    "macro_analysis": "S2 宏观灾情分析（macro_analysis）",
+    "area_tasking": "S3 重点区域划分（area_tasking）",
+    "local_recon": "S4 中高空局部精查（local_recon）",
+    "target_verification": "S5 低空目标复核（target_verification）",
+    "thermal_check": "S6 热红外辅助复查（thermal_check）",
+    "decision_fusion": "S7 决策融合（decision_fusion）",
+    "rescue_recommendation": "S8 路径与任务建议（rescue_recommendation）",
+    "evidence_report": "S9 证据链与报告（evidence_report）",
 }
 
 STAGE_TABLE_HEADERS = [
@@ -64,6 +67,28 @@ STAGE_TABLE_HEADERS = [
     "是否需要人工复核",
     "真实性边界摘要",
 ]
+
+
+def _is_relative_to(path, root):
+    try:
+        path.relative_to(root)
+        return True
+    except ValueError:
+        return False
+
+
+def resolve_allowed_missions_root(missions_root):
+    """Keep Mission Control writes inside the project's outputs directory."""
+    raw_root = str(missions_root or "").strip()
+    candidate = Path(raw_root) if raw_root else DEFAULT_MISSIONS_ROOT
+    if not candidate.is_absolute():
+        candidate = ROOT_DIR / candidate
+
+    resolved = candidate.resolve(strict=False)
+    allowed_root = (ROOT_DIR / "outputs").resolve(strict=False)
+    if not _is_relative_to(resolved, allowed_root):
+        raise ValueError(f"Missions Root must stay under {allowed_root}.")
+    return resolved
 
 
 def _get_count(result):
@@ -146,19 +171,19 @@ def format_demo_result_summary(demo_result):
     counts = _status_counts(stage_results)
     truthfulness_note = demo_result.get("truthfulness_note", "")
     return f"""
-### Demo Mission 结果摘要
+### 演示任务结果摘要
 
-- Mission ID: `{mission.get('mission_id', '')}`
-- Mission Name: {mission.get('mission_name', '')}
-- Mission Dir: `{demo_result.get('mission_dir', '')}`
-- Demo Dataset Dir: `{demo_result.get('demo_dataset_dir', '')}`
-- Final Report Markdown: `{demo_result.get('final_report_markdown_path', '')}`
-- Evidence Ledger: `{demo_result.get('evidence_ledger_path', '')}`
-- Workflow Completed Stages: `{workflow_summary.get('completed_stage_count', counts.get('completed', 0))}`
-- Workflow Failed Stages: `{workflow_summary.get('failed_stage_count', counts.get('failed', 0))}`
-- Stage Result Status: completed={counts.get('completed', 0)}, degraded={counts.get('degraded', 0)}, failed={counts.get('failed', 0)}
+- 任务编号：`{mission.get('mission_id', '')}`
+- 任务名称：{mission.get('mission_name', '')}
+- 任务目录：`{demo_result.get('mission_dir', '')}`
+- 演示数据目录：`{demo_result.get('demo_dataset_dir', '')}`
+- 最终报告 Markdown：`{demo_result.get('final_report_markdown_path', '')}`
+- 证据链文件：`{demo_result.get('evidence_ledger_path', '')}`
+- 已完成阶段数：`{workflow_summary.get('completed_stage_count', counts.get('completed', 0))}`
+- 失败阶段数：`{workflow_summary.get('failed_stage_count', counts.get('failed', 0))}`
+- 阶段状态统计：完成={counts.get('completed', 0)}，降级={counts.get('degraded', 0)}，失败={counts.get('failed', 0)}
 
-**Truthfulness Warning:** {truthfulness_note}
+**真实性提醒：** {truthfulness_note}
 """.strip()
 
 
@@ -191,13 +216,13 @@ def format_candidate_summary(stage_results):
     rescue_recommendation = stage_results.get("rescue_recommendation") or {}
 
     return f"""
-### Candidate / Thermal / EC-TERP / Route 摘要
+### 候选目标、热红外、决策融合与路径摘要
 
-- S4 local_recon candidate_count: `{local_recon.get('candidate_count', '未生成 / unavailable')}`
-- S5 verification_summary: `{target_verification.get('verification_summary', '未生成 / unavailable')}`
-- S6 thermal_summary: `{thermal_check.get('thermal_summary', '未生成 / unavailable')}`
-- S7 decision_summary: `{decision_fusion.get('decision_summary', '未生成 / unavailable')}`
-- S8 recommendation_summary: `{rescue_recommendation.get('recommendation_summary', '未生成 / unavailable')}`
+- S4 候选目标数量 candidate_count：`{local_recon.get('candidate_count', '未生成 / unavailable')}`
+- S5 目标复核摘要 verification_summary：`{target_verification.get('verification_summary', '未生成 / unavailable')}`
+- S6 热红外复查摘要 thermal_summary：`{thermal_check.get('thermal_summary', '未生成 / unavailable')}`
+- S7 决策融合摘要 decision_summary：`{decision_fusion.get('decision_summary', '未生成 / unavailable')}`
+- S8 路径与任务建议摘要 recommendation_summary：`{rescue_recommendation.get('recommendation_summary', '未生成 / unavailable')}`
 """.strip()
 
 
@@ -226,7 +251,7 @@ def run_one_click_demo_from_ui(missions_root, mission_name):
         except ImportError:  # pragma: no cover - app.py runs with app/ on sys.path.
             from demo.one_click_mission_orchestrator import run_one_click_demo_mission
 
-        missions_root = missions_root or "outputs/demo_missions"
+        missions_root = resolve_allowed_missions_root(missions_root)
         mission_name = mission_name or "AeroRescue-AI One-Click Demo Mission"
         demo_result = run_one_click_demo_mission(
             missions_root=missions_root,
@@ -234,7 +259,7 @@ def run_one_click_demo_from_ui(missions_root, mission_name):
             demo_output_root=str(Path(missions_root) / "_demo_dataset"),
         )
         preview = load_final_report_preview(demo_result.get("final_report_markdown_path", ""))
-        final_report_preview = f"### Final Report Preview\n\n**{FINAL_REPORT_PREVIEW_NOTICE}**\n\n{preview}"
+        final_report_preview = f"### 最终报告预览 / Final Report Preview\n\n**{FINAL_REPORT_PREVIEW_NOTICE}**\n\n{preview}"
         return (
             format_demo_result_summary(demo_result),
             format_stage_result_table(demo_result.get("stage_results", {})),
@@ -258,31 +283,33 @@ def attach_mission_control_panel():
     import gradio as gr
 
     gr.Markdown(MISSION_CONTROL_INTRO)
-    with gr.Row():
-        with gr.Column(scale=2):
-            mission_name = gr.Textbox(
-                label="Mission Name",
-                value="AeroRescue-AI One-Click Demo Mission",
-            )
-        with gr.Column(scale=2):
-            missions_root = gr.Textbox(
-                label="Missions Root",
-                value="outputs/demo_missions",
-            )
-        with gr.Column(scale=1):
-            run_button = gr.Button("Run One-Click Demo Mission", variant="primary")
+    with gr.Accordion("1. 输入与运行", open=False):
+        mission_name = gr.Textbox(
+            label="任务名称",
+            value="AeroRescue-AI 一键演示任务",
+        )
+        missions_root = gr.Textbox(
+            label="任务输出目录",
+            value="outputs/demo_missions",
+        )
+        run_button = gr.Button("运行一键演示任务", variant="primary")
 
-    summary_markdown = gr.Markdown("尚未运行一键演示任务。")
-    stage_table = gr.Dataframe(
-        headers=STAGE_TABLE_HEADERS,
-        value=format_stage_result_table({}),
-        label="S1-S9 Stage Results",
-        interactive=False,
-        wrap=True,
-    )
-    candidate_summary = gr.Markdown("未生成 / unavailable")
-    final_report_preview = gr.Markdown(f"### Final Report Preview\n\n**{FINAL_REPORT_PREVIEW_NOTICE}**\n\nFinal Report 尚未生成。")
-    truthfulness_markdown = gr.Markdown(format_truthfulness_markdown())
+    with gr.Accordion("2. 任务摘要", open=False):
+        summary_markdown = gr.Markdown("尚未运行一键演示任务。")
+    with gr.Accordion("3. S1-S9 阶段结果", open=False):
+        stage_table = gr.Dataframe(
+            headers=STAGE_TABLE_HEADERS,
+            value=format_stage_result_table({}),
+            label="S1-S9 阶段结果",
+            interactive=False,
+            wrap=True,
+        )
+    with gr.Accordion("4. 候选目标与决策摘要", open=False):
+        candidate_summary = gr.Markdown("未生成 / unavailable")
+    with gr.Accordion("5. 最终报告预览", open=False):
+        final_report_preview = gr.Markdown(f"### 最终报告预览 / Final Report Preview\n\n**{FINAL_REPORT_PREVIEW_NOTICE}**\n\nFinal Report 尚未生成。")
+    with gr.Accordion("6. 真实性边界", open=False):
+        truthfulness_markdown = gr.Markdown(format_truthfulness_markdown())
 
     run_button.click(
         fn=run_one_click_demo_from_ui,

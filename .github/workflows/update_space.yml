@@ -42,7 +42,13 @@ jobs:
             --exclude '__pycache__' \
             --exclude '*.pyc' \
             --exclude '.DS_Store' \
-            app backend modules static models configs demo_cases demo_missions \
+            --exclude '*.pt' \
+            --exclude '*.pth' \
+            --exclude '*.ckpt' \
+            --exclude '*.onnx' \
+            --exclude 'static/images/showcase/**' \
+            --exclude 'outputs/**' \
+            app backend modules static configs demo_cases \
             hf_space/
 
           cp app/requirements.txt hf_space/requirements.txt

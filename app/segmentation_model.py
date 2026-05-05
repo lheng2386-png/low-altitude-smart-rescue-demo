@@ -47,11 +47,19 @@ SEGMENTATION_CLASS_NAMES = [
 APP_DIR = Path(__file__).resolve().parent
 ROOT_DIR = APP_DIR.parent
 DEFAULT_SEGMENTATION_WEIGHT_CANDIDATES = [
+    ROOT_DIR / "models" / "segmentation" / "best.pt",
     ROOT_DIR / "outputs" / "segmentation_training" / "checkpoints" / "best.pth",
     ROOT_DIR / "outputs" / "segmentation_training" / "checkpoints" / "latest.pth",
     ROOT_DIR / "checkpoints" / "segmentation_model.pth",
     APP_DIR / "segmentation_weights" / "segmentation_model.pth",
 ]
+ALLOWED_SEGMENTATION_CHECKPOINT_ROOTS = [
+    ROOT_DIR / "models" / "segmentation",
+    ROOT_DIR / "outputs" / "segmentation_training" / "checkpoints",
+    ROOT_DIR / "checkpoints",
+    APP_DIR / "segmentation_weights",
+]
+ALLOWED_SEGMENTATION_CHECKPOINT_SUFFIXES = {".pth", ".pt"}
 
 
 class DoubleConv(nn.Module):
@@ -127,16 +135,50 @@ def get_default_segmentation_weights():
     return DEFAULT_SEGMENTATION_WEIGHT_CANDIDATES[0]
 
 
-def get_segmentation_model_status(weights_path):
-    """Return whether an automatic segmentation checkpoint is available."""
+def _is_relative_to(path, root):
+    try:
+        path.relative_to(root)
+        return True
+    except ValueError:
+        return False
+
+
+def resolve_allowed_segmentation_checkpoint(weights_path):
+    """Resolve a checkpoint path and require it to live under project-owned roots."""
     if weights_path is None:
-        return {
-            "available": False,
-            "path": None,
-            "message": "Automatic segmentation model weights not found. Please upload a segmentation mask or train segmentation weights.",
-        }
+        return None, "Automatic segmentation model weights not found. Please upload a segmentation mask or train segmentation weights."
 
     path = Path(weights_path)
+    if not path.is_absolute():
+        path = ROOT_DIR / path
+
+    try:
+        resolved = path.resolve(strict=False)
+    except Exception as exc:
+        return None, f"Automatic segmentation checkpoint path could not be resolved: {exc}"
+
+    if resolved.suffix.lower() not in ALLOWED_SEGMENTATION_CHECKPOINT_SUFFIXES:
+        allowed = ", ".join(sorted(ALLOWED_SEGMENTATION_CHECKPOINT_SUFFIXES))
+        return None, f"Automatic segmentation checkpoint must use one of these suffixes: {allowed}."
+
+    allowed_roots = [root.resolve(strict=False) for root in ALLOWED_SEGMENTATION_CHECKPOINT_ROOTS]
+    if not any(_is_relative_to(resolved, root) for root in allowed_roots):
+        roots = ", ".join(str(root) for root in allowed_roots)
+        return None, f"Automatic segmentation checkpoint path is outside allowed project directories: {roots}."
+
+    return resolved, ""
+
+
+def get_segmentation_model_status(weights_path):
+    """Return whether an automatic segmentation checkpoint is available."""
+    path, error = resolve_allowed_segmentation_checkpoint(weights_path)
+    if path is None:
+        return {
+            "available": False,
+            "path": str(weights_path) if weights_path else None,
+            "message": error,
+        }
+
     if not path.exists():
         return {
             "available": False,
@@ -171,7 +213,7 @@ def load_segmentation_model(weights_path=None, device=None):
     try:
         run_device = _device(device)
         model = LightweightUNet(num_classes=NUM_SEGMENTATION_CLASSES)
-        checkpoint = torch.load(status["path"], map_location=run_device, weights_only=False)
+        checkpoint = torch.load(status["path"], map_location=run_device, weights_only=True)
 
         if isinstance(checkpoint, dict) and "model_state_dict" in checkpoint:
             state_dict = checkpoint["model_state_dict"]

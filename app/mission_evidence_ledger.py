@@ -280,7 +280,13 @@ def build_evidence_record(module_scan_result):
             with_status_note("路径规划为图像平面参考路径，不是真实 GPS 导航。")
         elif module_key == "decision_fusion":
             evidence_type = EVIDENCE_TYPES["image_plane_decision"]
-            with_status_note("Decision Fusion 是轻量 image-plane adaptation，不是完整 GIS / SAREnv / SKAI / InaSAFE 输出。")
+            with_status_note(
+                "Decision Fusion 是内部辅助决策融合，不是完整 GIS / SAREnv / Fields2Cover 输出；"
+                "legacy/internal lightweight_skai_inasafe_adaptation 不得称为真实 SKAI 或 InaSAFE 结果。"
+            )
+            with_status_note(
+                "SKAI 外部源码级建筑灾损评估和 InaSAFE 外部源码级灾害影响评估只有在真实调用源码并验证输出文件后才标记为真实输出。"
+            )
         elif module_key == "ec_terp_ranking":
             evidence_type = EVIDENCE_TYPES["assistive_decision_support"]
             with_status_note("EC-TERP is an assistive priority ranking algorithm.")
@@ -294,7 +300,7 @@ def build_evidence_record(module_scan_result):
             with_status_note("场景描述为规则/模板汇总结果，需要结合底层证据理解。")
         elif module_key == "segmentation" and "uploaded_or_demo_mask_not_model_prediction" in capability_tags:
             evidence_type = EVIDENCE_TYPES["uploaded_or_demo_input"]
-            with_status_note("Uploaded/Demo mask 可用于环境风险演示，但不是自动模型预测。")
+            with_status_note("S2-S3 最终版固定使用已训练语义分割模型生成 pred_mask；Uploaded/Demo mask 不作为最终主展示来源。")
         elif module_key == "transformer_detection" or "auxiliary_transformer_detection" in capability_tags:
             evidence_level = EVIDENCE_LEVELS["medium"]
             evidence_type = EVIDENCE_TYPES["model_output"]
@@ -305,7 +311,7 @@ def build_evidence_record(module_scan_result):
         if "uploaded_or_demo_mask_not_model_prediction" in capability_tags and module_key != "segmentation":
             evidence_level = EVIDENCE_LEVELS["medium"]
             evidence_type = EVIDENCE_TYPES["uploaded_or_demo_input"]
-            with_status_note("Uploaded/Demo mask 可用于环境风险演示，但不是自动模型预测。")
+            with_status_note("S2-S3 最终版固定使用已训练语义分割模型生成 pred_mask；Uploaded/Demo mask 不作为最终主展示来源。")
 
         if "image_plane_reference_path" in capability_tags and module_key == "path_planning":
             evidence_level = EVIDENCE_LEVELS["medium"]

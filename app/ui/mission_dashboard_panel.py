@@ -6,6 +6,8 @@ YOLO, ODM, thermal analysis, segmentation, EC-TERP, path planning, or reports.
 
 from __future__ import annotations
 
+from html import escape
+
 try:
     from ..workflow.stage_definitions import RESCUE_WORKFLOW_STAGES, get_stage_definition
     from ..workflow.workflow_state import create_initial_workflow_state
@@ -15,9 +17,9 @@ except ImportError:  # pragma: no cover - supports direct app/ path imports.
 
 
 WORKFLOW_DASHBOARD_INTRO = """
-## Mission Dashboard / 任务总览
+## 任务总览
 
-AeroRescue-AI 采用真实救援任务工作流：先由高空无人机进行重叠 RGB 图像采集与全局建图，再基于地图进行宏观灾情分析和重点区域划分；随后由中高空/低空无人机进行局部目标搜索、目标复核与热红外辅助确认；最终通过 EC-TERP 融合目标、环境、热红外和路径可达性信息，生成救援优先级、路径建议和证据链报告。
+AeroRescue-AI 按真实救援任务组织：高空建图 → 灾情感知 → 重点区域 → 局部精查 → 目标复核 → 热红外复查 → 决策融合 → 路径建议 → 证据报告。默认页面只展示主线状态，详细模块结果在各阶段页或折叠区查看。
 """
 
 DASHBOARD_TRUTHFULNESS_BOUNDARIES = [
@@ -116,6 +118,31 @@ def format_workflow_stage_table(workflow_state):
     return rows
 
 
+def format_workflow_stage_cards_html(workflow_state):
+    """Return a compact HTML card view for the nine-stage workflow."""
+    state = _workflow_state_or_default(workflow_state)
+    stage_states = state.get("stages", {})
+    cards = []
+    for definition in RESCUE_WORKFLOW_STAGES:
+        stage_key = definition["stage_key"]
+        status = stage_states.get(stage_key, {}).get("status", "pending")
+        icon = STATUS_ICONS.get(status, "⚪")
+        status_class = escape(str(status).replace("_", "-"))
+        cards.append(
+            f"""
+            <div class="mission-stage-card mission-stage-{status_class}">
+                <div class="mission-stage-head">
+                    <span class="mission-stage-id">{escape(definition["stage_id"])}</span>
+                    <span class="mission-stage-status">{icon} {escape(status)}</span>
+                </div>
+                <div class="mission-stage-name">{escape(definition["stage_name_zh"])}</div>
+                <div class="mission-stage-action">{escape(definition["real_action"])}</div>
+            </div>
+            """
+        )
+    return f"<div class='mission-stage-grid'>{''.join(cards)}</div>"
+
+
 def format_mission_summary_markdown(mission):
     """Return a Markdown mission summary for the dashboard."""
     if not mission:
@@ -137,13 +164,15 @@ def format_mission_summary_markdown(mission):
     return f"""
 ### 任务信息
 
-- Mission ID: `{mission.get('mission_id', '')}`
-- Mission Name: {mission.get('mission_name', '')}
-- Status: `{mission.get('status', '')}`
-- Current Stage: {current_stage_label}
-- Available Modules: {available_modules}
-- Disabled Modules: {disabled_modules}
-- Evidence Ledger Path: `{mission.get('evidence_ledger_path', '')}`
+| 项目 | 内容 |
+| --- | --- |
+| 任务编号 | `{mission.get('mission_id', '')}` |
+| 任务名称 | {mission.get('mission_name', '')} |
+| 状态 | `{mission.get('status', '')}` |
+| 当前阶段 | {current_stage_label} |
+| 可用模块 | {available_modules} |
+| 暂不可用模块 | {disabled_modules} |
+| 证据链路径 | `{mission.get('evidence_ledger_path', '')}` |
 
 ### 任务真实性边界
 
@@ -155,7 +184,7 @@ def format_workflow_progress_markdown(workflow_state):
     """Return a Markdown progress list for the nine rescue workflow stages."""
     state = _workflow_state_or_default(workflow_state)
     stage_states = state.get("stages", {})
-    lines = ["### 9 阶段救援流程进度"]
+    lines = ["### 流程进度"]
     for definition in RESCUE_WORKFLOW_STAGES:
         stage_key = definition["stage_key"]
         status = stage_states.get(stage_key, {}).get("status", "pending")
@@ -183,14 +212,16 @@ def attach_mission_dashboard_panel(mission=None, workflow_state=None):
     state = _workflow_state_or_default(workflow_state or (mission or {}).get("workflow_state"))
     components = {}
     components["intro"] = gr.Markdown(WORKFLOW_DASHBOARD_INTRO)
-    components["summary"] = gr.Markdown(format_mission_summary_markdown(mission))
-    components["progress"] = gr.Markdown(format_workflow_progress_markdown(state))
-    components["stage_table"] = gr.Dataframe(
-        headers=WORKFLOW_STAGE_TABLE_HEADERS,
-        value=format_workflow_stage_table(state),
-        label="真实救援任务 9 阶段工作流",
-        interactive=False,
-        wrap=True,
-    )
-    components["truthfulness"] = gr.Markdown(format_dashboard_truthfulness_markdown())
+    components["summary"] = gr.Markdown(format_mission_summary_markdown(mission), elem_classes=["mission-summary-card"])
+    components["stage_cards"] = gr.HTML(format_workflow_stage_cards_html(state))
+    with gr.Accordion("查看 9 阶段详细表格", open=False):
+        components["stage_table"] = gr.Dataframe(
+            headers=WORKFLOW_STAGE_TABLE_HEADERS,
+            value=format_workflow_stage_table(state),
+            label="真实救援任务 9 阶段工作流",
+            interactive=False,
+            wrap=True,
+        )
+    with gr.Accordion("真实性边界", open=False):
+        components["truthfulness"] = gr.Markdown(format_dashboard_truthfulness_markdown())
     return components

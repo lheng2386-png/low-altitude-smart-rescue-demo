@@ -29,7 +29,7 @@ REPORT_TRUTHFULNESS_BOUNDARIES = [
     "Thermal support is auxiliary evidence and not confirmation of life.",
     "Image-plane path is not GPS navigation.",
     "Fast Preview is not a real ODM georeferenced orthomosaic.",
-    "Uploaded/Demo Mask is not automatic model segmentation.",
+    "S2-S3 final display uses the trained local semantic segmentation model pred_mask; uploaded/demo masks are not final main-display sources.",
     FIELD_REVIEW_NOTE,
 ]
 

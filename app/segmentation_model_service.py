@@ -16,11 +16,19 @@ from models.segmentation.lightweight_unet import NUM_CLASSES, LightweightUNet  #
 
 
 DEFAULT_CHECKPOINT_CANDIDATES = [
+    ROOT_DIR / "models" / "segmentation" / "best.pt",
     ROOT_DIR / "outputs" / "segmentation_training" / "checkpoints" / "best.pth",
     ROOT_DIR / "outputs" / "segmentation_training" / "checkpoints" / "latest.pth",
     ROOT_DIR / "checkpoints" / "segmentation_model.pth",
     ROOT_DIR / "app" / "segmentation_weights" / "segmentation_model.pth",
 ]
+ALLOWED_CHECKPOINT_ROOTS = [
+    ROOT_DIR / "models" / "segmentation",
+    ROOT_DIR / "outputs" / "segmentation_training" / "checkpoints",
+    ROOT_DIR / "checkpoints",
+    ROOT_DIR / "app" / "segmentation_weights",
+]
+ALLOWED_CHECKPOINT_SUFFIXES = {".pth", ".pt"}
 
 
 def select_device(device=None):
@@ -42,6 +50,37 @@ def get_default_checkpoint():
     return DEFAULT_CHECKPOINT_CANDIDATES[0]
 
 
+def _is_relative_to(path, root):
+    try:
+        path.relative_to(root)
+        return True
+    except ValueError:
+        return False
+
+
+def resolve_allowed_checkpoint(checkpoint_path):
+    """Resolve a checkpoint path and require it to live under project-owned roots."""
+    checkpoint = Path(checkpoint_path) if checkpoint_path else get_default_checkpoint()
+    if not checkpoint.is_absolute():
+        checkpoint = ROOT_DIR / checkpoint
+
+    try:
+        resolved = checkpoint.resolve(strict=False)
+    except Exception as exc:
+        return None, f"Segmentation checkpoint path could not be resolved: {exc}"
+
+    if resolved.suffix.lower() not in ALLOWED_CHECKPOINT_SUFFIXES:
+        allowed = ", ".join(sorted(ALLOWED_CHECKPOINT_SUFFIXES))
+        return None, f"Segmentation checkpoint must use one of these suffixes: {allowed}."
+
+    allowed_roots = [root.resolve(strict=False) for root in ALLOWED_CHECKPOINT_ROOTS]
+    if not any(_is_relative_to(resolved, root) for root in allowed_roots):
+        roots = ", ".join(str(root) for root in allowed_roots)
+        return None, f"Segmentation checkpoint is outside allowed project directories: {roots}."
+
+    return resolved, ""
+
+
 def _status(message, checkpoint_path=None, device=None, ok=False, img_size=None):
     return {
         "ok": bool(ok),
@@ -55,7 +94,9 @@ def _status(message, checkpoint_path=None, device=None, ok=False, img_size=None)
 
 def load_segmentation_model(checkpoint_path=None, device=None):
     """Load a trained local checkpoint. Missing or invalid checkpoints return a clear status."""
-    checkpoint = Path(checkpoint_path) if checkpoint_path else get_default_checkpoint()
+    checkpoint, path_error = resolve_allowed_checkpoint(checkpoint_path)
+    if checkpoint is None:
+        return None, _status(path_error, checkpoint_path, ok=False)
     run_device = select_device(device)
     if not checkpoint.exists():
         return None, _status(
@@ -66,7 +107,7 @@ def load_segmentation_model(checkpoint_path=None, device=None):
         )
 
     try:
-        payload = torch.load(checkpoint, map_location=run_device, weights_only=False)
+        payload = torch.load(checkpoint, map_location=run_device, weights_only=True)
         num_classes = int(payload.get("num_classes", NUM_CLASSES)) if isinstance(payload, dict) else NUM_CLASSES
         model = LightweightUNet(num_classes=num_classes)
         state_dict = payload.get("model_state_dict", payload) if isinstance(payload, dict) else payload
