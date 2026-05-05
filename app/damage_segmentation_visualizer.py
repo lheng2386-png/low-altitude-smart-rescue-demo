@@ -120,6 +120,26 @@ def compute_damage_statistics(mask):
             "water_area": 0,
             "tree_area": 0,
             "vehicle_area": 0,
+            "building_damage": {
+                "no_damage_area": 0,
+                "minor_damage_area": 0,
+                "major_damage_area": 0,
+                "destroyed_building_area": 0,
+            },
+            "road_stats": {
+                "road_clear_area": 0,
+                "road_blocked_area": 0,
+                "road_clear_ratio": 0.0,
+                "road_blocked_ratio": 0.0,
+            },
+            "environment_stats": {
+                "water_area": 0,
+                "tree_area": 0,
+                "vehicle_area": 0,
+                "water_ratio": 0.0,
+                "tree_ratio": 0.0,
+                "vehicle_ratio": 0.0,
+            },
         }
 
     total_pixels = int(class_mask.size)
@@ -143,6 +163,26 @@ def compute_damage_statistics(mask):
         "water_area": class_pixel_counts["water"],
         "tree_area": class_pixel_counts["tree"],
         "vehicle_area": class_pixel_counts["vehicle"],
+    }
+    stats["building_damage"] = {
+        "no_damage_area": stats["no_damage_area"],
+        "minor_damage_area": stats["minor_damage_area"],
+        "major_damage_area": stats["major_damage_area"],
+        "destroyed_building_area": stats["destroyed_building_area"],
+    }
+    stats["road_stats"] = {
+        "road_clear_area": stats["road_clear_area"],
+        "road_blocked_area": stats["road_blocked_area"],
+        "road_clear_ratio": class_area_ratios["road_clear"],
+        "road_blocked_ratio": class_area_ratios["road_blocked"],
+    }
+    stats["environment_stats"] = {
+        "water_area": stats["water_area"],
+        "tree_area": stats["tree_area"],
+        "vehicle_area": stats["vehicle_area"],
+        "water_ratio": class_area_ratios["water"],
+        "tree_ratio": class_area_ratios["tree"],
+        "vehicle_ratio": class_area_ratios["vehicle"],
     }
     return stats
 

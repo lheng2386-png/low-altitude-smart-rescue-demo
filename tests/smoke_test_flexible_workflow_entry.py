@@ -1,0 +1,110 @@
+import sys
+import tempfile
+from pathlib import Path
+
+
+ROOT_DIR = Path(__file__).resolve().parents[1]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
+from app.evidence_ledger import load_ledger  # noqa: E402
+from app.mission_schema import create_mission  # noqa: E402
+from app.mission_schema import save_mission  # noqa: E402
+from app.services.area_tasking_service import build_manual_area_task  # noqa: E402
+from app.stages.local_recon_stage import prepare_direct_local_recon_context  # noqa: E402
+from app.workflow.workflow_orchestrator import (  # noqa: E402
+    initialize_direct_local_recon_workflow,
+    initialize_external_map_workflow,
+    record_external_stage_artifact,
+)
+from app.workflow.workflow_state import (  # noqa: E402
+    create_initial_workflow_state,
+    mark_stage_completed_external,
+    start_workflow_from_stage,
+    summarize_workflow_context,
+)
+
+
+def main():
+    workflow_state = create_initial_workflow_state()
+    workflow_state = start_workflow_from_stage(workflow_state, "local_recon")
+    assert workflow_state["stages"]["global_mapping"]["status"] == "skipped"
+    assert workflow_state["stages"]["macro_analysis"]["status"] == "skipped"
+    assert workflow_state["stages"]["area_tasking"]["status"] in {"skipped", "manual_required"}
+    assert workflow_state["stages"]["local_recon"]["status"] == "ready"
+    assert workflow_state["current_stage_key"] == "local_recon"
+    context_summary = summarize_workflow_context(workflow_state)
+    assert context_summary["direct_entry_stage"] == "local_recon"
+    assert "No global map is connected for this mission." in context_summary["missing_context_notes"]
+    assert "No macro risk analysis is connected for this mission." in context_summary["missing_context_notes"]
+    assert "Local detection results cannot be projected to a verified geospatial map." in context_summary["missing_context_notes"]
+
+    workflow_state = create_initial_workflow_state()
+    workflow_state = mark_stage_completed_external(
+        workflow_state,
+        "global_mapping",
+        output_ref="external/maps/map.tif",
+        evidence_id="E0099",
+        note="Imported external map.",
+    )
+    assert workflow_state["stages"]["global_mapping"]["status"] == "completed_external"
+    assert workflow_state["stages"]["global_mapping"]["output_ref"] == "external/maps/map.tif"
+    assert "E0099" in workflow_state["stages"]["global_mapping"]["evidence_ids"]
+
+    mission = create_mission(mission_name="Direct Local Recon")
+    mission = initialize_direct_local_recon_workflow(
+        mission,
+        local_rgb_images=["local_a.jpg", "local_b.jpg"],
+        manual_area_id="A",
+    )
+    assert mission["workflow_mode"] == "direct_local_recon"
+    assert mission["global_context_available"] is False
+    assert mission["macro_context_available"] is False
+    assert mission["workflow_state"]["stages"]["local_recon"]["status"] == "ready"
+    assert any(
+        "This mission starts from local RGB imagery without verified global mapping context." in item
+        for item in mission["truthfulness_boundaries"]
+    )
+    local_context = prepare_direct_local_recon_context(mission, area_id="A", local_rgb_images=["local_a.jpg"])
+    assert local_context["stage_key"] == "local_recon"
+    assert local_context["workflow_mode"] == "direct_local_recon"
+    assert local_context["global_context_available"] is False
+    assert local_context["macro_context_available"] is False
+    assert "not georeferenced unless map registration is provided" in local_context["truthfulness_note"]
+
+    mission = create_mission(mission_name="External Map")
+    mission = initialize_external_map_workflow(mission, "external/maps/map.tif")
+    assert mission["workflow_state"]["stages"]["global_mapping"]["status"] == "completed_external"
+    assert mission["workflow_state"]["stages"]["macro_analysis"]["status"] == "ready"
+    assert mission["workflow_mode"] == "external_map_import"
+
+    manual_task = build_manual_area_task("A")
+    assert manual_task["area_id"] == "A"
+    assert manual_task["zone_type"] == "manual_local_recon_area"
+    assert manual_task["risk_level"] == "Unknown"
+    assert manual_task["human_review_required"] is True
+    assert "Manual area tasking does not imply confirmed disaster severity." in manual_task["truthfulness_note"]
+
+    with tempfile.TemporaryDirectory() as tmp:
+        mission_dir = Path(tmp) / "external_artifact_mission"
+        mission = create_mission(mission_name="External Artifact")
+        mission["evidence_ledger_path"] = str(mission_dir / "evidence" / "ledger.json")
+        save_mission(mission, mission_dir)
+        entry = record_external_stage_artifact(
+            mission,
+            mission_dir,
+            "global_mapping",
+            "external/maps/map.tif",
+            result_type="external_map_import",
+            note="The external map was imported by the user; the system does not claim it was generated by AeroRescue-AI.",
+        )
+        assert entry["source_type"] == "external_import"
+        assert mission["workflow_state"]["stages"]["global_mapping"]["status"] == "completed_external"
+        assert entry["evidence_id"] in mission["workflow_state"]["stages"]["global_mapping"]["evidence_ids"]
+        assert len(load_ledger(mission["evidence_ledger_path"])["entries"]) == 1
+
+    print("AeroRescue-AI flexible workflow entry smoke test passed.")
+
+
+if __name__ == "__main__":
+    main()

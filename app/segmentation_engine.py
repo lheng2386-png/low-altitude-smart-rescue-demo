@@ -11,12 +11,20 @@ except Exception:
     cv2 = None
     CV2_AVAILABLE = False
 
-from environment_risk import (
-    CLASS_DISPLAY_NAMES,
-    CLASS_DISPLAY_NAMES_EN,
-    get_environment_risk_score,
-    describe_environment_classes,
-)
+try:
+    from .environment_risk import (
+        CLASS_DISPLAY_NAMES,
+        CLASS_DISPLAY_NAMES_EN,
+        get_environment_risk_score,
+        describe_environment_classes,
+    )
+except ImportError:  # pragma: no cover - supports direct app/ path imports.
+    from environment_risk import (
+        CLASS_DISPLAY_NAMES,
+        CLASS_DISPLAY_NAMES_EN,
+        get_environment_risk_score,
+        describe_environment_classes,
+    )
 
 
 RESCUENET_CLASSES = OrderedDict(

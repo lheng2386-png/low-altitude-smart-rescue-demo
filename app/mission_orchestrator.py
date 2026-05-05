@@ -10,9 +10,14 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from evidence_ledger import add_evidence_entry, create_ledger, load_ledger, save_ledger, summarize_ledger
-from input_validator import validate_mission_inputs
-from mission_schema import create_mission, ensure_mission_dirs, save_mission, update_mission_status
+try:
+    from .evidence_ledger import add_evidence_entry, create_ledger, load_ledger, save_ledger, summarize_ledger
+    from .input_validator import validate_mission_inputs
+    from .mission_schema import create_mission, ensure_mission_dirs, save_mission, update_mission_status
+except ImportError:  # pragma: no cover - supports direct app/ path imports.
+    from evidence_ledger import add_evidence_entry, create_ledger, load_ledger, save_ledger, summarize_ledger
+    from input_validator import validate_mission_inputs
+    from mission_schema import create_mission, ensure_mission_dirs, save_mission, update_mission_status
 
 
 def create_new_mission(missions_root, mission_name=None, mission_id=None):

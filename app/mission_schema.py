@@ -20,10 +20,12 @@ OUTPUT_SUBDIRS = (
     "detection",
     "segmentation",
     "thermal",
+    "thermal_check",
     "orthomosaic",
     "reconstruction",
     "path",
     "priority",
+    "target_verification",
     "reports",
 )
 
@@ -89,6 +91,7 @@ def create_mission(
         "truthfulness_boundaries": list(truthfulness_boundaries or []),
         "outputs": outputs or {},
         "evidence_ledger_path": str(evidence_ledger_path or ""),
+        "workflow_state": {},
     }
 
 
