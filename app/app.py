@@ -2236,7 +2236,9 @@ AeroRescue-AI 是面向低空无人机应急救援场景的智能感知（让系
                 orthomosaic_btn = gr.Button("运行正射 / 拼接处理", variant="primary")
             with gr.Column():
                 orthomosaic_status = gr.Textbox(label="生成状态", lines=3, elem_classes=["compact-status"])
-                with gr.Accordion("查看建图结果", open=False, elem_classes=["stage-result-window"]):
+                s1_result_title = gr.Textbox(value="S1 高空建图结果", visible=False)
+                s1_result_popup_btn = gr.Button("打开结果窗口", variant="secondary")
+                with gr.Accordion("页面内结果备份", open=False, elem_classes=["stage-result-window"]):
                     orthomosaic_image = gr.Image(label="拼接 / 预览图")
                     orthomosaic_log = gr.Code(label="结果 JSON", language="json", lines=12)
                     orthomosaic_run_log = gr.Textbox(label="运行日志", lines=12)
@@ -2249,6 +2251,12 @@ AeroRescue-AI 是面向低空无人机应急救援场景的智能感知（让系
             fn=check_odm_environment,
             inputs=[],
             outputs=[orthomosaic_status, orthomosaic_log, orthomosaic_run_log],
+        )
+        s1_result_popup_btn.click(
+            fn=None,
+            inputs=[s1_result_title, orthomosaic_status, orthomosaic_log, orthomosaic_run_log],
+            outputs=[],
+            js=RESULT_POPUP_JS,
         )
 
     with gr.Tab("S2-S3 灾情感知"):
@@ -2296,7 +2304,9 @@ AeroRescue-AI 是面向低空无人机应急救援场景的智能感知（让系
                 perception_btn = gr.Button("运行灾情感知", variant="primary")
             with gr.Column():
                 perception_scene_gate_status = gr.Textbox(label="生成状态 / 证据状态", lines=3, elem_classes=["compact-status"])
-                with gr.Accordion("查看灾情感知结果", open=False, elem_classes=["stage-result-window"]):
+                s2_result_title = gr.Textbox(value="S2-S3 灾情感知结果", visible=False)
+                s2_result_popup_btn = gr.Button("打开结果窗口", variant="secondary")
+                with gr.Accordion("页面内结果备份", open=False, elem_classes=["stage-result-window"]):
                     perception_segmentation_overlay = gr.Image(label="灾情感知图（环境区域叠加图）")
                     perception_segmentation_status = gr.Textbox(label="环境区域识别状态（分割来源是否可用）", lines=6)
                     perception_transformer_summary = gr.Textbox(label="备用模型对比摘要", lines=6)
@@ -2345,6 +2355,20 @@ AeroRescue-AI 是面向低空无人机应急救援场景的智能感知（让系
                 perception_segmentation_summary,
                 perception_ranking,
             ],
+        )
+        s2_result_popup_btn.click(
+            fn=None,
+            inputs=[
+                s2_result_title,
+                perception_scene_gate_status,
+                perception_segmentation_status,
+                perception_damage_summary,
+                perception_scene_mode,
+                perception_rescue_entry,
+                perception_transformer_summary,
+            ],
+            outputs=[],
+            js=RESULT_POPUP_JS,
         )
 
         with gr.Accordion("灾后场景分割与损毁评估（训练 checkpoint 推理 / 上传掩码）", open=False):
@@ -2456,7 +2480,9 @@ AeroRescue-AI 是面向低空无人机应急救援场景的智能感知（让系
                         placeholder="运行后显示生成状态和关键提示。",
                         elem_classes=["compact-status"],
                     )
-                    with gr.Accordion("查看目标检测结果", open=False, elem_classes=["stage-result-window"]):
+                    s4_image_result_title = gr.Textbox(value="S4 图片目标检测结果", visible=False)
+                    s4_image_result_popup_btn = gr.Button("打开结果窗口", variant="secondary")
+                    with gr.Accordion("页面内结果备份", open=False, elem_classes=["stage-result-window"]):
                         output_image = gr.Image(label="处理后图像")
                         output_transformer_summary = gr.Textbox(
                             label="备用模型对比摘要（Transformer 输出、失败原因或一致性分析）",
@@ -2487,6 +2513,12 @@ AeroRescue-AI 是面向低空无人机应急救援场景的智能感知（让系
                     output_report,
                 ],
             )
+            s4_image_result_popup_btn.click(
+                fn=None,
+                inputs=[s4_image_result_title, output_report, output_transformer_summary],
+                outputs=[],
+                js=RESULT_POPUP_JS,
+            )
 
         with gr.Group(visible=False) as video_detection_group:
             gr.Markdown(
@@ -2516,13 +2548,21 @@ AeroRescue-AI 是面向低空无人机应急救援场景的智能感知（让系
                     video_btn = gr.Button("运行视频目标检测", variant="primary")
                 with gr.Column():
                     output_predictions = gr.Textbox(label="生成状态", lines=3, placeholder="运行后显示生成状态和目标摘要。", elem_classes=["compact-status"])
-                    with gr.Accordion("查看视频检测结果", open=False, elem_classes=["stage-result-window"]):
+                    s4_video_result_title = gr.Textbox(value="S4 视频目标检测结果", visible=False)
+                    s4_video_result_popup_btn = gr.Button("打开结果窗口", variant="secondary")
+                    with gr.Accordion("页面内结果备份", open=False, elem_classes=["stage-result-window"]):
                         output_video = gr.Video(label="处理后视频", autoplay=True)
 
             video_btn.click(
                 fn=video_detection_with_source,
                 inputs=[s4_video_source, imported_video, s4_stage_video, video_conf_threshold, video_model, frame_skip, max_frames],
                 outputs=[output_video, output_predictions],
+            )
+            s4_video_result_popup_btn.click(
+                fn=None,
+                inputs=[s4_video_result_title, output_predictions],
+                outputs=[],
+                js=RESULT_POPUP_JS,
             )
 
         detection_input_mode.change(
