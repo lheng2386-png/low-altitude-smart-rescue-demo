@@ -95,7 +95,7 @@ def main():
         assert "orthophoto_tif" in outputs
         assert "point_cloud_ply" in outputs
 
-    print("AeroRescue-AI ODM service smoke test passed.")
+    print("灾情感知及影响评估 ODM service smoke test passed.")
 
 
 if __name__ == "__main__":

@@ -263,7 +263,7 @@ def _parse_bool(value: str | bool) -> bool:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Run AeroRescue-AI reconstruction workflow.")
+    parser = argparse.ArgumentParser(description="Run 灾情感知及影响评估 reconstruction workflow.")
     parser.add_argument("--mode", required=True, choices=sorted(MODES))
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--video")

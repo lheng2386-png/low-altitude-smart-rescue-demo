@@ -153,14 +153,14 @@ def main():
             stage_results=_stage_results(),
             ledger=_ledger(),
         )
-        assert report_data["report_title"] == "AeroRescue-AI Final Report 2.0"
+        assert report_data["report_title"] == "灾情感知及影响评估 Final Report 2.0"
         assert report_data["report_type"] == "AI-assisted decision-support report"
         assert report_data["priority_recommendations"]
         assert report_data["truthfulness_boundaries"]
         assert "not a final rescue conclusion" in report_data["final_notice"]
 
         markdown = render_final_report_markdown(report_data)
-        assert "AeroRescue-AI Final Report 2.0" in markdown
+        assert "灾情感知及影响评估 Final Report 2.0" in markdown
         assert "任务基本信息" in markdown
         assert "EC-TERP" in markdown
         assert "真实性边界" in markdown
@@ -207,7 +207,7 @@ def main():
         empty_markdown = Path(empty_result["report_markdown_path"]).read_text(encoding="utf-8")
         assert "No stage evidence is available" in empty_markdown or "report is limited" in empty_markdown
 
-    print("AeroRescue-AI phase 9 evidence report smoke test passed.")
+    print("灾情感知及影响评估 phase 9 evidence report smoke test passed.")
 
 
 if __name__ == "__main__":

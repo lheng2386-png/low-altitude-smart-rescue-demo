@@ -1,4 +1,4 @@
-"""Runtime state helpers for the AeroRescue-AI rescue workflow."""
+"""Runtime state helpers for the 灾情感知及影响评估 rescue workflow."""
 
 from __future__ import annotations
 

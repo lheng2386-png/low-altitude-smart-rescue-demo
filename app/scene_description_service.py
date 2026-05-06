@@ -60,7 +60,7 @@ def generate_scene_description(
     ollama_model="llama3.2",
 ):
     """Generate a markdown disaster-scene description with Ollama fallback."""
-    task_name = task_name or "AeroRescue-AI 应急救援任务"
+    task_name = task_name or "灾情感知及影响评估 应急救援任务"
     scene_note = scene_note or "未填写人工场景说明。"
     detection_text = detection_report_text or "尚未提供目标检测与综合决策报告。"
     thermal_text = _read_text_or_json(thermal_json_file) or "热红外分析模块尚未执行。"

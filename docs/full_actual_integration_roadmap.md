@@ -2,9 +2,9 @@
 
 ## 1. Project Goal
 
-AeroRescue-AI aims to become a low-altitude UAV disaster rescue decision-support system with real engineering integration across perception, path planning, search evaluation, damage assessment, and impact modeling repositories.
+灾情感知及影响评估 aims to become a low-altitude UAV disaster rescue decision-support system with real engineering integration across perception, path planning, search evaluation, damage assessment, and impact modeling repositories.
 
-This roadmap does not claim that every external repository is already executable inside AeroRescue-AI. It defines the path from reference-only knowledge to reproducible demos, adapters, unified schemas, evaluation, Evidence Ledger integration, and Final Report integration.
+This roadmap does not claim that every external repository is already executable inside 灾情感知及影响评估. It defines the path from reference-only knowledge to reproducible demos, adapters, unified schemas, evaluation, Evidence Ledger integration, and Final Report integration.
 
 ## 2. Integration Principles
 
@@ -58,7 +58,7 @@ Reproduce each external repository's official demo outside the main application.
 
 ### Phase 2: Adapter Wrapping
 
-Create small adapters that normalize inputs and outputs into AeroRescue-AI schemas. Adapters must preserve repository/source metadata and truthfulness notes.
+Create small adapters that normalize inputs and outputs into 灾情感知及影响评估 schemas. Adapters must preserve repository/source metadata and truthfulness notes.
 
 ### Phase 3: Unified Demo Dataset
 

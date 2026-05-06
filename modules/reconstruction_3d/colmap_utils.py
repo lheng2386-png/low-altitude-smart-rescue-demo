@@ -1,4 +1,4 @@
-"""Shared COLMAP helpers for AeroRescue-AI reconstruction pipelines."""
+"""Shared COLMAP helpers for 灾情感知及影响评估 reconstruction pipelines."""
 
 from __future__ import annotations
 

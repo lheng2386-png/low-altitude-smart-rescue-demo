@@ -1,6 +1,6 @@
 {
   "repository_key": "yolo_rescue_targets",
-  "repository_name": "AeroRescue-AI local YOLO Rescue Targets",
+  "repository_name": "灾情感知及影响评估 local YOLO Rescue Targets",
   "current_state": "blocked_by_checkpoint",
   "target_final_state": "executable_integration",
   "dependency_status": "optional",

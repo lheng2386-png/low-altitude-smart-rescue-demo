@@ -1,4 +1,4 @@
-"""Static validation roadmap for AeroRescue-AI.
+"""Static validation roadmap for 灾情感知及影响评估.
 
 This module records what is already an engineering workflow, what remains
 demo/mock/lightweight, and which real model or experimental validations should

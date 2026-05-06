@@ -64,7 +64,7 @@ def main():
     assert overlay is not None
     assert overlay.shape == image.shape
 
-    print("AeroRescue-AI optional cv2 path planner smoke test passed.")
+    print("灾情感知及影响评估 optional cv2 path planner smoke test passed.")
 
 
 if __name__ == "__main__":

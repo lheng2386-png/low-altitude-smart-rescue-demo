@@ -47,7 +47,7 @@ def main():
     level = classify_damage_level(stats)
     assert level in {"Superficial Damage", "Medium Damage", "Major Damage", "Unknown"}
 
-    print("AeroRescue-AI auto segmentation smoke test passed.")
+    print("灾情感知及影响评估 auto segmentation smoke test passed.")
 
 
 if __name__ == "__main__":

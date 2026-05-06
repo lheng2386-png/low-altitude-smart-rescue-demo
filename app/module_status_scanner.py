@@ -1,4 +1,4 @@
-"""Module execution status scanner for AeroRescue-AI.
+"""Module execution status scanner for 灾情感知及影响评估.
 
 This scanner infers module status from outputs/ artifacts and JSON metadata.
 It does not assume code existence means execution success.

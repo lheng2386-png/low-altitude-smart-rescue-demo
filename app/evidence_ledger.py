@@ -1,4 +1,4 @@
-"""Evidence ledger utilities for AeroRescue-AI mission outputs.
+"""Evidence ledger utilities for 灾情感知及影响评估 mission outputs.
 
 The ledger records what each module consumed, produced, and can truthfully
 claim. It is designed for human review and report traceability rather than

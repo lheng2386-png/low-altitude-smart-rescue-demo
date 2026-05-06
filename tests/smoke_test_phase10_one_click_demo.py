@@ -75,7 +75,7 @@ def main():
         assert result["stage_results"]["rescue_recommendation"]["recommendation_summary"]["recommendation_count"] >= 1
 
         markdown = Path(result["final_report_markdown_path"]).read_text(encoding="utf-8")
-        assert "AeroRescue-AI Final Report 2.0" in markdown
+        assert "灾情感知及影响评估 Final Report 2.0" in markdown
         assert "AI 辅助决策报告" in markdown
         assert "不构成最终救援结论" in markdown
 
@@ -91,7 +91,7 @@ def main():
         assert "AI candidates are not confirmed civilians." in joined_notes
         assert "Final Report is an AI-assisted decision-support report and not a final rescue conclusion." in joined_notes
 
-    print("AeroRescue-AI phase 10 one-click demo smoke test passed.")
+    print("灾情感知及影响评估 phase 10 one-click demo smoke test passed.")
 
 
 if __name__ == "__main__":

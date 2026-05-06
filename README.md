@@ -1,12 +1,12 @@
-# AeroRescue-AI
+# 灾情感知及影响评估
 
-**AeroRescue-AI：面向低空应急救援的无人机多模态灾情识别与辅助决策系统**
+**灾情感知及影响评估：面向低空应急救援的无人机多模态灾情识别与辅助决策系统**
 
-AeroRescue-AI is a competition-stage low-altitude UAV emergency rescue AI system. It fuses mature open-source platform workflow ideas, YOLOv11 disaster target detection, post-disaster model-comparison structures, RescueNet-style semantic segmentation, TERP rescue priority modeling, risk-aware image-plane access planning, and Chinese rescue report generation into one unified decision-support prototype.
+灾情感知及影响评估 is a competition-stage low-altitude UAV emergency rescue AI system. It fuses mature open-source platform workflow ideas, YOLOv11 disaster target detection, post-disaster model-comparison structures, RescueNet-style semantic segmentation, TERP rescue priority modeling, risk-aware image-plane access planning, and Chinese rescue report generation into one unified decision-support prototype.
 
 <div align="center">
 
-<img src="static/images/showcase/aerorescue_gradio_interface.png" alt="AeroRescue-AI interface" width="860"/>
+<img src="static/images/showcase/aerorescue_gradio_interface.png" alt="灾情感知及影响评估 interface" width="860"/>
 
 </div>
 
@@ -21,9 +21,9 @@ UAV Image / Video
 → Platform-style Case Archive
 ```
 
-## What Is AeroRescue-AI
+## What Is 灾情感知及影响评估
 
-AeroRescue-AI is not just a loose Gradio demo. It is a competition-stage prototype for low-altitude UAV emergency rescue. The current local application demonstrates the complete closed loop:
+灾情感知及影响评估 is not just a loose Gradio demo. It is a competition-stage prototype for low-altitude UAV emergency rescue. The current local application demonstrates the complete closed loop:
 
 1. Upload UAV-style disaster imagery.
 2. Detect civilians, rescuers, and animals.
@@ -37,7 +37,7 @@ The current system is still local and prototype-oriented. It is not a deployed c
 
 ## Full Deep Fusion
 
-AeroRescue-AI now integrates mature reference material as concrete project files instead of leaving the four repositories as light citations.
+灾情感知及影响评估 now integrates mature reference material as concrete project files instead of leaving the four repositories as light citations.
 
 | Fusion Source | Integrated Role | Concrete Project Integration |
 | --- | --- | --- |
@@ -68,7 +68,7 @@ See:
 
 ## Detection Gallery
 
-The detection module uses the six disaster-response classes `civilian`, `rescuer`, `dog`, `cat`, `horse`, and `cow`. The active AeroRescue-AI app keeps local YOLOv11 weights under `models/<variant>/best.pt` and does not download models at runtime.
+The detection module uses the six disaster-response classes `civilian`, `rescuer`, `dog`, `cat`, `horse`, and `cow`. The active 灾情感知及影响评估 app keeps local YOLOv11 weights under `models/<variant>/best.pt` and does not download models at runtime.
 
 <div align="center">
 
@@ -84,7 +84,7 @@ The detection module uses the six disaster-response classes `civilian`, `rescuer
 
 </div>
 
-Reference figures above are used as detection-module presentation assets. AeroRescue-AI generated outputs are stored separately under `static/images/showcase/`.
+Reference figures above are used as detection-module presentation assets. 灾情感知及影响评估 generated outputs are stored separately under `static/images/showcase/`.
 
 ## Segmentation Gallery
 
@@ -145,7 +145,7 @@ Mission Dashboard
 
 The current product is a platform-inspired prototype. It does not claim to run a full cloud platform.
 
-## AeroRescue-AI Innovations
+## 灾情感知及影响评估 Innovations
 
 | Innovation | Description |
 | --- | --- |
@@ -169,8 +169,8 @@ Generated outputs are available under `static/images/showcase/`.
 
 <div align="center">
 
-<img src="static/images/showcase/case_01_flood/detection_overlay.png" alt="AeroRescue-AI generated detection output" width="390"/>
-<img src="static/images/showcase/case_01_flood/dual_path_overlay.png" alt="AeroRescue-AI generated path comparison" width="390"/>
+<img src="static/images/showcase/case_01_flood/detection_overlay.png" alt="灾情感知及影响评估 generated detection output" width="390"/>
+<img src="static/images/showcase/case_01_flood/dual_path_overlay.png" alt="灾情感知及影响评估 generated path comparison" width="390"/>
 
 </div>
 
@@ -332,7 +332,7 @@ app/                         Gradio app and decision modules
 modules/reconstruction_3d/   Real 3D reconstruction wrappers and reports
 integrated_modules/          Copied / migrated reference code and README material
 static/images/reference/     Reference assets separated by source
-static/images/showcase/      AeroRescue-AI generated outputs
+static/images/showcase/      灾情感知及影响评估 generated outputs
 platform/                    Platform-inspired dashboard and workflow mockups
 model_comparison/            Detection benchmark and reference-result module
 segmentation_reference/      Segmentation classes, palette, and sample assets
@@ -347,7 +347,7 @@ docs/                        Static site and design documents
 - No real road network, GIS engine, UAV localization, or flight-control system is connected.
 - 3D reconstruction wrappers do not invent point clouds, camera poses, ODM outputs, GPS routes, or reconstruction success.
 - Automatic segmentation requires a trained local checkpoint; without one, the system falls back to uploaded masks or no segmentation.
-- Reference benchmark figures are not AeroRescue-AI reproduced results.
+- Reference benchmark figures are not 灾情感知及影响评估 reproduced results.
 - Manual demo masks are not automatic segmentation predictions.
 
 ## LLM Safety Regression Tests

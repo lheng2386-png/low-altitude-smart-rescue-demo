@@ -1,4 +1,4 @@
-"""Workflow stage wrappers for AeroRescue-AI."""
+"""Workflow stage wrappers for 灾情感知及影响评估."""
 
 from .global_mapping_stage import run_global_mapping_stage
 from .macro_analysis_stage import run_macro_analysis_stage

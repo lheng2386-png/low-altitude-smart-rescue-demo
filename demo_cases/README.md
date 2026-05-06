@@ -1,6 +1,6 @@
 # Demo Cases
 
-This directory defines 3-5 complete AeroRescue-AI competition demo cases. The generated visual outputs are written to `static/images/showcase/<case_id>/` by the offline script.
+This directory defines 3-5 complete 灾情感知及影响评估 competition demo cases. The generated visual outputs are written to `static/images/showcase/<case_id>/` by the offline script.
 
 ## Generate Showcase Outputs
 

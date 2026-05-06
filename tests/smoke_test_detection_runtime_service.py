@@ -105,7 +105,7 @@ def main():
         assert saved["success"] is False
         assert not list(Path(tmpdir).glob("*.pt"))
 
-    print("AeroRescue-AI detection runtime service smoke test passed.")
+    print("灾情感知及影响评估 detection runtime service smoke test passed.")
 
 
 if __name__ == "__main__":

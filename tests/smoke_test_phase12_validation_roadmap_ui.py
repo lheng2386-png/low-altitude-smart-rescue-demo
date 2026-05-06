@@ -69,7 +69,7 @@ def main():
     assert "图像平面路径不是 GPS 导航路线。" in joined
     assert "AI 检测到的人只能称为候选目标" in joined
 
-    print("AeroRescue-AI phase 12 validation roadmap UI smoke test passed.")
+    print("灾情感知及影响评估 phase 12 validation roadmap UI smoke test passed.")
 
 
 if __name__ == "__main__":

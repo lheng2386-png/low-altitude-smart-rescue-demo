@@ -1,4 +1,4 @@
-"""One-click mission demo orchestrator for AeroRescue-AI.
+"""One-click mission demo orchestrator for 灾情感知及影响评估.
 
 This module chains current runnable stages without fabricating missing results.
 """

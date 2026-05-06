@@ -157,7 +157,7 @@ def main():
         ledger = build_mission_evidence_ledger(root_dir=root)
         assert ledger["evidence_records"]["ec_terp_ranking"]["evidence_level"] == "weak"
 
-    print("AeroRescue-AI EC-TERP integration smoke test passed.")
+    print("灾情感知及影响评估 EC-TERP integration smoke test passed.")
 
 
 if __name__ == "__main__":

@@ -137,7 +137,7 @@ def main():
     assert "EC-TERP = αT + βE + γR + δC + λQ - μU" in markdown
     assert "人工复核" in markdown or "真实性边界" in markdown
 
-    print("AeroRescue-AI EC-TERP smoke test passed.")
+    print("灾情感知及影响评估 EC-TERP smoke test passed.")
 
 
 if __name__ == "__main__":

@@ -75,7 +75,7 @@ def main():
     assert forced_gate["path_enabled"] is True
     assert forced_gate["start_source"] == "manual_force"
 
-    print("AeroRescue-AI scene mode and rescue entry smoke test passed.")
+    print("灾情感知及影响评估 scene mode and rescue entry smoke test passed.")
 
 
 if __name__ == "__main__":

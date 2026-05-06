@@ -1,4 +1,4 @@
-"""Inference service for locally trained AeroRescue-AI segmentation checkpoints."""
+"""Inference service for locally trained 灾情感知及影响评估 segmentation checkpoints."""
 
 import sys
 from pathlib import Path

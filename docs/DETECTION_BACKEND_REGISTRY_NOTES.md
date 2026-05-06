@@ -2,7 +2,7 @@
 
 ## Why This Registry Exists
 
-AeroRescue-AI uses a detection backend registry to keep rescue detection capabilities separated and truthful.
+灾情感知及影响评估 uses a detection backend registry to keep rescue detection capabilities separated and truthful.
 
 The registry helps distinguish:
 
@@ -11,7 +11,7 @@ The registry helps distinguish:
 - future training targets;
 - reference-only projects.
 
-This prevents reference projects or planned models from being presented as current AeroRescue-AI outputs.
+This prevents reference projects or planned models from being presented as current 灾情感知及影响评估 outputs.
 
 ## Current Main Backend
 
@@ -91,7 +91,7 @@ These projects are search-and-rescue person detection references.
 Current status:
 
 - reference only;
-- not integrated as AeroRescue-AI runtime outputs;
+- not integrated as 灾情感知及影响评估 runtime outputs;
 - not allowed to enter TERP or path planning as current model results.
 
 ## Truthfulness Boundaries
@@ -99,7 +99,7 @@ Current status:
 - Do not fake checkpoints.
 - Do not fake mAP, precision, recall, FPS, or latency.
 - Do not treat `human_candidate` as confirmed `civilian`.
-- Do not present reference figures as reproduced AeroRescue-AI results.
+- Do not present reference figures as reproduced 灾情感知及影响评估 results.
 - Do not present planned backends as current capabilities.
 
 ## Competition Wording

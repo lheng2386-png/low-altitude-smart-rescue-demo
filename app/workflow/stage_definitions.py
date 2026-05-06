@@ -1,4 +1,4 @@
-"""Nine-stage rescue workflow definitions for AeroRescue-AI.
+"""Nine-stage rescue workflow definitions for 灾情感知及影响评估.
 
 These definitions describe what each stage can truthfully represent in a
 low-altitude disaster response workflow. They intentionally keep preview,

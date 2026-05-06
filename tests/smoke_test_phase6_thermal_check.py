@@ -140,7 +140,7 @@ def main():
         assert "must not invent thermal hotspots" in empty_result["truthfulness_note"]
         assert "The system must not invent thermal hotspots or temperature values." in empty_result["truthfulness_note"]
 
-    print("AeroRescue-AI phase 6 thermal check smoke test passed.")
+    print("灾情感知及影响评估 phase 6 thermal check smoke test passed.")
 
 
 if __name__ == "__main__":

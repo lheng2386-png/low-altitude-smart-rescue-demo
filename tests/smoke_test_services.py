@@ -68,9 +68,9 @@ def main():
     assert "综合报告已生成" in report_status
     assert Path(md_path).exists()
     assert Path(html_path).exists()
-    assert "AeroRescue-AI 综合救援报告" in preview
+    assert "灾情感知及影响评估 综合救援报告" in preview
 
-    print("AeroRescue-AI service smoke test passed.")
+    print("灾情感知及影响评估 service smoke test passed.")
 
 
 if __name__ == "__main__":

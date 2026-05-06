@@ -1,4 +1,4 @@
-"""Mission Dashboard panel for the AeroRescue-AI rescue workflow.
+"""Mission Dashboard panel for the 灾情感知及影响评估 rescue workflow.
 
 This module only formats and displays mission/workflow state. It does not run
 YOLO, ODM, thermal analysis, segmentation, EC-TERP, path planning, or reports.
@@ -19,7 +19,7 @@ except ImportError:  # pragma: no cover - supports direct app/ path imports.
 WORKFLOW_DASHBOARD_INTRO = """
 ## 任务总览
 
-AeroRescue-AI 按真实救援任务组织：高空建图 → 灾情感知 → 重点区域 → 局部精查 → 目标复核 → 热红外复查 → 决策融合 → 路径建议 → 证据报告。默认页面只展示主线状态，详细模块结果在各阶段页或折叠区查看。
+灾情感知及影响评估 按真实救援任务组织：高空建图 → 灾情感知 → 重点区域 → 局部精查 → 目标复核 → 热红外复查 → 决策融合 → 路径建议 → 证据报告。默认页面只展示主线状态，详细模块结果在各阶段页或折叠区查看。
 """
 
 DASHBOARD_TRUTHFULNESS_BOUNDARIES = [

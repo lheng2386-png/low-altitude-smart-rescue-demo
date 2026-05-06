@@ -1,4 +1,4 @@
-"""Convenience runner for the first three AeroRescue-AI rescue stages."""
+"""Convenience runner for the first three 灾情感知及影响评估 rescue stages."""
 
 from __future__ import annotations
 

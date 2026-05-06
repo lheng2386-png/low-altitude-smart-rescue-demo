@@ -151,7 +151,7 @@ def main():
     test_missing_detection_event_is_flagged_when_report_references_detection()
     test_llm_report_missing_human_review_is_flagged()
     test_audit_event_and_no_secret_leak()
-    print("AeroRescue-AI LLM evidence auditor test suite passed.")
+    print("灾情感知及影响评估 LLM evidence auditor test suite passed.")
 
 
 if __name__ == "__main__":

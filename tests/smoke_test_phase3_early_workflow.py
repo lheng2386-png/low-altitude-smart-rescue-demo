@@ -96,7 +96,7 @@ def main():
         assert mapping_result["base_map_type"] == "none"
         assert "No high-altitude overlapping RGB images were provided." in mapping_result["truthfulness_note"]
 
-    print("AeroRescue-AI phase 3 early workflow smoke test passed.")
+    print("灾情感知及影响评估 phase 3 early workflow smoke test passed.")
 
 
 if __name__ == "__main__":

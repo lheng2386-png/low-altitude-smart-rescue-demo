@@ -1,6 +1,6 @@
 # TERP And Risk-Aware A* Path Planning
 
-This document describes the current AeroRescue-AI decision model used to connect target detection, environmental understanding, route accessibility, and rescue reporting.
+This document describes the current 灾情感知及影响评估 decision model used to connect target detection, environmental understanding, route accessibility, and rescue reporting.
 
 ## Why TERP
 

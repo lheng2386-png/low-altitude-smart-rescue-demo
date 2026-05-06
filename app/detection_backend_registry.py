@@ -1,4 +1,4 @@
-"""Detection backend registry for AeroRescue-AI.
+"""Detection backend registry for 灾情感知及影响评估.
 
 The registry separates runnable model backends from planned or reference-only
 backends. It does not load models, download weights, or report metrics.
@@ -63,7 +63,7 @@ DETECTION_BACKENDS = {
         "can_enter_terp": False,
         "can_enter_path_planning": False,
         "requires_human_review": True,
-        "truthfulness_note": "AIR is a land search-and-rescue person detection reference project. It is not integrated as an active AeroRescue-AI backend.",
+        "truthfulness_note": "AIR is a land search-and-rescue person detection reference project. It is not integrated as an active 灾情感知及影响评估 backend.",
     },
     "qazi_disaster_management_reference": {
         "display_name": "Real-Time Disaster Management Reference",
@@ -75,7 +75,7 @@ DETECTION_BACKENDS = {
         "can_enter_terp": False,
         "can_enter_path_planning": False,
         "requires_human_review": True,
-        "truthfulness_note": "This disaster-management detector is a reference item only. It is not integrated as an active AeroRescue-AI backend.",
+        "truthfulness_note": "This disaster-management detector is a reference item only. It is not integrated as an active 灾情感知及影响评估 backend.",
     },
     "vtsar_dataset_reference": {
         "display_name": "VTSaR Aerial SAR Dataset Reference",
@@ -225,7 +225,7 @@ def check_detection_backend_availability(backend_key, root_dir=None):
         "status": config["status"],
         "missing_requirements": ["backend is planned or reference-only"],
         "available_variants": [],
-        "message": f"{config['display_name']} is {config['status']} and is not an active AeroRescue-AI runtime backend.",
+        "message": f"{config['display_name']} is {config['status']} and is not an active 灾情感知及影响评估 runtime backend.",
         "truthfulness_note": config["truthfulness_note"],
     }
 

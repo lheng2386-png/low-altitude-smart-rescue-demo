@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the one-click AeroRescue-AI LLM demo with mock fallback."""
+"""Run the one-click 灾情感知及影响评估 LLM demo with mock fallback."""
 
 import argparse
 import json
@@ -394,7 +394,7 @@ def _write_json(path: Path, payload: Any):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Run the AeroRescue-AI one-click LLM demo.")
+    parser = argparse.ArgumentParser(description="Run the 灾情感知及影响评估 one-click LLM demo.")
     parser.add_argument("--root-dir", default=str(ROOT_DIR), help="Repository-like root where outputs/ will be written.")
     parser.add_argument("--demo-dir", default=str(DEMO_DIR), help="Demo mission data directory.")
     args = parser.parse_args()

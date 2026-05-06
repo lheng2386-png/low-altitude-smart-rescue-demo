@@ -95,7 +95,7 @@ def main():
     else:
         assert result["is_model_output"] is True
 
-    print("AeroRescue-AI Transformer detection service smoke test passed.")
+    print("灾情感知及影响评估 Transformer detection service smoke test passed.")
 
 
 if __name__ == "__main__":

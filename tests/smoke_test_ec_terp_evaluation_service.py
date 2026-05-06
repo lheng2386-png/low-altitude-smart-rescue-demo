@@ -83,7 +83,7 @@ def main():
         warnings_text = Path(full["output_files"]["warnings_or_limitations"]).read_text(encoding="utf-8")
         assert "synthetic/demo" in warnings_text or "synthetic demo" in warnings_text
 
-    print("AeroRescue-AI EC-TERP evaluation smoke test passed.")
+    print("灾情感知及影响评估 EC-TERP evaluation smoke test passed.")
 
 
 if __name__ == "__main__":

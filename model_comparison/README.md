@@ -1,6 +1,6 @@
 # Model Comparison Module
 
-This module is no longer an empty scaffold. It contains copied reference assets, copied detector code structures, a local registry, and a clear separation between reference results and AeroRescue-AI reproduced results.
+This module is no longer an empty scaffold. It contains copied reference assets, copied detector code structures, a local registry, and a clear separation between reference results and 灾情感知及影响评估 reproduced results.
 
 ## What Is Included
 
@@ -17,7 +17,7 @@ This module is no longer an empty scaffold. It contains copied reference assets,
 
 ## Result Policy
 
-Reference rows are marked `reference_not_reproduced`. They are useful for report structure and benchmark planning, but they are not presented as AeroRescue-AI reproduced metrics.
+Reference rows are marked `reference_not_reproduced`. They are useful for report structure and benchmark planning, but they are not presented as 灾情感知及影响评估 reproduced metrics.
 
 ## Candidate Models
 

@@ -31,7 +31,7 @@ The check verifies:
 - whether Docker is available;
 - whether `opendronemap/odm:latest` is available locally.
 
-If either check fails, AeroRescue-AI reports the reason and does not fabricate ODM outputs.
+If either check fails, 灾情感知及影响评估 reports the reason and does not fabricate ODM outputs.
 
 ## Expected ODM Outputs
 

@@ -70,7 +70,7 @@ def main():
             else:
                 os.environ[key] = value
 
-    print("AeroRescue-AI LLM mission report assistant smoke test passed.")
+    print("灾情感知及影响评估 LLM mission report assistant smoke test passed.")
 
 
 if __name__ == "__main__":

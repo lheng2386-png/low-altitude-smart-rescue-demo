@@ -53,7 +53,7 @@ def main():
 
     with tempfile.TemporaryDirectory() as tmp:
         report_path = Path(tmp) / "final_report.md"
-        report_path.write_text("# AeroRescue-AI Final Report 2.0\n\nAI 辅助决策报告", encoding="utf-8")
+        report_path.write_text("# 灾情感知及影响评估 Final Report 2.0\n\nAI 辅助决策报告", encoding="utf-8")
         preview = load_final_report_preview(report_path)
         assert "Final Report 2.0" in preview
         assert "Final Report 尚未生成" in load_final_report_preview(Path(tmp) / "missing.md")
@@ -74,7 +74,7 @@ def main():
         assert "candidate_count" in candidate_markdown
         shutil.rmtree(smoke_root, ignore_errors=True)
 
-    print("AeroRescue-AI phase 11 mission control UI smoke test passed.")
+    print("灾情感知及影响评估 phase 11 mission control UI smoke test passed.")
 
 
 if __name__ == "__main__":

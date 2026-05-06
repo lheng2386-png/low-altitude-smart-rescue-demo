@@ -125,7 +125,7 @@ def main():
 
         assert safe_read_json(root / "outputs" / "missing.json") is None
 
-    print("AeroRescue-AI module status scanner smoke test passed.")
+    print("灾情感知及影响评估 module status scanner smoke test passed.")
 
 
 if __name__ == "__main__":

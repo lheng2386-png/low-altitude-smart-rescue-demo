@@ -108,7 +108,7 @@ def main():
         assert mission["workflow_state"]["stages"]["macro_analysis"]["status"] == "failed"
         assert mission["workflow_state"]["stages"]["macro_analysis"]["error"] == "Smoke test failure"
 
-    print("AeroRescue-AI rescue workflow smoke test passed.")
+    print("灾情感知及影响评估 rescue workflow smoke test passed.")
 
 
 if __name__ == "__main__":

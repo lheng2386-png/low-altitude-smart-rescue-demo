@@ -16,7 +16,7 @@ DEFAULT_MISSIONS_ROOT = ROOT_DIR / "outputs" / "demo_missions"
 MISSION_CONTROL_INTRO = """
 ## 一键任务演示
 
-AeroRescue-AI 一键任务演示用于跑通完整的低空无人机灾情智能辅助决策流程。该演示使用明确标注的演示、模拟或导入数据跑通 S1-S9 工作流，仅用于流程验证和比赛展示，不代表真实救援现场结论。
+灾情感知及影响评估 一键任务演示用于跑通完整的低空无人机灾情智能辅助决策流程。该演示使用明确标注的演示、模拟或导入数据跑通 S1-S9 工作流，仅用于流程验证和比赛展示，不代表真实救援现场结论。
 """.strip()
 
 FINAL_REPORT_PREVIEW_NOTICE = (
@@ -252,7 +252,7 @@ def run_one_click_demo_from_ui(missions_root, mission_name):
             from demo.one_click_mission_orchestrator import run_one_click_demo_mission
 
         missions_root = resolve_allowed_missions_root(missions_root)
-        mission_name = mission_name or "AeroRescue-AI One-Click Demo Mission"
+        mission_name = mission_name or "灾情感知及影响评估 One-Click Demo Mission"
         demo_result = run_one_click_demo_mission(
             missions_root=missions_root,
             mission_name=mission_name,
@@ -286,7 +286,7 @@ def attach_mission_control_panel():
     with gr.Accordion("1. 输入与运行", open=False):
         mission_name = gr.Textbox(
             label="任务名称",
-            value="AeroRescue-AI 一键演示任务",
+            value="灾情感知及影响评估 一键演示任务",
         )
         missions_root = gr.Textbox(
             label="任务输出目录",

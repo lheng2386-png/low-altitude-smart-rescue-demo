@@ -153,7 +153,7 @@ def main():
     test_standard_workflow_dependency_missing_is_transparent()
     test_odm_workflow_success_propagates_only_from_pipeline_status()
     test_dependency_panel_reports_script_missing_without_crash()
-    print("AeroRescue-AI reconstruction workflow tests passed.")
+    print("灾情感知及影响评估 reconstruction workflow tests passed.")
 
 
 if __name__ == "__main__":

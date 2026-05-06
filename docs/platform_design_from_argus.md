@@ -1,10 +1,10 @@
 # Platform Design Derived From Mature UAV Rescue Workflow
 
-AeroRescue-AI uses the copied ARGUS frontend/backend structures in `integrated_modules/argus/` to shape a platform-style workflow.
+灾情感知及影响评估 uses the copied ARGUS frontend/backend structures in `integrated_modules/argus/` to shape a platform-style workflow.
 
 ## Migrated Structure
 
-| Copied Structure | AeroRescue-AI Use |
+| Copied Structure | 灾情感知及影响评估 Use |
 | --- | --- |
 | Home / overview pages | Mission dashboard and case overview |
 | Report page | Rescue report center |

@@ -1,2 +1,2 @@
-"""Validation roadmap data for AeroRescue-AI."""
+"""Validation roadmap data for 灾情感知及影响评估."""
 

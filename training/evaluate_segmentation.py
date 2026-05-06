@@ -1,4 +1,4 @@
-"""Evaluate AeroRescue-AI segmentation checkpoints."""
+"""Evaluate 灾情感知及影响评估 segmentation checkpoints."""
 
 import argparse
 import json
@@ -87,7 +87,7 @@ def save_preview(image_path, gt_mask_path, pred_mask, output_path):
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Evaluate a local AeroRescue-AI segmentation checkpoint.")
+    parser = argparse.ArgumentParser(description="Evaluate a local 灾情感知及影响评估 segmentation checkpoint.")
     parser.add_argument("--data_root", "--data-root", default="data/segmentation")
     parser.add_argument("--checkpoint", default="outputs/segmentation_training/checkpoints/best.pth")
     parser.add_argument("--split", default="val", choices=["train", "val", "test"])

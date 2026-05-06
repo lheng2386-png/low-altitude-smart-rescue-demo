@@ -7,7 +7,7 @@
 
 ## Adapter Plan
 - Expected adapter file: `app/detection_runtime_service.py`
-- Wrap inputs and outputs into AeroRescue-AI schemas only after real outputs exist.
+- Wrap inputs and outputs into 灾情感知及影响评估 schemas only after real outputs exist.
 - Preserve source metadata and truthfulness notes in every output.
 
 ## Roadmap

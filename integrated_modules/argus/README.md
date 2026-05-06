@@ -1,6 +1,6 @@
 # ARGUS Fusion Package
 
-This folder stores ARGUS-derived platform workflow material integrated into AeroRescue-AI.
+This folder stores ARGUS-derived platform workflow material integrated into 灾情感知及影响评估.
 
 ## Copied Material
 
@@ -21,9 +21,9 @@ This folder stores ARGUS-derived platform workflow material integrated into Aero
 - `code/stella_sparse.yaml`, `code/stella_dense_fast.yaml`: copied reconstruction presets.
 - `code/yolo_sliding_window_inference.py`: copied YOLO sliding-window inference structure.
 
-## AeroRescue-AI Integration
+## 灾情感知及影响评估 Integration
 
-AeroRescue-AI does not run the full ARGUS stack. Instead, this material is used to upgrade the project from a single demo screen into a platform-inspired rescue workflow:
+灾情感知及影响评估 does not run the full ARGUS stack. Instead, this material is used to upgrade the project from a single demo screen into a platform-inspired rescue workflow:
 
 1. Mission / case creation.
 2. UAV image and video upload.

@@ -140,7 +140,7 @@ def main():
         assert "must not invent candidates" in empty_result["truthfulness_note"]
         assert "The system must not invent candidates or review decisions." in empty_result["truthfulness_note"]
 
-    print("AeroRescue-AI phase 5 target verification smoke test passed.")
+    print("灾情感知及影响评估 phase 5 target verification smoke test passed.")
 
 
 if __name__ == "__main__":

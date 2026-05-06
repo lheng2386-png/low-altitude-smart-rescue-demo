@@ -117,7 +117,7 @@ def main():
     test_video_to_frames_missing_input_metadata()
     test_odm_command_prepared_and_outputs_only_existing()
     test_reconstruction_report_generation()
-    print("AeroRescue-AI 3D reconstruction unit tests passed.")
+    print("灾情感知及影响评估 3D reconstruction unit tests passed.")
 
 
 if __name__ == "__main__":

@@ -58,7 +58,7 @@ def build_report(
     output_availability = _output_availability(reconstruction_status.get("outputs") or {})
     limitations = _unique_texts(TRUTHFULNESS_BOUNDARIES + list(reconstruction_status.get("limitations") or []))
     return {
-        "report_type": "AeroRescue-AI 3D Reconstruction Report",
+        "report_type": "灾情感知及影响评估 3D Reconstruction Report",
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "source_video": source_video,
         "input_type": reconstruction_status.get("input_type", "unknown"),
@@ -128,7 +128,7 @@ def render_markdown(report: dict[str, Any]) -> str:
     reconstruction = report.get("reconstruction") or {}
     outputs = reconstruction.get("outputs") or {}
     lines = [
-        "# AeroRescue-AI 3D Reconstruction Report",
+        "# 灾情感知及影响评估 3D Reconstruction Report",
         "",
         f"- Generated UTC: {report.get('generated_at_utc')}",
         f"- Source video: {report.get('source_video') or 'not provided'}",

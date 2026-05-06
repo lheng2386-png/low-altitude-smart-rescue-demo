@@ -1,6 +1,6 @@
 # Urban Disaster Monitor Fusion Package
 
-This folder stores the migrated detection-demo material used to strengthen AeroRescue-AI's YOLOv11 disaster target detection module.
+This folder stores the migrated detection-demo material used to strengthen 灾情感知及影响评估's YOLOv11 disaster target detection module.
 
 ## Copied Material
 
@@ -13,7 +13,7 @@ This folder stores the migrated detection-demo material used to strengthen AeroR
 
 ## Integrated Function
 
-AeroRescue-AI already uses the six disaster-response classes:
+灾情感知及影响评估 already uses the six disaster-response classes:
 
 - `civilian`
 - `rescuer`

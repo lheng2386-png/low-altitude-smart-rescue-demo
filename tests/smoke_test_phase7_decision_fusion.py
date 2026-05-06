@@ -74,7 +74,7 @@ def main():
         assert empty_result["status"] == "degraded"
         assert "must not invent priority rankings" in empty_result["truthfulness_note"]
 
-    print("AeroRescue-AI phase 7 decision fusion smoke test passed.")
+    print("灾情感知及影响评估 phase 7 decision fusion smoke test passed.")
 
 
 if __name__ == "__main__":

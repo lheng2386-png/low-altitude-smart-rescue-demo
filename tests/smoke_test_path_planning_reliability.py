@@ -78,7 +78,7 @@ def main():
     assert "规则判断" in text
     assert "Mask" in text
 
-    print("AeroRescue-AI path planning reliability smoke test passed.")
+    print("灾情感知及影响评估 path planning reliability smoke test passed.")
 
 
 if __name__ == "__main__":

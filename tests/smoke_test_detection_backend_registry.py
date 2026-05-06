@@ -57,7 +57,7 @@ def main():
     assert "confirmed civilian" in summary or "人工复核" in summary
     assert "参考" in summary or "未来训练" in summary
 
-    print("AeroRescue-AI detection backend registry smoke test passed.")
+    print("灾情感知及影响评估 detection backend registry smoke test passed.")
 
 
 if __name__ == "__main__":

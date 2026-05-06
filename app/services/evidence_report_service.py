@@ -352,7 +352,7 @@ def build_final_report_data(mission, mission_dir, stage_results=None, ledger=Non
             truthfulness_boundaries.append(boundary)
 
     return {
-        "report_title": "AeroRescue-AI Final Report 2.0",
+        "report_title": "灾情感知及影响评估 Final Report 2.0",
         "report_type": "AI-assisted decision-support report",
         "mission_summary": {
             "mission_id": (mission or {}).get("mission_id", ""),
@@ -413,7 +413,7 @@ def render_final_report_markdown(report_data):
     evidence_summary = report_data.get("evidence_summary", {}) or {}
 
     lines = [
-        "# AeroRescue-AI Final Report 2.0",
+        "# 灾情感知及影响评估 Final Report 2.0",
         "",
         "> 本报告为 AI 辅助决策报告，不构成最终救援结论；所有候选目标、路径建议和优先级排序均需由现场指挥人员与救援队人工复核。",
         "",

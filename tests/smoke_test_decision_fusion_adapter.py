@@ -67,7 +67,7 @@ def main():
     failed_impact = compute_segmentation_damage_impact_score(None, None)
     assert failed_impact["success"] is False
 
-    print("AeroRescue-AI decision fusion adapter smoke test passed.")
+    print("灾情感知及影响评估 decision fusion adapter smoke test passed.")
 
 
 if __name__ == "__main__":

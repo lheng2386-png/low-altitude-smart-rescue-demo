@@ -81,7 +81,7 @@ The following remain planned or reference-only and do not enter runtime:
 - zxq309 / VTSaR reference;
 - Post-Disaster Survivor YOLO future training backend.
 
-These resources may inform future work, but they are not current AeroRescue-AI model outputs.
+These resources may inform future work, but they are not current 灾情感知及影响评估 model outputs.
 
 ## Output Files
 

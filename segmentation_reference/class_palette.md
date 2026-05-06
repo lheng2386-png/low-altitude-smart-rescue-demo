@@ -1,6 +1,6 @@
 # RescueNet-Style Class Palette
 
-The active AeroRescue-AI segmentation layer uses 11 class ids.
+The active 灾情感知及影响评估 segmentation layer uses 11 class ids.
 
 | ID | Class | Chinese Name | Environment Risk | Path Cost |
 | --- | --- | --- | --- | --- |

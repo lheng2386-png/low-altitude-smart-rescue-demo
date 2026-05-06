@@ -1,6 +1,6 @@
 # Urban Rescue LLM Demo Mission
 
-This demo mission is a stable data pack for showing AeroRescue-AI LLM post-processing features during a competition demo.
+This demo mission is a stable data pack for showing 灾情感知及影响评估 LLM post-processing features during a competition demo.
 
 ## What It Contains
 

@@ -157,7 +157,7 @@ def main():
         scan_single = scan_single_module("detection", root)
         assert scan_single["status"] == "real_model_output"
 
-    print("AeroRescue-AI mission evidence ledger smoke test passed.")
+    print("灾情感知及影响评估 mission evidence ledger smoke test passed.")
 
 
 if __name__ == "__main__":

@@ -17,7 +17,7 @@ TARGET_CLASS_DISPLAY_NAMES = {
 
 TEXT = {
     "zh": {
-        "title": "AeroRescue-AI 灾情识别与救援辅助报告",
+        "title": "灾情感知及影响评估 灾情识别与救援辅助报告",
         "no_target": "当前图像未检测到明确救援目标。",
         "overview": "一、识别概况",
         "terp": "二、TERP 联合优先级评估",
@@ -72,7 +72,7 @@ TEXT = {
         ],
     },
     "en": {
-        "title": "AeroRescue-AI Disaster Recognition and Rescue Support Report",
+        "title": "灾情感知及影响评估 Disaster Recognition and Rescue Support Report",
         "no_target": "No clear rescue target was detected in the current image.",
         "overview": "1. Recognition Overview",
         "terp": "2. TERP Priority Assessment",

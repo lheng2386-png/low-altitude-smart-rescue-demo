@@ -1,2 +1,2 @@
-"""UI panels for AeroRescue-AI."""
+"""UI panels for 灾情感知及影响评估."""
 

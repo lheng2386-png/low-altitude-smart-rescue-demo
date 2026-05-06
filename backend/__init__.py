@@ -1,1 +1,1 @@
-"""Backend support modules for the AeroRescue-AI Gradio app."""
+"""Backend support modules for the 灾情感知及影响评估 Gradio app."""

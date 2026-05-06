@@ -253,7 +253,7 @@ def main():
     test_detect_odm_outputs_finds_existing_test_files()
     test_success_true_only_when_returncode_zero_and_expected_output_exists()
     test_odm_report_includes_truthfulness_boundaries()
-    print("AeroRescue-AI ODM pipeline tests passed.")
+    print("灾情感知及影响评估 ODM pipeline tests passed.")
 
 
 if __name__ == "__main__":

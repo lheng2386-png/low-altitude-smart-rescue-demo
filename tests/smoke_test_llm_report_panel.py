@@ -87,7 +87,7 @@ def main():
     finally:
         llm_report_panel.requests.post = original_post
 
-    print("AeroRescue-AI LLM report panel smoke test passed.")
+    print("灾情感知及影响评估 LLM report panel smoke test passed.")
 
 
 if __name__ == "__main__":

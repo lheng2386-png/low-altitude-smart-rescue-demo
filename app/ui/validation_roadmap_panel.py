@@ -1,4 +1,4 @@
-"""Validation Roadmap UI panel for AeroRescue-AI.
+"""Validation Roadmap UI panel for 灾情感知及影响评估.
 
 This panel is a static planning surface. It does not train models, download
 datasets, run YOLO, run ODM, parse real thermal files, or call LLM APIs.
@@ -27,7 +27,7 @@ except ImportError:  # pragma: no cover - supports app.py running with app/ on s
 ROADMAP_INTRO = """
 ## 真实能力验证路线图
 
-本面板用于记录 AeroRescue-AI 后续真实能力验证计划。当前系统已经具备 S1-S9 工作流闭环，但部分 AI 能力仍处于演示、模拟、导入或轻量验证状态。后续需要通过数据集、模型权重、指标和消融实验逐步验证。
+本面板用于记录 灾情感知及影响评估 后续真实能力验证计划。当前系统已经具备 S1-S9 工作流闭环，但部分 AI 能力仍处于演示、模拟、导入或轻量验证状态。后续需要通过数据集、模型权重、指标和消融实验逐步验证。
 """.strip()
 
 VALIDATION_TASK_HEADERS = [

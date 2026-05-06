@@ -96,7 +96,7 @@ def main():
             else:
                 os.environ[key] = value
 
-    print("AeroRescue-AI mission copilot smoke test passed.")
+    print("灾情感知及影响评估 mission copilot smoke test passed.")
 
 
 if __name__ == "__main__":

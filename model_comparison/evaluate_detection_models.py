@@ -57,7 +57,7 @@ def evaluate_registry(registry_path: Path, image_folder: Path, output_csv: Path,
         weights_path = ROOT_DIR / item.get("weights", "")
         row = {
             "model_name": item.get("name", "unknown"),
-            "source": "AeroRescue-AI" if item.get("type") == "ultralytics_yolo" else "Detection-Models reference",
+            "source": "灾情感知及影响评估" if item.get("type") == "ultralytics_yolo" else "Detection-Models reference",
             "result_type": "local_inference_summary" if item.get("type") == "ultralytics_yolo" else "reference_structure",
             "precision": "",
             "recall": "",
@@ -123,7 +123,7 @@ def evaluate_registry(registry_path: Path, image_folder: Path, output_csv: Path,
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="AeroRescue-AI local detection model comparison scaffold.")
+    parser = argparse.ArgumentParser(description="灾情感知及影响评估 local detection model comparison scaffold.")
     parser.add_argument("--registry", default=str(DEFAULT_REGISTRY), help="Path to model_registry.json.")
     parser.add_argument("--image-folder", default=str(ROOT_DIR / "app" / "examples"), help="Local image folder for inference summary.")
     parser.add_argument("--output", default=str(ROOT_DIR / "model_comparison" / "local_inference_summary.csv"), help="Output CSV path.")

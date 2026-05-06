@@ -64,7 +64,7 @@ def main():
     finally:
         mission_copilot_panel.requests.post = original_post
 
-    print("AeroRescue-AI mission copilot panel smoke test passed.")
+    print("灾情感知及影响评估 mission copilot panel smoke test passed.")
 
 
 if __name__ == "__main__":

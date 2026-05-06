@@ -70,7 +70,7 @@ def main():
         assert 0 <= train_miou <= 1
         assert 0 <= val_miou <= 1
 
-        print("AeroRescue-AI segmentation training smoke test passed.")
+        print("灾情感知及影响评估 segmentation training smoke test passed.")
 
 
 if __name__ == "__main__":

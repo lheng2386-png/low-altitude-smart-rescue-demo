@@ -132,7 +132,7 @@ def main():
         _assert_no_unsafe(json.dumps(audit_result, ensure_ascii=False))
         _assert_no_unsafe(json.dumps(summary, ensure_ascii=False))
 
-    print("AeroRescue-AI one-click LLM demo script smoke test passed.")
+    print("灾情感知及影响评估 one-click LLM demo script smoke test passed.")
 
 
 if __name__ == "__main__":

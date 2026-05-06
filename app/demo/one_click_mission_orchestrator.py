@@ -128,7 +128,7 @@ def _create_demo_mission(missions_root, mission_name):
 
 def run_one_click_demo_mission(
     missions_root,
-    mission_name="AeroRescue-AI One-Click Demo Mission",
+    mission_name="灾情感知及影响评估 One-Click Demo Mission",
     demo_output_root=None,
     workflow_mode="full_demo",
     run_mapping_preview=True,

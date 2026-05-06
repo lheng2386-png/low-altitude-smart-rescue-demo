@@ -196,7 +196,7 @@ def _clip_bbox(box, image_width, image_height):
 
 
 def normalize_transformer_detections(raw_results, image_width, image_height, model_key, confidence_threshold):
-    """Normalize Hugging Face object-detection outputs into AeroRescue-AI target records."""
+    """Normalize Hugging Face object-detection outputs into 灾情感知及影响评估 target records."""
     config = get_transformer_model_config(model_key)
     targets = []
     for item in raw_results or []:

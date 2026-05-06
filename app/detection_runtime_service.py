@@ -1,4 +1,4 @@
-"""Unified detection runtime adapter for AeroRescue-AI.
+"""Unified detection runtime adapter for 灾情感知及影响评估.
 
 This module executes only current runnable detection modes. Planned/reference
 backends remain registry entries and are not executed here.
@@ -518,7 +518,7 @@ def run_detection(
             confidence_threshold=float(confidence_threshold),
             truthfulness_note="This backend is planned or reference-only and is not executable in the current runtime.",
             error_code="REFERENCE_BACKEND_NOT_EXECUTABLE",
-            message=f"{detection_mode} is not an executable AeroRescue-AI detection runtime mode.",
+            message=f"{detection_mode} is not an executable 灾情感知及影响评估 detection runtime mode.",
         )
     return build_empty_detection_result(
         detection_mode,

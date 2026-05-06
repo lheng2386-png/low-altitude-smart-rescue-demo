@@ -2,7 +2,7 @@
 
 ## Why This Module Exists
 
-AeroRescue-AI now contains many independent modules: detection backends, segmentation source tracking, TERP, image-plane path planning, decision fusion, module status scanning, mission evidence ledger, and Final Report 2.0.
+灾情感知及影响评估 now contains many independent modules: detection backends, segmentation source tracking, TERP, image-plane path planning, decision fusion, module status scanning, mission evidence ledger, and Final Report 2.0.
 
 The One-Click Mission Demo Orchestrator connects these modules into a single competition-stage mission flow so a demo can be run from one image without manually clicking every module one by one.
 
@@ -67,4 +67,4 @@ The module writes local artifacts under `outputs/`. These runtime outputs are no
 
 Suggested wording:
 
-“AeroRescue-AI provides a one-click mission demo orchestrator that chains UAV image input, rescue target detection, segmentation-based risk context, TERP priority ranking, image-plane path planning, decision fusion, module status scanning, mission evidence ledger, and Final Report 2.0 into a single traceable workflow. The system does not force unavailable modules to appear successful; skipped, failed, simulated, preview, and real model outputs are explicitly marked in the mission evidence chain.”
+“灾情感知及影响评估 provides a one-click mission demo orchestrator that chains UAV image input, rescue target detection, segmentation-based risk context, TERP priority ranking, image-plane path planning, decision fusion, module status scanning, mission evidence ledger, and Final Report 2.0 into a single traceable workflow. The system does not force unavailable modules to appear successful; skipped, failed, simulated, preview, and real model outputs are explicitly marked in the mission evidence chain.”

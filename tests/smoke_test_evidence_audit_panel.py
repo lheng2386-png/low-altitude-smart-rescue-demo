@@ -68,7 +68,7 @@ def main():
     finally:
         evidence_audit_panel.requests.post = original_post
 
-    print("AeroRescue-AI evidence audit panel smoke test passed.")
+    print("灾情感知及影响评估 evidence audit panel smoke test passed.")
 
 
 if __name__ == "__main__":

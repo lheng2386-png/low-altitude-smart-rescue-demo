@@ -2,7 +2,7 @@
 
 ## 1. Problem Background
 
-AeroRescue-AI already has target detection, segmentation-based risk cues, image-plane path planning, Mission Evidence Ledger, and Final Report V2. A plain target-environment-route ranking is useful, but it does not explicitly ask whether the evidence is strong, whether the route is only a preview, or whether high-priority areas remain uncovered.
+灾情感知及影响评估 already has target detection, segmentation-based risk cues, image-plane path planning, Mission Evidence Ledger, and Final Report V2. A plain target-environment-route ranking is useful, but it does not explicitly ask whether the evidence is strong, whether the route is only a preview, or whether high-priority areas remain uncovered.
 
 EC-TERP addresses that gap as an assistive rescue-priority ranking algorithm. It helps human operators decide which detected target should be reviewed first. It does not confirm victims and does not replace rescue command decisions.
 

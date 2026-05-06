@@ -1,10 +1,10 @@
-# AeroRescue-AI Competition Presentation Outline
+# 灾情感知及影响评估 Competition Presentation Outline
 
 ## 1. Project Background
 
 - Low-altitude UAVs can quickly collect post-disaster visual information.
 - Rescue teams need fast target recognition, environmental risk understanding, priority ranking, and route suggestions.
-- AeroRescue-AI turns UAV imagery into a decision-support loop for emergency rescue.
+- 灾情感知及影响评估 turns UAV imagery into a decision-support loop for emergency rescue.
 
 ## 2. Pain Points
 

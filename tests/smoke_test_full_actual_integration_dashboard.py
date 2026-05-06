@@ -92,7 +92,7 @@ def main():
     assert "does not treat" in scan["truthfulness_note"]
     assert "evaluated executable integrations" in scan["truthfulness_note"]
 
-    print("AeroRescue-AI full actual integration dashboard smoke test passed.")
+    print("灾情感知及影响评估 full actual integration dashboard smoke test passed.")
 
 
 if __name__ == "__main__":

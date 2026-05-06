@@ -1,6 +1,6 @@
 # Reference Results
 
-This file lists copied or migrated reference results used for AeroRescue-AI presentation and benchmark planning.
+This file lists copied or migrated reference results used for 灾情感知及影响评估 presentation and benchmark planning.
 
 ## Detection Reference Results
 
@@ -20,7 +20,7 @@ This file lists copied or migrated reference results used for AeroRescue-AI pres
 | `static/images/reference/rescuenet/rescuenet_all_classes.png` | Disaster-scene segmentation class example | reference |
 | `static/images/reference/rescuenet/manual_demo_rescuenet_mask.png` | Manually prepared local mask | manual_demo_mask |
 
-## AeroRescue-AI Generated Results
+## 灾情感知及影响评估 Generated Results
 
 | Directory | Meaning | Status |
 | --- | --- | --- |

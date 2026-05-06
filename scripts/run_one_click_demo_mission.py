@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the AeroRescue-AI one-click demo mission without launching Gradio."""
+"""Run the 灾情感知及影响评估 one-click demo mission without launching Gradio."""
 
 from __future__ import annotations
 
@@ -16,9 +16,9 @@ from app.demo.one_click_mission_orchestrator import run_one_click_demo_mission  
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Run AeroRescue-AI one-click demo mission.")
+    parser = argparse.ArgumentParser(description="Run 灾情感知及影响评估 one-click demo mission.")
     parser.add_argument("--missions-root", default="outputs/demo_missions")
-    parser.add_argument("--mission-name", default="AeroRescue Demo")
+    parser.add_argument("--mission-name", default="灾情感知及影响评估 Demo")
     parser.add_argument("--demo-output-root", default="outputs/demo_dataset")
     parser.add_argument("--mode", default="full_demo")
     return parser.parse_args()

@@ -1,6 +1,6 @@
-# AeroRescue-AI Platform Prototype
+# 灾情感知及影响评估 Platform Prototype
 
-AeroRescue-AI currently runs as a local Gradio prototype, but the release direction is a platform-style rescue workflow rather than a single loose demo.
+灾情感知及影响评估 currently runs as a local Gradio prototype, but the release direction is a platform-style rescue workflow rather than a single loose demo.
 
 ## Platform Modules
 

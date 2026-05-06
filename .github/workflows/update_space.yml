@@ -46,6 +46,7 @@ jobs:
             --exclude '*.pth' \
             --exclude '*.ckpt' \
             --exclude '*.onnx' \
+            --exclude 'static/gif/**' \
             --exclude 'static/images/showcase/**' \
             --exclude 'outputs/**' \
             app backend modules static configs demo_cases \

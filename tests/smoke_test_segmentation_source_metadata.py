@@ -66,7 +66,7 @@ def main():
     assert "是否为模型自动预测" in report
     assert "真实性说明" in report
 
-    print("AeroRescue-AI segmentation source metadata smoke test passed.")
+    print("灾情感知及影响评估 segmentation source metadata smoke test passed.")
 
 
 if __name__ == "__main__":

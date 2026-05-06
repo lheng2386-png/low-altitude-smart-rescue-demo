@@ -123,7 +123,7 @@ def format_mission_evidence_for_report(root_dir=None):
         ledger = build_mission_evidence_ledger(root_dir=root_dir)
         return format_mission_evidence_ledger_markdown(ledger)
     except Exception as exc:
-        return f"# AeroRescue-AI 任务证据链总账\n\n证据链生成失败：{exc}"
+        return f"# 灾情感知及影响评估 任务证据链总账\n\n证据链生成失败：{exc}"
 
 
 def export_final_report_v2(root_dir=None, output_dir=None):
@@ -156,7 +156,7 @@ def export_final_report():
     reconstruction_result = reconstruction_workflow_result or _read(OUTPUT_ROOT / "reconstruction" / "reconstruction_result.json")
     scene_description = _read(REPORT_DIR / "scene_description.md")
 
-    md = f"""# AeroRescue-AI 综合救援报告
+    md = f"""# 灾情感知及影响评估 综合救援报告
 
 生成时间：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 
@@ -203,7 +203,7 @@ def export_final_report():
     md_path = REPORT_DIR / "final_report.md"
     html_path = REPORT_DIR / "final_report.html"
     md_path.write_text(md, encoding="utf-8")
-    html_body = "<html><head><meta charset='utf-8'><title>AeroRescue-AI 综合报告</title></head><body>"
+    html_body = "<html><head><meta charset='utf-8'><title>灾情感知及影响评估 综合报告</title></head><body>"
     html_body += "<pre style='white-space: pre-wrap; font-family: -apple-system, BlinkMacSystemFont, sans-serif;'>"
     html_body += html.escape(md)
     html_body += "</pre></body></html>"

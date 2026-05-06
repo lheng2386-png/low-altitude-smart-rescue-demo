@@ -44,7 +44,7 @@ COMMON_LIMITATIONS = [
 INTEGRATION_TARGETS = [
     {
         "key": "yolo_rescue_targets",
-        "repository_name": "AeroRescue-AI local YOLO Rescue Targets",
+        "repository_name": "灾情感知及影响评估 local YOLO Rescue Targets",
         "repository_url": "local models/<variant>/best.pt",
         "family": "detection",
         "directory": "detection/yolo_rescue_targets",
@@ -93,7 +93,7 @@ INTEGRATION_TARGETS = [
         "expected_inputs": ["disaster scene image/video after official repo reproduction"],
         "expected_outputs": ["disaster context detections or labels with source metadata"],
         "next_actions": ["Inspect official dependencies", "Reproduce official demo in isolated environment", "Define adapter only after demo reproduction"],
-        "truthfulness_limitations": COMMON_LIMITATIONS + ["Currently not an executable AeroRescue-AI backend."],
+        "truthfulness_limitations": COMMON_LIMITATIONS + ["Currently not an executable 灾情感知及影响评估 backend."],
     },
     {
         "key": "air_sar_detection",
@@ -110,7 +110,7 @@ INTEGRATION_TARGETS = [
         "expected_inputs": ["SAR/search image after official repo reproduction"],
         "expected_outputs": ["person candidate detections with review-required metadata"],
         "next_actions": ["Reproduce official setup", "Identify model/dataset licensing", "Create person-candidate adapter only after real output exists"],
-        "truthfulness_limitations": COMMON_LIMITATIONS + ["AIR outputs are not current AeroRescue-AI results."],
+        "truthfulness_limitations": COMMON_LIMITATIONS + ["AIR outputs are not current 灾情感知及影响评估 results."],
     },
     {
         "key": "vtsar_dataset",
@@ -299,7 +299,7 @@ Current state: `{record['current_state']}`
 
 Target final state: `{record['target_final_state']}`
 
-This directory is an engineering integration scaffold. It does not mean the external repository has been reproduced, evaluated, or connected to AeroRescue-AI runtime.
+This directory is an engineering integration scaffold. It does not mean the external repository has been reproduced, evaluated, or connected to 灾情感知及影响评估 runtime.
 """
 
 
@@ -314,7 +314,7 @@ def _integration_plan(record):
 
 ## Adapter Plan
 - Expected adapter file: `{record.get('adapter_file') or 'to be defined after reproduction'}`
-- Wrap inputs and outputs into AeroRescue-AI schemas only after real outputs exist.
+- Wrap inputs and outputs into 灾情感知及影响评估 schemas only after real outputs exist.
 - Preserve source metadata and truthfulness notes in every output.
 
 ## Roadmap

@@ -143,7 +143,7 @@ def main():
     assert "EC-TERP is not an automatic rescue decision system" in doc_text
     assert "Synthetic demo cases are not real rescue data" in doc_text
 
-    print("AeroRescue-AI EC-TERP visualization smoke test passed.")
+    print("灾情感知及影响评估 EC-TERP visualization smoke test passed.")
 
 
 if __name__ == "__main__":

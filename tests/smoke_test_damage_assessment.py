@@ -97,4 +97,4 @@ if __name__ == "__main__":
     test_damage_summary_and_entry()
     test_no_road_returns_no_entry()
     test_large_target_is_local_reconnaissance()
-    print("AeroRescue-AI damage assessment smoke test passed.")
+    print("灾情感知及影响评估 damage assessment smoke test passed.")

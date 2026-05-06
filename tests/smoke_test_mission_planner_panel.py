@@ -83,7 +83,7 @@ def main():
     finally:
         mission_planner_panel.requests.post = original_post
 
-    print("AeroRescue-AI mission planner panel smoke test passed.")
+    print("灾情感知及影响评估 mission planner panel smoke test passed.")
 
 
 if __name__ == "__main__":

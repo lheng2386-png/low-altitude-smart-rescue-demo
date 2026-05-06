@@ -1,8 +1,8 @@
 model_name,source,result_type,precision,recall,map50,fps,latency_ms,notes,status
-YOLOv11n,AeroRescue-AI,reproduced_pending,,,,,,pending local evaluation,pending
-YOLOv11s,AeroRescue-AI,reproduced_pending,,,,,,pending local evaluation,pending
-YOLOv11m,AeroRescue-AI,reproduced_pending,,,,,,pending local evaluation,pending
-YOLOv11l,AeroRescue-AI,reproduced_pending,,,,,,pending local evaluation,pending
+YOLOv11n,灾情感知及影响评估,reproduced_pending,,,,,,pending local evaluation,pending
+YOLOv11s,灾情感知及影响评估,reproduced_pending,,,,,,pending local evaluation,pending
+YOLOv11m,灾情感知及影响评估,reproduced_pending,,,,,,pending local evaluation,pending
+YOLOv11l,灾情感知及影响评估,reproduced_pending,,,,,,pending local evaluation,pending
 Faster R-CNN,Detection-Models,reference,,,,,,reference benchmark asset available,reference_not_reproduced
 DINO,Detection-Models,reference,,,,,,reference architecture and comparison assets available,reference_not_reproduced
 TODO,TODO,TODO,TODO,TODO,TODO,TODO,TODO,TODO,not_run,Do not fill metrics until experiments are actually executed.

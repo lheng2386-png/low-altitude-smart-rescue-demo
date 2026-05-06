@@ -1,4 +1,4 @@
-# AeroRescue-AI Segmentation Training
+# 灾情感知及影响评估 Segmentation Training
 
 This document describes the local training flow for the 11-class post-disaster scene segmentation model. It does not claim that a trained checkpoint is included in this repository.
 

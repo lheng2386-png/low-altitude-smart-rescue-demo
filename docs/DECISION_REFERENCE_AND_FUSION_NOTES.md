@@ -20,7 +20,7 @@ SAREnv contributes ideas for:
 - probabilistic search;
 - multi-UAV search planning.
 
-Lightweight AeroRescue-AI adaptation:
+Lightweight 灾情感知及影响评估 adaptation:
 
 - image-plane search priority map;
 - search priority score;
@@ -39,7 +39,7 @@ SKAI contributes ideas for:
 - aerial building damage assessment;
 - damage-aware prioritization.
 
-Lightweight AeroRescue-AI adaptation:
+Lightweight 灾情感知及影响评估 adaptation:
 
 - segmentation-based damage impact score;
 - major_damage / destroyed_building weighting;
@@ -58,7 +58,7 @@ InaSAFE contributes ideas for:
 - impact scenario explanation;
 - preparedness and response planning.
 
-Lightweight AeroRescue-AI adaptation:
+Lightweight 灾情感知及影响评估 adaptation:
 
 - image-plane impact score;
 - hazard area ratio reasoning;
@@ -77,7 +77,7 @@ Fields2Cover contributes ideas for:
 - area scanning;
 - obstacle-aware coverage.
 
-Lightweight AeroRescue-AI adaptation:
+Lightweight 灾情感知及影响评估 adaptation:
 
 - coverage score;
 - high-priority area coverage;
@@ -100,7 +100,7 @@ PythonRobotics contributes ideas for:
 - RRT;
 - coverage path planning.
 
-Lightweight AeroRescue-AI adaptation:
+Lightweight 灾情感知及影响评估 adaptation:
 
 - path algorithm comparison ideas;
 - future dynamic replanning direction;

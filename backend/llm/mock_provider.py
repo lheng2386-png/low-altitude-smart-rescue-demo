@@ -81,7 +81,7 @@ class MockProvider(LLMProvider):
             "limitations": limitations,
             "recommended_next_actions": actions,
             "report_paragraph": (
-                "AeroRescue-AI produced an auxiliary mission report draft from the supplied result JSON. "
+                "灾情感知及影响评估 produced an auxiliary mission report draft from the supplied result JSON. "
                 "The draft highlights available targets, risk cues, and follow-up actions while preserving evidence boundaries. "
                 "Any candidate, preview, simulated, uploaded, or image-plane result requires operator review before operational use."
             ),

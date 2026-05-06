@@ -108,7 +108,7 @@ def main():
     assert "mission_test" in fake_summary
     assert "真实性边界" in fake_summary
 
-    print("AeroRescue-AI mission demo orchestrator smoke test passed.")
+    print("灾情感知及影响评估 mission demo orchestrator smoke test passed.")
 
 
 if __name__ == "__main__":

@@ -1,12 +1,12 @@
 # Platform Dashboard Mockup
 
-This is the AeroRescue-AI platform-inspired dashboard design. It is not a running web platform yet; it defines the mature product direction for the competition prototype.
+This is the 灾情感知及影响评估 platform-inspired dashboard design. It is not a running web platform yet; it defines the mature product direction for the competition prototype.
 
 ## Dashboard Layout
 
 ```text
 ┌──────────────────────────────────────────────────────────────────────┐
-│ AeroRescue-AI Mission Dashboard                                      │
+│ 灾情感知及影响评估 Mission Dashboard                                      │
 ├───────────────┬──────────────────────────┬───────────────────────────┤
 │ Case Archive  │ UAV Image / Video Review │ Rescue Decision Panel      │
 │               │                          │                           │

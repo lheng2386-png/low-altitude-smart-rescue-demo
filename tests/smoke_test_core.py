@@ -262,9 +262,9 @@ def main():
         text=True,
     )
     assert help_result.returncode == 0
-    assert "Generate AeroRescue-AI offline showcase demo cases" in help_result.stdout
+    assert "Generate 灾情感知及影响评估 offline showcase demo cases" in help_result.stdout
 
-    print("AeroRescue-AI demo case and model comparison smoke test passed.")
+    print("灾情感知及影响评估 demo case and model comparison smoke test passed.")
 
 
 if __name__ == "__main__":

@@ -148,7 +148,7 @@ LOOPBACK_HOSTS = {"127.0.0.1", "::1", "localhost"}
 
 TEXT = {
     "zh": {
-        "page_title": "AeroRescue-AI 低空应急救援智能感知与辅助决策系统",
+        "page_title": "灾情感知及影响评估 低空应急救援智能感知与辅助决策系统",
         "page_description": "YOLO 灾害目标检测、环境风险融合、TERP 优先级排序、风险感知 A* 路径规划与中文救援报告。",
         "image_tab": "图像",
         "gallery_tab": "展示",
@@ -179,12 +179,12 @@ TEXT = {
         "path_comparison": "A* 路径对比",
         "rescue_report": "生成的救援报告",
         "example_images": "示例图像",
-        "demo_gallery_title": "AeroRescue-AI 演示画廊",
+        "demo_gallery_title": "灾情感知及影响评估 演示画廊",
         "workflow_title": "工作流程",
         "workflow_note": "UAV 图像 / 视频 → YOLOv11 检测 → 语义分割来源 → 环境风险融合 → TERP 优先级 → 救援排序 → A* 路径规划 → 中文救援报告。",
         "current_capability": "当前能力说明",
         "current_capability_note": "本地 Gradio 原型支持完整决策链路。",
-        "local_assets": "本地 AeroRescue-AI 资源",
+        "local_assets": "本地 灾情感知及影响评估 资源",
         "generated_outputs": "生成的演示案例输出",
         "segmentation_legend": "语义分割类别图例",
         "upload_video": "上传视频",
@@ -207,7 +207,7 @@ TEXT = {
         "fallback_no_seg": "风险评分和路径规划将回退到仅基于目标和默认代价的模式。",
     },
     "en": {
-        "page_title": "AeroRescue-AI Low-Altitude Emergency Rescue Intelligence System",
+        "page_title": "灾情感知及影响评估 Low-Altitude Emergency Rescue Intelligence System",
         "page_description": "YOLO disaster target detection, environment-risk fusion, TERP ranking, Risk-Aware A* path planning, and English rescue reports.",
         "image_tab": "Image",
         "gallery_tab": "Gallery",
@@ -238,12 +238,12 @@ TEXT = {
         "path_comparison": "A* Path Comparison",
         "rescue_report": "Generated Rescue Report",
         "example_images": "Example Images",
-        "demo_gallery_title": "AeroRescue-AI Demo Gallery",
+        "demo_gallery_title": "灾情感知及影响评估 Demo Gallery",
         "workflow_title": "Workflow",
         "workflow_note": "UAV image / video → YOLOv11 detection → segmentation source → environment-risk fusion → TERP priority → rescue ranking → A* path planning → English rescue report.",
         "current_capability": "Current Capability Notes",
         "current_capability_note": "本地 Gradio 原型支持完整决策链路。",
-        "local_assets": "Local AeroRescue-AI Assets",
+        "local_assets": "Local 灾情感知及影响评估 Assets",
         "generated_outputs": "生成的演示案例输出",
         "segmentation_legend": "Segmentation Class Legend",
         "upload_video": "Upload a Video",
@@ -390,7 +390,7 @@ def get_chinese_font(size=18):
 
 def image_header_html(language):
     return """
-        <h1 style='text-align: center'>AeroRescue-AI</h1>
+        <h1 style='text-align: center'>灾情感知及影响评估</h1>
         <p style='text-align: center'>使用 Gradio（本地网页界面）构建 · YOLO（目标识别模型）灾害目标检测、可选语义分割（按区域理解道路/水域/建筑）风险融合与 A*（自动寻路算法）图像平面路径规划</p>
     """
 
@@ -406,7 +406,7 @@ def normalize_segmentation_source(value):
 
 def demo_gallery_markdown(language):
     return """
-## AeroRescue-AI 演示画廊
+## 灾情感知及影响评估 演示画廊
 
 **工作流程**
 
@@ -687,14 +687,14 @@ def prepare_valid_segmentation_mask(mask, image_width, image_height, segmentatio
 def gallery_image_items(language="zh"):
     """Return available local demo and reference images."""
     candidates = [
-        (ROOT_DIR / "static" / "images" / "showcase" / "aerorescue_gradio_interface.png", "AeroRescue-AI Gradio interface"),
+        (ROOT_DIR / "static" / "images" / "showcase" / "aerorescue_gradio_interface.png", "灾情感知及影响评估 Gradio interface"),
         (ROOT_DIR / "static" / "images" / "showcase" / "flood_demo_input.jpg", "Flood demo input"),
         (ROOT_DIR / "static" / "images" / "showcase" / "flood_demo_detection.webp", "Flood demo detection preview"),
         (ROOT_DIR / "static" / "images" / "reference" / "detection_result_reference.png", "Detection reference asset"),
         (ROOT_DIR / "static" / "images" / "reference" / "detection_metrics_reference.png", "Detection metrics reference asset"),
         (ROOT_DIR / "static" / "images" / "capa1.webp", "Disaster response scenario"),
         (ROOT_DIR / "static" / "images" / "capa2.webp", "Low-altitude rescue context"),
-        (ROOT_DIR / "static" / "images" / "app_gradio.png", "AeroRescue-AI interface"),
+        (ROOT_DIR / "static" / "images" / "app_gradio.png", "灾情感知及影响评估 interface"),
         (ROOT_DIR / "static" / "images" / "230714-india-flooding-mb-0831-d3a66d.jpg", "Local demo input"),
         (ROOT_DIR / "static" / "images" / "230714-india-flooding-mb-0831-d3a66d_annotated.webp", "Local detection output"),
         (ROOT_DIR / "static" / "images" / "modelo-customizado.png", "Rescue-class detector output"),
@@ -703,14 +703,14 @@ def gallery_image_items(language="zh"):
         (ROOT_DIR / "static" / "images" / "metricas-classes.png", "Class-level metrics"),
     ]
     zh_captions = {
-        "AeroRescue-AI Gradio interface": "AeroRescue-AI Gradio 界面",
+        "灾情感知及影响评估 Gradio interface": "灾情感知及影响评估 Gradio 界面",
         "Flood demo input": "洪涝示例输入",
         "Flood demo detection preview": "洪涝检测预览",
         "Detection reference asset": "检测参考素材",
         "Detection metrics reference asset": "检测指标参考素材",
         "Disaster response scenario": "灾害响应场景",
         "Low-altitude rescue context": "低空救援场景",
-        "AeroRescue-AI interface": "AeroRescue-AI 界面",
+        "灾情感知及影响评估 interface": "灾情感知及影响评估 界面",
         "Local demo input": "本地示例输入",
         "Local detection output": "本地检测输出",
         "Rescue-class detector output": "救援类别检测输出",
@@ -725,7 +725,7 @@ def gallery_image_items(language="zh"):
         (ROOT_DIR / "static" / "images" / "reference" / "urban_disaster_monitor", "灾害目标检测参考"),
         (ROOT_DIR / "static" / "images" / "reference" / "detection_models", "模型对比参考"),
         (ROOT_DIR / "static" / "images" / "reference" / "rescuenet", "语义分割参考"),
-        (ROOT_DIR / "static" / "images" / "showcase" / "aerorescue_outputs", "AeroRescue-AI 本项目输出"),
+        (ROOT_DIR / "static" / "images" / "showcase" / "aerorescue_outputs", "灾情感知及影响评估 本项目输出"),
     ]
     for directory, label in reference_dirs:
         if not directory.exists():
@@ -2619,12 +2619,12 @@ MISSION_FIRST_LAYOUT_CSS = """
 
 
 with gr.Blocks(
-    title="AeroRescue-AI 低空应急救援智能感知与辅助决策系统",
+    title="灾情感知及影响评估 低空应急救援智能感知与辅助决策系统",
     css=MISSION_FIRST_LAYOUT_CSS,
     elem_id="aerorescue-mission-app",
 ) as app:
     gr.HTML("""
-        <h1 style='text-align: center'>AeroRescue-AI</h1>
+        <h1 style='text-align: center'>灾情感知及影响评估</h1>
     """)
 
     with gr.Tab("任务总览"):
@@ -2649,9 +2649,9 @@ with gr.Blocks(
         with gr.Accordion("系统说明", open=False, elem_classes=["stage-action-panel"]):
             gr.Markdown(
                 """
-    ## AeroRescue-AI 系统功能说明
+    ## 灾情感知及影响评估 系统功能说明
 
-    AeroRescue-AI 是面向低空无人机应急救援场景的智能感知（让系统看懂图像）与辅助决策（给救援排序和路线建议）原型系统。系统围绕“无人机数据输入 → 灾情目标识别 → 环境风险理解 → 救援优先级排序 → 路径规划 → 灾情报告生成”构建完整演示链路，用于展示灾后城市区域的目标发现、风险研判和救援辅助决策能力。
+    灾情感知及影响评估 是面向低空无人机应急救援场景的智能感知（让系统看懂图像）与辅助决策（给救援排序和路线建议）原型系统。系统围绕“无人机数据输入 → 灾情目标识别 → 环境风险理解 → 救援优先级排序 → 路径规划 → 灾情报告生成”构建完整演示链路，用于展示灾后城市区域的目标发现、风险研判和救援辅助决策能力。
 
     ### 一、系统总体流程
 
@@ -3461,7 +3461,7 @@ with gr.Blocks(
                     """
             )
         with gr.Accordion("2. 输入与运行", open=False, elem_classes=["stage-action-panel"]):
-            scene_task_name = gr.Textbox(label="任务名称", value="AeroRescue-AI 应急救援任务")
+            scene_task_name = gr.Textbox(label="任务名称", value="灾情感知及影响评估 应急救援任务")
             scene_note = gr.Textbox(label="人工场景说明", lines=4, placeholder="可填写灾害类型、地点、无人机视角、现场关注点等。")
             detection_report_text = gr.Textbox(
                 label="目标检测与综合决策报告文本",

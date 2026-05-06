@@ -2,7 +2,7 @@
 
 ## Why EC-TERP
 
-The original TERP layer ranks rescue targets from target, environment, and route signals. AeroRescue-AI now also has a Mission Evidence Ledger, lightweight Decision Fusion, and coverage-gap evaluation. EC-TERP adds these evidence-aware terms into a single transparent auxiliary priority score.
+The original TERP layer ranks rescue targets from target, environment, and route signals. 灾情感知及影响评估 now also has a Mission Evidence Ledger, lightweight Decision Fusion, and coverage-gap evaluation. EC-TERP adds these evidence-aware terms into a single transparent auxiliary priority score.
 
 EC-TERP is not a trained model and is not an automatic rescue decision. It is a rule-based scoring algorithm for competition-stage decision support.
 
@@ -85,4 +85,4 @@ EC-TERP is better aligned with the current evidence-chain architecture because i
 
 Suggested wording:
 
-“AeroRescue-AI proposes EC-TERP, an evidence-constrained rescue priority algorithm. It extends target-environment-route priority scoring with coverage gap, mission evidence quality, and uncertainty penalty. The method uses strong/medium/weak/none evidence levels from the Mission Evidence Ledger to prevent simulated, preview, or low-confidence results from over-influencing rescue ranking. EC-TERP remains an auxiliary decision-support score and requires human review.”
+“灾情感知及影响评估 proposes EC-TERP, an evidence-constrained rescue priority algorithm. It extends target-environment-route priority scoring with coverage gap, mission evidence quality, and uncertainty penalty. The method uses strong/medium/weak/none evidence levels from the Mission Evidence Ledger to prevent simulated, preview, or low-confidence results from over-influencing rescue ranking. EC-TERP remains an auxiliary decision-support score and requires human review.”

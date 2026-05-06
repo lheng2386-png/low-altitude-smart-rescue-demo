@@ -94,7 +94,7 @@ def main():
         # Result JSON must remain serializable without numpy arrays.
         json.dumps(result, ensure_ascii=False)
 
-    print("AeroRescue-AI radiometric thermal service smoke test passed.")
+    print("灾情感知及影响评估 radiometric thermal service smoke test passed.")
 
 
 if __name__ == "__main__":

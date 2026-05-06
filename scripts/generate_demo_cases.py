@@ -1,4 +1,4 @@
-"""Generate offline AeroRescue-AI demo case outputs.
+"""Generate offline 灾情感知及影响评估 demo case outputs.
 
 The script uses local repository images and local YOLO weights when available.
 Generated segmentation masks are manually prepared demo masks for decision-layer
@@ -384,7 +384,7 @@ def generate_demo_cases(output_dir: Path, selected_cases: list[str] | None = Non
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Generate AeroRescue-AI offline showcase demo cases.")
+    parser = argparse.ArgumentParser(description="Generate 灾情感知及影响评估 offline showcase demo cases.")
     parser.add_argument("--output-dir", default=str(DEFAULT_OUTPUT_DIR), help="Output directory for generated case artifacts.")
     parser.add_argument("--case", action="append", help="Generate only a specific case_id. Can be used multiple times.")
     parser.add_argument("--model", default=None, help="Preferred YOLO variant, such as yolov11m, yolov11s, or yolov11n.")

@@ -1,4 +1,4 @@
-"""Mission orchestration skeleton for AeroRescue-AI.
+"""Mission orchestration skeleton for 灾情感知及影响评估.
 
 This module wires the mission schema, input validator, and evidence ledger
 together without replacing the existing Gradio processing flow. Existing

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-AeroRescue-AI keeps YOLO as the primary rescue-target detector and adds Transformer RescueDet as an optional auxiliary backend.
+灾情感知及影响评估 keeps YOLO as the primary rescue-target detector and adds Transformer RescueDet as an optional auxiliary backend.
 
 The Transformer backend is useful for cross-checking human-like targets and adding scene-risk context such as vehicles or fire. It does not replace YOLO and does not replace human rescue judgment.
 
@@ -13,7 +13,7 @@ The Transformer backend is useful for cross-checking human-like targets and addi
 
 These models are loaded lazily through `transformers.pipeline("object-detection")`. They are not loaded at application import time.
 
-By default, AeroRescue-AI disables Hugging Face downloads during detection. The backend first tries a local model path or an existing local Hugging Face cache. A future caller may pass `allow_download=True`, but that must be an explicit user choice.
+By default, 灾情感知及影响评估 disables Hugging Face downloads during detection. The backend first tries a local model path or an existing local Hugging Face cache. A future caller may pass `allow_download=True`, but that must be an explicit user choice.
 
 ## Label Boundaries
 

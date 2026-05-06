@@ -1,4 +1,4 @@
-"""Target verification evidence packaging for AeroRescue-AI.
+"""Target verification evidence packaging for 灾情感知及影响评估.
 
 S5 turns S4 Rescue Candidates into visual evidence records for human review.
 It does not confirm civilians, rescued status, or final field findings.

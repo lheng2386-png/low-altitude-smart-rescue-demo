@@ -1,4 +1,4 @@
-"""Final Report 2.0 for AeroRescue-AI.
+"""Final Report 2.0 for 灾情感知及影响评估.
 
 The report is driven by the mission evidence ledger, not by code existence.
 """
@@ -446,7 +446,7 @@ def build_final_report_v2(ledger=None, root_dir=None):
     if not context.get("success"):
         return {
             "success": False,
-            "report_markdown": "# AeroRescue-AI 证据链驱动综合救援报告\n\n报告生成失败。",
+            "report_markdown": "# 灾情感知及影响评估 证据链驱动综合救援报告\n\n报告生成失败。",
             "report_json": {
                 "summary": {},
                 "sections": {},
@@ -477,7 +477,7 @@ def build_final_report_v2(ledger=None, root_dir=None):
     }
 
     markdown_parts = [
-        "# AeroRescue-AI 证据链驱动综合救援报告",
+        "# 灾情感知及影响评估 证据链驱动综合救援报告",
         "",
         "## 一、任务报告说明",
         "- 报告生成机制：由 Mission Evidence Ledger 自动驱动生成。",
@@ -539,7 +539,7 @@ def markdown_to_simple_html(markdown_text):
     """Convert markdown text to a very simple HTML page."""
     escaped = html.escape(markdown_text or "")
     return (
-        "<html><head><meta charset='utf-8'><title>AeroRescue-AI Final Report 2.0</title></head>"
+        "<html><head><meta charset='utf-8'><title>灾情感知及影响评估 Final Report 2.0</title></head>"
         "<body><pre style='white-space: pre-wrap; font-family: -apple-system, BlinkMacSystemFont, sans-serif;'>"
         + escaped
         + "</pre></body></html>"

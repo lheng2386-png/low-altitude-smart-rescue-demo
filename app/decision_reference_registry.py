@@ -29,7 +29,7 @@ DECISION_REFERENCE_PROJECTS = {
             "missed-risk area score",
         ],
         "active_runtime": False,
-        "truthfulness_note": "SAREnv is used as a reference for UAV search-and-rescue probability maps and search path evaluation. AeroRescue-AI does not currently run the full SAREnv geospatial framework.",
+        "truthfulness_note": "SAREnv is used as a reference for UAV search-and-rescue probability maps and search path evaluation. 灾情感知及影响评估 does not currently run the full SAREnv geospatial framework.",
     },
     "skai_building_damage": {
         "display_name": "Google Research SKAI Building Damage Assessment",
@@ -49,7 +49,7 @@ DECISION_REFERENCE_PROJECTS = {
             "damage severity summary",
         ],
         "active_runtime": False,
-        "truthfulness_note": "SKAI is used as a reference for building damage assessment from aerial disaster imagery. AeroRescue-AI does not claim to run SKAI models unless a real SKAI pipeline and outputs are provided.",
+        "truthfulness_note": "SKAI is used as a reference for building damage assessment from aerial disaster imagery. 灾情感知及影响评估 does not claim to run SKAI models unless a real SKAI pipeline and outputs are provided.",
     },
     "inasafe_impact_modeling": {
         "display_name": "InaSAFE Disaster Impact Modeling Reference",
@@ -70,7 +70,7 @@ DECISION_REFERENCE_PROJECTS = {
             "decision explanation template",
         ],
         "active_runtime": False,
-        "truthfulness_note": "InaSAFE is a QGIS disaster impact assessment reference. AeroRescue-AI currently uses lightweight image-plane risk scoring, not full GIS/QGIS impact modeling.",
+        "truthfulness_note": "InaSAFE is a QGIS disaster impact assessment reference. 灾情感知及影响评估 currently uses lightweight image-plane risk scoring, not full GIS/QGIS impact modeling.",
     },
     "fields2cover_coverage_planning": {
         "display_name": "Fields2Cover Coverage Path Planning Reference",
@@ -91,7 +91,7 @@ DECISION_REFERENCE_PROJECTS = {
             "coverage completeness score",
         ],
         "active_runtime": False,
-        "truthfulness_note": "Fields2Cover is a robust coverage path planning library, mainly for offline vehicle coverage. AeroRescue-AI only references its coverage planning idea and does not currently link the C++ library.",
+        "truthfulness_note": "Fields2Cover is a robust coverage path planning library, mainly for offline vehicle coverage. 灾情感知及影响评估 only references its coverage planning idea and does not currently link the C++ library.",
     },
     "pythonrobotics_path_algorithms": {
         "display_name": "PythonRobotics Path Planning Algorithm Reference",
@@ -117,7 +117,7 @@ DECISION_REFERENCE_PROJECTS = {
             "coverage path preview",
         ],
         "active_runtime": "partial_reference_only",
-        "truthfulness_note": "PythonRobotics is used as an algorithm reference. AeroRescue-AI currently runs its own lightweight image-plane path planning and does not claim full PythonRobotics integration.",
+        "truthfulness_note": "PythonRobotics is used as an algorithm reference. 灾情感知及影响评估 currently runs its own lightweight image-plane path planning and does not claim full PythonRobotics integration.",
     },
 }
 

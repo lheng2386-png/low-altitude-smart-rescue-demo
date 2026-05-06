@@ -1,6 +1,6 @@
 # Segmentation Dataset Setup
 
-This document describes how to prepare local image and mask data for the AeroRescue-AI semantic segmentation module.
+This document describes how to prepare local image and mask data for the 灾情感知及影响评估 semantic segmentation module.
 
 The segmentation module is used for disaster-scene environmental understanding. It helps the system identify water, blocked roads, damaged buildings, vehicles, trees, and passable road areas so that risk scoring and A* path planning can consider environmental context.
 

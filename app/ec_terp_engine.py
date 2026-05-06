@@ -1,4 +1,4 @@
-"""Evidence-Constrained TERP priority scoring for AeroRescue-AI.
+"""Evidence-Constrained TERP priority scoring for 灾情感知及影响评估.
 
 EC-TERP is a transparent auxiliary priority algorithm. It combines target
 urgency, environment risk, image-plane route accessibility, coverage gap,

@@ -1,6 +1,6 @@
 # LLM Demo: Mission Report Assistant, Evidence Copilot, Mission Planner, and Evidence Auditor
 
-This document explains the optional LLM API integration demo for AeroRescue-AI.
+This document explains the optional LLM API integration demo for 灾情感知及影响评估.
 
 The LLM modules are post-processing assistants only:
 

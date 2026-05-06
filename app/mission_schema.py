@@ -1,4 +1,4 @@
-"""Lightweight Mission schema and JSON persistence for AeroRescue-AI.
+"""Lightweight Mission schema and JSON persistence for 灾情感知及影响评估.
 
 The mission record is intentionally a plain Python dictionary so the current
 Gradio prototype can adopt it gradually without adding a database or service

@@ -1,6 +1,6 @@
 # RescueNet-Style Segmentation Fusion Package
 
-This folder stores migrated semantic segmentation references for AeroRescue-AI's disaster-scene environment layer.
+This folder stores migrated semantic segmentation references for 灾情感知及影响评估's disaster-scene environment layer.
 
 ## Copied Material
 
@@ -11,11 +11,11 @@ This folder stores migrated semantic segmentation references for AeroRescue-AI's
 
 ## Integrated Function
 
-AeroRescue-AI keeps its lightweight runtime path:
+灾情感知及影响评估 keeps its lightweight runtime path:
 
 1. Uploaded class-id / RGB mask.
 2. Optional automatic segmentation checkpoint.
 3. No-segmentation fallback.
 
-The migrated RescueNet-style code and gallery assets make the segmentation layer a visible, mature subsystem while avoiding false claims about an existing trained AeroRescue-AI segmentation checkpoint.
+The migrated RescueNet-style code and gallery assets make the segmentation layer a visible, mature subsystem while avoiding false claims about an existing trained 灾情感知及影响评估 segmentation checkpoint.
 

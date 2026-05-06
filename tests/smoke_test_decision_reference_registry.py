@@ -47,7 +47,7 @@ def main():
     assert "PythonRobotics" in summary
     assert "不是 GPS 导航" in summary or "不是完整 GIS" in summary or "辅助决策" in summary
 
-    print("AeroRescue-AI decision reference registry smoke test passed.")
+    print("灾情感知及影响评估 decision reference registry smoke test passed.")
 
 
 if __name__ == "__main__":

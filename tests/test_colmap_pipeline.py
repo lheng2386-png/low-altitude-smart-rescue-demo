@@ -233,7 +233,7 @@ def main():
     test_standard_pipeline_writes_status_and_requires_sparse_outputs()
     test_success_only_true_when_expected_sparse_files_exist()
     test_report_generation_includes_truthfulness_boundaries_for_colmap_status()
-    print("AeroRescue-AI COLMAP pipeline tests passed.")
+    print("灾情感知及影响评估 COLMAP pipeline tests passed.")
 
 
 if __name__ == "__main__":

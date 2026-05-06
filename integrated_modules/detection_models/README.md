@@ -1,6 +1,6 @@
 # Detection Models Fusion Package
 
-This folder stores migrated model-comparison references for the AeroRescue-AI detection benchmark module.
+This folder stores migrated model-comparison references for the 灾情感知及影响评估 detection benchmark module.
 
 ## Copied Material
 
@@ -15,9 +15,9 @@ This folder stores migrated model-comparison references for the AeroRescue-AI de
 
 The active `model_comparison/` module now separates:
 
-- AeroRescue-AI local reproduced results.
+- 灾情感知及影响评估 local reproduced results.
 - Reference model comparison assets.
 - Pending reproduction plan.
 
-No reference benchmark is presented as an AeroRescue-AI result.
+No reference benchmark is presented as an 灾情感知及影响评估 result.
 

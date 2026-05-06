@@ -172,7 +172,7 @@ def main():
     test_mission_id_mismatch_rejected()
     test_boundary_goal_uses_safe_tools_and_safe_response()
     test_demo_script_writes_planner_result()
-    print("AeroRescue-AI LLM mission planner test suite passed.")
+    print("灾情感知及影响评估 LLM mission planner test suite passed.")
 
 
 if __name__ == "__main__":

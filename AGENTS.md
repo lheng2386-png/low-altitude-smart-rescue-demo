@@ -1,4 +1,4 @@
-# Agent Guardrails for AeroRescue-AI
+# Agent Guardrails for 灾情感知及影响评估
 
 This repository is a rescue decision-support prototype. Agents must keep the system honest, local, and testable.
 

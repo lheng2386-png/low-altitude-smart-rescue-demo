@@ -247,7 +247,7 @@ def main():
     test_guardrails_correct_unsafe_output()
     test_final_report_v2_llm_safety_and_missing_llm_report()
     test_llm_event_records_are_safe()
-    print("AeroRescue-AI LLM safety regression test suite passed.")
+    print("灾情感知及影响评估 LLM safety regression test suite passed.")
 
 
 if __name__ == "__main__":

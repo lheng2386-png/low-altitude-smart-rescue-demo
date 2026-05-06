@@ -2,7 +2,7 @@
 
 ## Goal
 
-Turn AeroRescue-AI into a mature competition prototype by integrating platform workflow, detection assets, model comparison structure, and segmentation references into one decision-support loop.
+Turn 灾情感知及影响评估 into a mature competition prototype by integrating platform workflow, detection assets, model comparison structure, and segmentation references into one decision-support loop.
 
 ## Required Fusion Layers
 

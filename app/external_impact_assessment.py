@@ -35,6 +35,7 @@ INASAFE_PYTHON_CANDIDATES = [
     Path.home() / "miniconda3" / "envs" / "aerorescue-inasafe" / "bin" / "python",
     Path.home() / "anaconda3" / "envs" / "aerorescue-inasafe" / "bin" / "python",
 ]
+INASAFE_CONDA_ENV_NAME = os.environ.get("INASAFE_CONDA_ENV", "aerorescue-inasafe")
 
 SKAI_REQUIRED_SOURCE_FILES = [
     "src/skai/buildings.py",
@@ -161,6 +162,38 @@ def _first_python_with_modules(candidates, module_names):
         module_name: _python_module_available_with_interpreter(module_name, fallback)
         for module_name in module_names
     }
+
+
+def _conda_env_module_status(env_name, module_names):
+    conda = shutil.which("conda")
+    if not conda or not env_name:
+        return None, {}
+    code = (
+        "import json\n"
+        f"mods={module_names!r}\n"
+        "status={}\n"
+        "for m in mods:\n"
+        "    try:\n"
+        "        __import__(m)\n"
+        "        status[m]=True\n"
+        "    except Exception:\n"
+        "        status[m]=False\n"
+        "print(json.dumps(status))\n"
+    )
+    try:
+        result = subprocess.run(
+            [conda, "run", "-n", env_name, "python", "-c", code],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=180,
+        )
+        if result.returncode != 0:
+            return None, {}
+        output = (result.stdout or "").strip().splitlines()[-1]
+        return f"conda:{env_name}", json.loads(output)
+    except Exception:
+        return None, {}
 
 
 def _available_path(candidates):
@@ -350,7 +383,7 @@ def assess_skai_source_level_status(output_dir=None):
         "building_damage_result": building_summary,
         "truthfulness_note": (
             "Only verified files produced by a real SKAI source-level run may be labeled as SKAI output. "
-            "AeroRescue-AI does not substitute segmentation statistics or legacy image-plane scores as SKAI results."
+            "灾情感知及影响评估 does not substitute segmentation statistics or legacy image-plane scores as SKAI results."
         ),
         "unavailable_reasons": unavailable_reasons,
     }
@@ -361,15 +394,22 @@ def assess_inasafe_source_level_status(output_dir=None):
     output_dir = Path(output_dir or OUTPUT_ROOT / "inasafe")
     source_root, missing_sources = _first_repo_with_files(INASAFE_SOURCE_CANDIDATES, INASAFE_REQUIRED_SOURCE_FILES)
     outputs = _find_outputs(output_dir, INASAFE_OUTPUT_PATTERNS)
-    dependency_python, python_dependency_status = _first_python_with_modules(
-        INASAFE_PYTHON_CANDIDATES,
+    dependency_python, python_dependency_status = _conda_env_module_status(
+        INASAFE_CONDA_ENV_NAME,
         ["qgis.core", "osgeo.gdal"],
     )
+    if not dependency_python:
+        dependency_python, python_dependency_status = _first_python_with_modules(
+            INASAFE_PYTHON_CANDIDATES,
+            ["qgis.core", "osgeo.gdal"],
+        )
+    inasafe_env_bin = Path.home() / "miniconda3" / "envs" / INASAFE_CONDA_ENV_NAME / "bin"
     qgis_cli_available = (
         shutil.which("qgis") is not None
         or shutil.which("qgis_process") is not None
-        or (Path(dependency_python).parent / "qgis").exists()
-        or (Path(dependency_python).parent / "qgis_process").exists()
+        or (inasafe_env_bin / "qgis").exists()
+        or (inasafe_env_bin / "qgis_process").exists()
+        or (Path(str(dependency_python)).exists() and (Path(str(dependency_python)).parent / "qgis_process").exists())
     )
     dependency_status = {
         "qgis_cli": qgis_cli_available,
@@ -408,7 +448,7 @@ def assess_inasafe_source_level_status(output_dir=None):
         "impact_assessment_result": impact_summary,
         "truthfulness_note": (
             "Only verified files produced by a real InaSAFE/QGIS source-level run may be labeled as InaSAFE output. "
-            "AeroRescue-AI does not substitute segmentation statistics or legacy image-plane scores as InaSAFE results."
+            "灾情感知及影响评估 does not substitute segmentation statistics or legacy image-plane scores as InaSAFE results."
         ),
         "unavailable_reasons": unavailable_reasons,
     }

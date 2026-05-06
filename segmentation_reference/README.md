@@ -18,7 +18,7 @@ Manually prepared demo masks are not automatic segmentation predictions. They ex
 ## Gallery Assets
 
 - `sample_images/rescuenet_all_classes.png`: copied segmentation class reference example.
-- `sample_masks/manual_demo_rescuenet_mask.png`: manually prepared demo mask from the local AeroRescue-AI examples.
+- `sample_masks/manual_demo_rescuenet_mask.png`: manually prepared demo mask from the local 灾情感知及影响评估 examples.
 
 See `class_palette.md` and `sample_assets.md`.
 

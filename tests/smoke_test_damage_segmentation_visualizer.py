@@ -74,7 +74,7 @@ def main():
     assert legend.ndim == 3
 
     assert len(CLASS_NAMES) == 11
-    print("AeroRescue-AI damage segmentation visualizer smoke test passed.")
+    print("灾情感知及影响评估 damage segmentation visualizer smoke test passed.")
 
 
 if __name__ == "__main__":

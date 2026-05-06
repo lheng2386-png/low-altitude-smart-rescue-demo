@@ -144,7 +144,7 @@ def main():
         assert empty_result["status"] == "degraded"
         assert "must not invent reachable routes" in empty_result["truthfulness_note"]
 
-    print("AeroRescue-AI phase 8 rescue recommendation smoke test passed.")
+    print("灾情感知及影响评估 phase 8 rescue recommendation smoke test passed.")
 
 
 if __name__ == "__main__":

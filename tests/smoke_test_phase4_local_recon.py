@@ -114,7 +114,7 @@ def main():
         assert empty_result["status"] in {"degraded", "completed"}
         assert "The system must not invent detections." in empty_result["truthfulness_note"]
 
-    print("AeroRescue-AI phase 4 local recon smoke test passed.")
+    print("灾情感知及影响评估 phase 4 local recon smoke test passed.")
 
 
 if __name__ == "__main__":

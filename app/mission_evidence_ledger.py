@@ -1,4 +1,4 @@
-"""Mission evidence ledger for AeroRescue-AI.
+"""Mission evidence ledger for 灾情感知及影响评估.
 
 This layer converts scanner status into evidence value.
 It does not execute models or infer runtime success from code existence alone.
@@ -473,13 +473,13 @@ def format_evidence_record_markdown(record):
 def format_mission_evidence_ledger_markdown(ledger):
     """Format the full mission evidence ledger into markdown."""
     if not isinstance(ledger, dict):
-        return "# AeroRescue-AI 任务证据链总账\n\n证据总账格式无效。"
+        return "# 灾情感知及影响评估 任务证据链总账\n\n证据总账格式无效。"
 
     sections = ledger.get("report_sections") or {}
     records = ledger.get("evidence_records") or {}
 
     lines = [
-        "# AeroRescue-AI 任务证据链总账",
+        "# 灾情感知及影响评估 任务证据链总账",
         "",
         "## 总览",
         f"- 强证据数量：{ledger.get('summary', {}).get('strong_count', 0)}",

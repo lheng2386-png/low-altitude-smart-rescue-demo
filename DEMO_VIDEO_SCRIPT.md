@@ -1,12 +1,12 @@
-# AeroRescue-AI Demo Video Script
+# 灾情感知及影响评估 Demo Video Script
 
 ## Work Title
 
-**AeroRescue-AI：面向低空应急救援的无人机多模态灾情识别与辅助决策系统**
+**灾情感知及影响评估：面向低空应急救援的无人机多模态灾情识别与辅助决策系统**
 
 ## 30-Second Background Introduction
 
-Disaster rescue teams often need quick situational awareness before entering flooded, collapsed, or blocked areas. Low-altitude UAV imagery can provide a fast overhead view, but raw images alone do not directly answer who should be rescued first, which areas are risky, or what route should be checked. AeroRescue-AI is a competition-stage prototype that converts UAV images into target detection, environment understanding, rescue priority ranking, image-plane path planning, and a Chinese rescue assistance report.
+Disaster rescue teams often need quick situational awareness before entering flooded, collapsed, or blocked areas. Low-altitude UAV imagery can provide a fast overhead view, but raw images alone do not directly answer who should be rescued first, which areas are risky, or what route should be checked. 灾情感知及影响评估 is a competition-stage prototype that converts UAV images into target detection, environment understanding, rescue priority ranking, image-plane path planning, and a Chinese rescue assistance report.
 
 ## System Workflow
 
@@ -86,22 +86,22 @@ Future work:
 
 ## Three-Minute Voiceover Draft
 
-Hello everyone, this project is AeroRescue-AI, a low-altitude UAV emergency rescue decision-support prototype.
+Hello everyone, this project is 灾情感知及影响评估, a low-altitude UAV emergency rescue decision-support prototype.
 
 In flood, collapse, and blocked-road disaster scenes, UAV images can quickly provide overhead information, but raw images are not enough for rescue decisions. Rescue teams also need to know which targets are present, which target should be checked first, what environmental risks surround the target, and what route is safer for initial inspection.
 
-AeroRescue-AI connects these steps into one workflow. First, the system receives a UAV-style image or video. It runs YOLOv11 disaster target detection and outputs target boxes, categories, confidence, and bounding-box coordinates. Then the Image Tab can use a segmentation source: an uploaded mask, an optional local segmentation checkpoint, or no segmentation fallback.
+灾情感知及影响评估 connects these steps into one workflow. First, the system receives a UAV-style image or video. It runs YOLOv11 disaster target detection and outputs target boxes, categories, confidence, and bounding-box coordinates. Then the Image Tab can use a segmentation source: an uploaded mask, an optional local segmentation checkpoint, or no segmentation fallback.
 
 With segmentation information, the system estimates environmental risk, such as water, blocked road, major damage, destroyed building, vehicle, tree, and clear road regions. These environment factors are then fused into the TERP model.
 
 TERP means Target-Environment-Route Priority Model. It combines target class, detection confidence, target size, environment risk, and route accessibility into a single rescue priority score. For example, a suspected civilian near water or damaged buildings can receive higher priority than a lower-risk animal or a rescuer already participating in rescue work.
 
-Next, AeroRescue-AI performs path planning. The baseline A* path uses a uniform cost map, while Risk-Aware A* uses segmentation-derived costs. Water, blocked roads, major damage, destroyed buildings, and pools have higher path costs, so the planner tries to avoid risky regions when possible. The system also compares baseline and Risk-Aware A* and reports path length, accumulated cost, and high-risk exposure reduction.
+Next, 灾情感知及影响评估 performs path planning. The baseline A* path uses a uniform cost map, while Risk-Aware A* uses segmentation-derived costs. Water, blocked roads, major damage, destroyed buildings, and pools have higher path costs, so the planner tries to avoid risky regions when possible. The system also compares baseline and Risk-Aware A* and reports path length, accumulated cost, and high-risk exposure reduction.
 
 Finally, the system generates a Chinese rescue assistance report. The report includes recognition overview, TERP ranking, environmental risk summary, path planning suggestions, path comparison, rescue advice, and current limitations.
 
 In the Demo Gallery, we prepare five competition cases: flood civilian rescue, building collapse, road blocked, multi-target priority, and no-target fallback. These cases show both successful decision outputs and safe fallback behavior.
 
-At the current stage, AeroRescue-AI is still a local prototype. The route is an image-plane reference path, not GPS navigation, and it is not connected to real road networks, UAV localization, or flight control. Automatic segmentation is experimental and requires a local checkpoint; manually prepared demo masks are used only for decision-layer demonstration.
+At the current stage, 灾情感知及影响评估 is still a local prototype. The route is an image-plane reference path, not GPS navigation, and it is not connected to real road networks, UAV localization, or flight control. Automatic segmentation is experimental and requires a local checkpoint; manually prepared demo masks are used only for decision-layer demonstration.
 
 Next, we will prepare stronger real demo cases, presentation slides, a demo video, and formal model comparison experiments.

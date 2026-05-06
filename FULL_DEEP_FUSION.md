@@ -1,6 +1,6 @@
-# AeroRescue-AI Full Deep Fusion Version
+# 灾情感知及影响评估 Full Deep Fusion Version
 
-AeroRescue-AI Full Deep Fusion Version upgrades the project from a lightweight Gradio demo into a unified low-altitude UAV emergency rescue AI prototype.
+灾情感知及影响评估 Full Deep Fusion Version upgrades the project from a lightweight Gradio demo into a unified low-altitude UAV emergency rescue AI prototype.
 
 ## Fusion Strategy
 
@@ -11,7 +11,7 @@ AeroRescue-AI Full Deep Fusion Version upgrades the project from a lightweight G
 | Post-disaster detection models | Copied Detection-Models / DINO / Faster R-CNN structures and benchmark assets into `integrated_modules/detection_models/`, `model_comparison/`, and `static/images/reference/detection_models/` |
 | RescueNet-style segmentation | Copied dataset loader, train/evaluate structure, segmentation models, class reference image into `integrated_modules/rescuenet/`, `segmentation_reference/`, and `static/images/reference/rescuenet/` |
 
-## AeroRescue-AI Native Innovations Kept
+## 灾情感知及影响评估 Native Innovations Kept
 
 - TERP Target-Environment-Route Priority Model.
 - Scene Applicability Gate.
@@ -25,7 +25,7 @@ AeroRescue-AI Full Deep Fusion Version upgrades the project from a lightweight G
 ## What Is Reference vs Generated
 
 - Reference assets are stored under `static/images/reference/`.
-- AeroRescue-AI generated outputs are stored under `static/images/showcase/`.
-- Reference benchmark figures are not claimed as reproduced AeroRescue-AI metrics.
+- 灾情感知及影响评估 generated outputs are stored under `static/images/showcase/`.
+- Reference benchmark figures are not claimed as reproduced 灾情感知及影响评估 metrics.
 - Manually prepared demo masks are not claimed as automatic segmentation predictions.
 

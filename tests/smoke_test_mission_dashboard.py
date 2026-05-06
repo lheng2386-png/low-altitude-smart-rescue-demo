@@ -59,7 +59,7 @@ def main():
 
     assert callable(mission_dashboard_panel.attach_mission_dashboard_panel)
 
-    print("AeroRescue-AI mission dashboard smoke test passed.")
+    print("灾情感知及影响评估 mission dashboard smoke test passed.")
 
 
 if __name__ == "__main__":

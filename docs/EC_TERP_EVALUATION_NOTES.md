@@ -81,4 +81,4 @@ By default these files are written under `outputs/ec_terp_evaluation/`, which is
 
 Suggested wording:
 
-“To validate EC-TERP, AeroRescue-AI provides a reproducible evaluation framework covering TERP comparison, weight sensitivity analysis, random weight stability, and ablation study. The current built-in examples are synthetic demo cases for algorithm verification; future work can replace them with a real annotated validation set for calibration and formal reporting.”
+“To validate EC-TERP, 灾情感知及影响评估 provides a reproducible evaluation framework covering TERP comparison, weight sensitivity analysis, random weight stability, and ablation study. The current built-in examples are synthetic demo cases for algorithm verification; future work can replace them with a real annotated validation set for calibration and formal reporting.”

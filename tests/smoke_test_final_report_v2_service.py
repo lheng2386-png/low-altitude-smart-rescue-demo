@@ -37,7 +37,7 @@ def main():
         empty_report = build_final_report_v2(root_dir=root)
         assert empty_report["success"] is True
         assert isinstance(empty_report["report_markdown"], str)
-        assert "AeroRescue-AI 证据链驱动综合救援报告" in empty_report["report_markdown"]
+        assert "灾情感知及影响评估 证据链驱动综合救援报告" in empty_report["report_markdown"]
         assert "证据链总览" in empty_report["report_markdown"]
         assert "未执行模块" in empty_report["report_markdown"]
         assert "真实性边界说明" in empty_report["report_markdown"]
@@ -118,7 +118,7 @@ def main():
         assert context["success"] is True
         assert context["summary"] is not None
 
-    print("AeroRescue-AI final report v2 smoke test passed.")
+    print("灾情感知及影响评估 final report v2 smoke test passed.")
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-"""Train AeroRescue-AI's 11-class post-disaster segmentation model."""
+"""Train 灾情感知及影响评估's 11-class post-disaster segmentation model."""
 
 import argparse
 import json
@@ -196,7 +196,7 @@ def save_curves(history, output_dir):
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Train AeroRescue-AI 11-class segmentation model.")
+    parser = argparse.ArgumentParser(description="Train 灾情感知及影响评估 11-class segmentation model.")
     parser.add_argument("--data_root", "--data-root", default="data/segmentation")
     parser.add_argument("--epochs", type=int, default=30)
     parser.add_argument("--batch_size", "--batch-size", type=int, default=4)

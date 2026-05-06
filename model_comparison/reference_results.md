@@ -1,6 +1,6 @@
 # Reference Detection Model Results
 
-This document separates reference results from AeroRescue-AI reproduced results.
+This document separates reference results from 灾情感知及影响评估 reproduced results.
 
 ## Reference Material Available
 
@@ -14,7 +14,7 @@ This document separates reference results from AeroRescue-AI reproduced results.
 | Post-disaster UAV survivor samples | `static/images/reference/detection_models/post_disaster_survivor_sample_01.png` | reference_sample |
 | TinyPerson sample | `static/images/reference/detection_models/tiny_person_sample_01.png` | reference_sample |
 
-## AeroRescue-AI Reproduction Status
+## 灾情感知及影响评估 Reproduction Status
 
 | Model | Result Type | Current Status |
 | --- | --- | --- |
@@ -25,5 +25,5 @@ This document separates reference results from AeroRescue-AI reproduced results.
 | Faster R-CNN | copied evaluation structure | pending local reproduction |
 | DINO | copied inference structure | pending local reproduction |
 
-Reference figures are included for presentation and planning. They are not AeroRescue-AI reproduced mAP/FPS results.
+Reference figures are included for presentation and planning. They are not 灾情感知及影响评估 reproduced mAP/FPS results.
 

@@ -12,7 +12,7 @@ It is not real temperature measurement.
 
 Radiometric Thermal requires a file that contains real thermal sensor data, such as a FLIR radiometric JPG. A normal JPG image is not enough. The system must extract a real temperature matrix before reporting Celsius values.
 
-If no radiometric thermal data is detected, AeroRescue-AI will fail clearly and will not use grayscale values to fabricate temperatures.
+If no radiometric thermal data is detected, 灾情感知及影响评估 will fail clearly and will not use grayscale values to fabricate temperatures.
 
 ## FLIR Radiometric JPG
 

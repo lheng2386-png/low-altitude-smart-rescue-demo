@@ -1,6 +1,6 @@
-# ARGUS Five-Capability Replication In AeroRescue-AI
+# ARGUS Five-Capability Replication In 灾情感知及影响评估
 
-This document explains how the five ARGUS-style mature capabilities are replicated and fused into AeroRescue-AI.
+This document explains how the five ARGUS-style mature capabilities are replicated and fused into 灾情感知及影响评估.
 
 ## 1. UAV Orthomosaic Generation
 
@@ -9,7 +9,7 @@ Copied source structure:
 - `integrated_modules/argus/code/odm_manager.py`
 - `integrated_modules/argus/code/image_processing_service.py`
 
-Active AeroRescue-AI implementation:
+Active 灾情感知及影响评估 implementation:
 
 - `app/argus_fusion_engine.py::generate_orthomosaic`
 - Gradio tab: `ARGUS 融合功能`
@@ -27,7 +27,7 @@ Copied source structure:
 
 - `integrated_modules/argus/code/image_processing_service.py`
 
-Active AeroRescue-AI implementation:
+Active 灾情感知及影响评估 implementation:
 
 - `app/argus_fusion_engine.py::analyze_thermal_image`
 
@@ -46,7 +46,7 @@ Copied source structure:
 - `integrated_modules/argus/code/yolo_sliding_window_inference.py`
 - `integrated_modules/urban_disaster_monitor/code/original_gradio_app.py`
 
-Active AeroRescue-AI implementation:
+Active 灾情感知及影响评估 implementation:
 
 - `app/app.py`
 - `models/yolov11*/best.pt`
@@ -69,7 +69,7 @@ Copied source structure:
 - `integrated_modules/argus/code/stella_sparse.yaml`
 - `integrated_modules/argus/code/stella_dense_fast.yaml`
 
-Active AeroRescue-AI implementation:
+Active 灾情感知及影响评估 implementation:
 
 - `app/argus_fusion_engine.py::reconstruct_360_video`
 
@@ -86,7 +86,7 @@ Copied source structure:
 
 - `integrated_modules/argus/code/image_describer_ollama.py`
 
-Active AeroRescue-AI implementation:
+Active 灾情感知及影响评估 implementation:
 
 - `app/argus_fusion_engine.py::describe_scene_with_local_llm`
 
@@ -99,7 +99,7 @@ Current behavior:
 
 ## Product Boundary
 
-This is a source-level replication and adaptive fusion for AeroRescue-AI. Lightweight features run directly. Heavy services are represented by copied source structures and callable integration points:
+This is a source-level replication and adaptive fusion for 灾情感知及影响评估. Lightweight features run directly. Heavy services are represented by copied source structures and callable integration points:
 
 - WebODM / OpenDroneMap for high-precision orthophoto.
 - StellaVSLAM for sparse/dense point cloud.

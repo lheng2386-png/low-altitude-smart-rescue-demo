@@ -1,4 +1,4 @@
-"""Thermal support evidence helpers for AeroRescue-AI S6.
+"""Thermal support evidence helpers for 灾情感知及影响评估 S6.
 
 Thermal records are auxiliary support for human review. Simulated thermal is
 never treated as real temperature measurement, and missing thermal inputs never
