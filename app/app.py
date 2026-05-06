@@ -318,6 +318,15 @@ def get_model(model_variant):
     return MODEL_CACHE[model_variant]
 
 
+def detection_model_unavailable_message(model_variant, exc):
+    return (
+        "目标检测模型状态：unavailable\n"
+        f"模型版本：{model_variant}\n"
+        f"原因：{exc}\n"
+        "不会生成伪检测框；请部署对应 YOLO 权重或切换到可用的辅助检测后端。"
+    )
+
+
 def get_segmentation_weights_path():
     return get_default_segmentation_weights()
 
@@ -1237,8 +1246,32 @@ def image_detection(
             report,
         )
 
-    model_image = get_model(model_variant)
-    
+    try:
+        model_image = get_model(model_variant)
+    except FileNotFoundError as exc:
+        unavailable = detection_model_unavailable_message(model_variant, exc)
+        path_disabled = disabled_path_result(unavailable)
+        return (
+            image_rgb,
+            None,
+            None,
+            "未执行语义分割；目标检测模型权重不可用。",
+            unavailable,
+            scene_gate_status_text({"level": "No Target", "message": unavailable}),
+            "未执行损毁评估；目标检测模型权重不可用。",
+            "场景模式：Unknown\n说明：目标检测模型权重不可用。",
+            "是否找到入口：否\n说明：目标检测模型权重不可用。",
+            "路径规划启用：否\n说明：目标检测模型权重不可用。",
+            unavailable,
+            [],
+            [],
+            [],
+            [],
+            path_summary_text(path_disabled, False, language=language),
+            path_comparison_text({}, language=language),
+            unavailable,
+        )
+
     results = model_image(image_bgr, conf=conf_threshold)
 
     annotated_image = custom_bounding_box(image_rgb, results, language=language)
@@ -1607,7 +1640,11 @@ def target_detection_only(
         )
         return annotated_image, summary, target_table_rows(transformer_targets, language=language), report
 
-    model_image = get_model(model_variant)
+    try:
+        model_image = get_model(model_variant)
+    except FileNotFoundError as exc:
+        unavailable = detection_model_unavailable_message(model_variant, exc)
+        return image_rgb, unavailable, [], unavailable
     results = model_image(image_bgr, conf=conf_threshold)
     annotated_image = custom_bounding_box(image_rgb, results, language=language)
     targets = extract_targets(results)
@@ -1637,7 +1674,7 @@ def target_detection_only(
         )
     report = (
         f"目标检测完成。\n\n检测目标数：{len(targets)}\n"
-        "本页只展示目标检测结果；如需语义分割与环境风险，请进入“灾情感知”Tab；如需 TERP 排序和路径规划，请进入“综合决策”Tab。"
+        "本页只展示目标检测结果；如需语义分割与环境风险，请进入“灾情感知及影响评估”Tab；如需 TERP 排序和路径规划，请进入“综合决策”Tab。"
     )
     return annotated_image, summary, target_table_rows(targets, language=language), report
 
@@ -1670,7 +1707,7 @@ def disaster_perception_only(
             legend_image,
             "模型来源：已训练语义分割模型\n状态：unavailable\n原因：请先上传图像。",
             external_text,
-            "灾情感知与外部影响评估（高级深度版）：unavailable",
+        "S2-S3 灾情感知及影响评估：unavailable",
             "未生成 pred_mask，无法计算统计信息。",
             unavailable_external,
             "辅助决策，人工复核。未生成替代假结果。",
@@ -1702,7 +1739,7 @@ def disaster_perception_only(
             "原因：未找到已训练语义分割模型 checkpoint。\n"
             "不会展示 uploaded/demo/none/来源选择，也不会生成替代假分割。",
             external_text,
-            "灾情感知与外部影响评估（高级深度版）：unavailable",
+            "S2-S3 灾情感知及影响评估：unavailable",
             "未生成 pred_mask，无法计算统计信息。",
             unavailable_external,
             "辅助决策，人工复核。未生成替代假结果。",
@@ -1727,7 +1764,7 @@ def disaster_perception_only(
             f"原因：{predict_message}\n"
             "模型推理失败时不生成替代假结果。",
             external_text,
-            "灾情感知与外部影响评估（高级深度版）：unavailable",
+            "S2-S3 灾情感知及影响评估：unavailable",
             "模型推理失败，未生成 pred_mask。",
             unavailable_external,
             "辅助决策，人工复核。未生成替代假结果。",
@@ -1748,7 +1785,7 @@ def disaster_perception_only(
             f"原因：{validation.get('message', 'pred_mask 验证失败。')}\n"
             "无效 pred_mask 不进入外部影响评估主展示。",
             external_text,
-            "灾情感知与外部影响评估（高级深度版）：unavailable",
+            "S2-S3 灾情感知及影响评估：unavailable",
             "pred_mask 验证失败，未计算统计信息。",
             unavailable_external,
             "辅助决策，人工复核。未生成替代假结果。",
@@ -1788,7 +1825,7 @@ def disaster_perception_only(
         legend_image,
         status_text,
         external_text if not transformer_summary else f"{transformer_summary}\n\n{external_text}",
-        f"灾情感知与外部影响评估（高级深度版）：pred_mask ready；整体损毁等级：{damage_level}",
+        f"S2-S3 灾情感知及影响评估：pred_mask ready；整体损毁等级：{damage_level}",
         _build_damage_area_stats_text(stats),
         external_summary,
         _build_segmentation_impact_text(stats, damage_level),
@@ -1969,7 +2006,7 @@ def _format_inasafe_run_status(item):
 def _s2s3_truthfulness_text(extra=""):
     base = (
         "统一真实性边界：\n"
-        "- S2-S3 最终模块为：灾情感知与外部影响评估（高级深度版）。\n"
+        "- S2-S3 最终模块为：灾情感知及影响评估。\n"
         "- 固定使用本地已训练语义分割模型生成 pred_mask。\n"
         "- 覆盖图、黑底彩色分割图、图例和统计信息必须来自同一个 pred_mask。\n"
         "- SKAI 只有真实调用 google-research/skai 外部源码并验证输出文件后，才标记为真实 SKAI 输出。\n"
@@ -2169,7 +2206,7 @@ def run_damage_segmentation_analysis(image, img_size=512, language="zh"):
         unavailable_text,
         impact_text,
         _s2s3_truthfulness_text(),
-        "灾情感知与外部影响评估（高级深度版）运行完成。",
+        "S2-S3 灾情感知及影响评估运行完成。",
     )
 
 
@@ -2270,7 +2307,16 @@ def video_detection(video_path, conf_threshold, model_variant, frame_skip=15, ma
 
     frame_skip = max(1, int(frame_skip or 1))
     max_frames = int(max_frames or 0)
-    model_video = get_model(model_variant)
+    try:
+        model_video = get_model(model_variant)
+    except FileNotFoundError as exc:
+        cap.release()
+        out.release()
+        try:
+            Path(temp_video_path).unlink(missing_ok=True)
+        except Exception:
+            pass
+        return None, detection_model_unavailable_message(model_variant, exc)
 
     def _video_box_allowed(box, names):
         class_name = names[int(box.cls[0])]
@@ -2819,7 +2865,7 @@ with gr.Blocks(
             outputs=[orthomosaic_status, orthomosaic_log, orthomosaic_run_log],
         )
 
-    with gr.Tab("S2-S3 灾情感知与外部影响评估（高级深度版）"):
+    with gr.Tab("S2-S3 灾情感知及影响评估"):
         with gr.Accordion("① 上传图像 + 运行按钮", open=True, elem_classes=["stage-action-panel"]):
             gr.Markdown(
                 """

@@ -458,7 +458,7 @@ def build_external_impact_assessment_status(output_dir=None):
     output_dir = Path(output_dir or OUTPUT_ROOT)
     return {
         "success": True,
-        "module": "灾情感知与外部影响评估（高级深度版）",
+        "module": "灾情感知及影响评估",
         "segmentation_contract": (
             "S2-S3 uses the local trained semantic segmentation model to generate one pred_mask. "
             "Overlay, black-background color mask, legend, statistics, and downstream status are derived from that same pred_mask."
@@ -481,7 +481,7 @@ def format_external_impact_assessment_status(status):
     if not status:
         status = build_external_impact_assessment_status()
     lines = [
-        "灾情感知与外部影响评估（高级深度版）",
+        "灾情感知及影响评估",
         "",
         "统一口径：已训练语义分割模型生成 pred_mask；SKAI / InaSAFE 只接受外部源码级真实运行输出。",
         "",
