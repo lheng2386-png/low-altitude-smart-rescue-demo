@@ -59,6 +59,7 @@ jobs:
             app backend modules static configs demo_cases \
             hf_space/
 
+          cp .gitattributes hf_space/.gitattributes
           cp app/requirements.txt hf_space/requirements.txt
 
           cat > hf_space/README.md <<'EOF'
@@ -82,7 +83,7 @@ jobs:
         run: |
           git config user.email "actions@github.com"
           git config user.name "github-actions[bot]"
-          git add .
+          git add --renormalize .
           if git diff --cached --quiet; then
             echo "No changes to deploy."
             exit 0
