@@ -24,25 +24,23 @@ def main():
         image,
         0.3,
     )
-    assert len(result) == 17
-    assert "route" in result[1]
-    assert "selected_backend_combo" in result[1]
-    assert "recommended_backend_combo" in result[1]
-    assert "requested_backend_combo" in result[1]
-    assert "selected_main_backend" in result[1]
-    assert "selected_auxiliary_backends" in result[1]
-    assert "skipped_backends" in result[1]
-    assert "unavailable_backends" in result[1]
-    assert "expected_outputs" in result[1]
-    assert "selected_main_backend" not in str(result[0])
-    assert "selected_auxiliary_backends" not in str(result[0])
+    assert len(result) == 16
+    assert "route" in result[0]
+    assert "selected_backend_combo" in result[0]
+    assert "recommended_backend_combo" in result[0]
+    assert "requested_backend_combo" in result[0]
+    assert "selected_main_backend" in result[0]
+    assert "selected_auxiliary_backends" in result[0]
+    assert "skipped_backends" in result[0]
+    assert "unavailable_backends" in result[0]
+    assert "expected_outputs" in result[0]
 
-    backend_rows = result[3]
+    backend_rows = result[2]
     assert any(row[0] == "air_sar_detector" and row[1] == "adapter_unavailable" for row in backend_rows)
     assert any(row[0] == "qazi_disaster_detector" and row[1] == "adapter_unavailable" for row in backend_rows)
-    assert "qazi0" in _update_value(result[10])
+    assert "qazi0" in _update_value(result[9])
 
-    for path in [result[11], result[12], result[13]]:
+    for path in [result[10], result[11], result[12]]:
         assert Path(path).exists()
 
     visible_text = "\n".join(str(item) for item in result)
@@ -51,6 +49,8 @@ def main():
     app_source = (APP_DIR / "app.py").read_text(encoding="utf-8")
     assert "高级详情 / Developer Details" in app_source
     assert "输入文件信息" not in app_source
+    assert "系统检测模式" not in app_source
+    assert "等待 execution_plan" not in app_source
     assert "候选目标裁剪证据" not in app_source
     assert "导出摘要" not in app_source
     developer_section = app_source[
