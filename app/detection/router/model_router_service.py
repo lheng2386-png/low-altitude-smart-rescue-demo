@@ -12,26 +12,108 @@ import numpy as np
 from PIL import Image
 
 from .route_labels import (
-    AIR_BACKEND,
     CLOSE_RANGE_CLEAR_RGB,
     DISASTER_AERIAL_SCENE,
     DISTANT_SMALL_HUMAN_CANDIDATE,
     NORMAL_DISASTER_RGB,
-    QAZI_BACKEND,
     ROUTE_LABELS,
-    TRANSFORMER_BACKEND,
     VIDEO_FRAME_SEQUENCE,
-    YOLO_BACKEND,
 )
+from .execution_plan_builder import build_execution_plan
 from .router_schemas import RouterDecision
+
+
+def check_backend_status(yolo_weights_path=None, transformer_available=True):
+    """Lightweight availability check for standalone router tests/integration."""
+    yolo_available = bool(yolo_weights_path and Path(yolo_weights_path).exists())
+    return {
+        "yolo_main_detector": {
+            "backend": "yolo_main_detector",
+            "available": yolo_available,
+            "reason": "local YOLO weights found" if yolo_available else "missing_weights",
+        },
+        "transformer_compare_detector": {
+            "backend": "transformer_compare_detector",
+            "available": bool(transformer_available),
+            "reason": "available" if transformer_available else "adapter_unavailable",
+        },
+        "air_sar_detector": {
+            "backend": "air_sar_detector",
+            "available": False,
+            "reason": "adapter_not_configured",
+        },
+        "qazi_disaster_detector": {
+            "backend": "qazi_disaster_detector",
+            "available": False,
+            "reason": "adapter_not_configured",
+        },
+    }
 
 
 class ModelRouterService:
     """Rule-based S4 router with a classifier injection point."""
 
-    def __init__(self, classifier=None, low_confidence_threshold=0.60):
+    def __init__(self, classifier=None, low_confidence_threshold=0.60, strategy="rule_v0"):
         self.classifier = classifier
         self.low_confidence_threshold = float(low_confidence_threshold)
+        self.strategy = strategy
+
+    def decide_route(self, image_path: str, input_meta: dict | None = None) -> RouterDecision:
+        """Select an S4 detection route for one image or video key frame.
+
+        The current implementation is an explainable rule/mock router. The
+        constructor-level classifier hook keeps the contract replaceable by
+        CLIP / ViT / DINOv2 classifiers later.
+        """
+        input_meta = dict(input_meta or {})
+        preferred_route = input_meta.get("preferred_route")
+        if preferred_route:
+            return self._decision(
+                preferred_route,
+                float(input_meta.get("router_confidence", 0.99)),
+                reason=input_meta.get("reason") or "测试或上游流程指定检测模式，Router 按指定 route 生成执行建议。",
+            )
+
+        input_type = input_meta.get("input_type")
+        if input_type in {"video", "video_frame"}:
+            return self._decision(
+                VIDEO_FRAME_SEQUENCE,
+                float(input_meta.get("router_confidence", 0.78)),
+                reason="输入为视频或视频关键帧，系统推荐进入视频关键帧目标检测流程。",
+            )
+
+        scene_hint = input_meta.get("scene_hint")
+        if scene_hint in {"flood", "fire", "collapse", "disaster_aerial"}:
+            return self._decision(
+                DISASTER_AERIAL_SCENE,
+                float(input_meta.get("router_confidence", 0.84)),
+                reason="输入含灾害航拍场景提示，系统推荐航拍灾情场景检测；该判断不代表确认灾害类型。",
+            )
+        if scene_hint in {"small_human", "distant_person", "aerial_small_target"}:
+            return self._decision(
+                DISTANT_SMALL_HUMAN_CANDIDATE,
+                float(input_meta.get("router_confidence", 0.87)),
+                reason="输入含远距离小目标或疑似人员提示，系统推荐小目标人体检测强化流程；该判断不代表确认人员。",
+            )
+
+        try:
+            image = self._to_pil_rgb(image_path)
+        except Exception:
+            return self._decision(
+                NORMAL_DISASTER_RGB,
+                float(input_meta.get("router_confidence", 0.42)),
+                reason="图像路径不存在或无法读取，Router 保守回退到普通灾害 RGB 检测建议。",
+            )
+
+        if self.classifier is not None:
+            classified = self.classifier.predict(image=image, input_meta=input_meta, strategy=self.strategy)
+            return self._decision(
+                classified.get("route", NORMAL_DISASTER_RGB),
+                float(classified.get("router_confidence", classified.get("confidence", 0.0))),
+                reason=classified.get("reason"),
+            )
+
+        return self._rule_classify(image=image, input_type="image")
 
     def classify(self, image=None, video_frames=None, input_type="image", route_override=None):
         """Return RouterDecision as a dict.
@@ -51,74 +133,7 @@ class ModelRouterService:
 
     def build_execution_plan(self, router_decision, availability):
         """Apply backend availability and fallback to the router decision."""
-        recommended = list(router_decision.get("recommended_combo", []))
-        selected = list(recommended)
-        fallback_applied = False
-        fallback_reasons = []
-        unavailable_backends = []
-
-        if float(router_decision.get("router_confidence", 0.0)) < self.low_confidence_threshold:
-            selected = [YOLO_BACKEND, TRANSFORMER_BACKEND]
-            fallback_applied = True
-            fallback_reasons.append("router_low_confidence_fallback")
-
-        if AIR_BACKEND in selected and not availability.get(AIR_BACKEND, {}).get("available"):
-            selected = [YOLO_BACKEND, TRANSFORMER_BACKEND]
-            fallback_applied = True
-            fallback_reasons.append("air_adapter_unavailable")
-            unavailable_backends.append(
-                {"backend": AIR_BACKEND, "reason": availability.get(AIR_BACKEND, {}).get("reason", "adapter_unavailable")}
-            )
-
-        if QAZI_BACKEND in selected and not availability.get(QAZI_BACKEND, {}).get("available"):
-            selected = [YOLO_BACKEND, TRANSFORMER_BACKEND]
-            fallback_applied = True
-            fallback_reasons.append("qazi_adapter_unavailable")
-            unavailable_backends.append(
-                {"backend": QAZI_BACKEND, "reason": availability.get(QAZI_BACKEND, {}).get("reason", "adapter_unavailable")}
-            )
-
-        selected_backend_combo = []
-        for backend in selected:
-            if availability.get(backend, {}).get("available"):
-                selected_backend_combo.append(backend)
-            else:
-                unavailable_backends.append({"backend": backend, "reason": availability.get(backend, {}).get("reason", "unavailable")})
-
-        if not availability.get(YOLO_BACKEND, {}).get("available"):
-            fallback_reasons.append("yolo_unavailable")
-
-        skipped = [backend for backend in [YOLO_BACKEND, TRANSFORMER_BACKEND, AIR_BACKEND, QAZI_BACKEND] if backend not in selected]
-        unavailable_backends = self._dedupe_unavailable(unavailable_backends)
-        reason = router_decision.get("reason", "")
-        if fallback_applied:
-            reason = (
-                f"Router 推荐 {router_decision.get('display_mode_name')}，但发生 fallback："
-                f"{', '.join(fallback_reasons)}。当前只运行真实可用后端。"
-            )
-
-        return {
-            "selection_mode": "router_auto_with_fallback" if fallback_applied else "router_auto",
-            "route": router_decision.get("route"),
-            "display_mode_name": router_decision.get("display_mode_name"),
-            "router_confidence": round(float(router_decision.get("router_confidence", 0.0)), 4),
-            "recommended_backend_combo": recommended,
-            "requested_backend_combo": selected,
-            "selected_backend_combo": selected_backend_combo,
-            "skipped_backends": skipped,
-            "unavailable_backends": unavailable_backends,
-            "fallback_applied": bool(fallback_applied),
-            "fallback_reasons": fallback_reasons,
-            "reason": reason,
-            "expected_outputs": [
-                "s4_detection_overlay.png",
-                "s4_fused_rescue_candidates.png",
-                "s4_candidate_crops_sheet.png",
-                "rescue_candidates.json",
-                "backend_agreement.json",
-                "evidence_records.json",
-            ],
-        }
+        return build_execution_plan(router_decision, availability).to_dict()
 
     def _rule_classify(self, image=None, video_frames=None, input_type="image"):
         if input_type == "video" or video_frames:
@@ -148,6 +163,13 @@ class ModelRouterService:
         return self._decision(NORMAL_DISASTER_RGB, 0.72)
 
     def _decision(self, route, confidence, reason=None):
+        if route not in ROUTE_LABELS:
+            reason = (
+                f"未知检测 route '{route}'，Router 保守回退到普通灾害 RGB 检测建议；"
+                "未执行未注册检测模式。"
+            )
+            route = NORMAL_DISASTER_RGB
+            confidence = min(float(confidence), 0.42)
         return RouterDecision.from_route_config(route, ROUTE_LABELS[route], confidence, reason=reason)
 
     @staticmethod

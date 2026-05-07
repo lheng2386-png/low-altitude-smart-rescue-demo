@@ -345,7 +345,7 @@ def fuse_rescue_candidates(detections_by_backend):
         human_candidate = class_name == "human_candidate"
         source_backend = best.get("source_backend")
         cross_backend = len(matched) > 1
-        can_enter_terp = bool(source_backend == YOLO_BACKEND or cross_backend or human_candidate)
+        can_enter_terp = bool(source_backend == YOLO_BACKEND or cross_backend)
         can_enter_path = bool(source_backend == YOLO_BACKEND and not (human_candidate and not cross_backend))
         review_priority = "high" if human_candidate or cross_backend else "normal"
         if cross_backend:
@@ -365,7 +365,13 @@ def fuse_rescue_candidates(detections_by_backend):
                 "cross_backend_agreement": cross_backend,
                 "matched_backends": matched,
                 "review_priority": review_priority,
-                "notes": "疑似人员候选，需人工复核。" if human_candidate else "模型候选目标，需人工复核。",
+                "notes": (
+                    "疑似人员候选，需人工复核；单 Transformer 结果仅作为对比证据，不直接进入 TERP 或路径规划。"
+                    if human_candidate and not can_enter_terp
+                    else "疑似人员候选，需人工复核。"
+                    if human_candidate
+                    else "模型候选目标，需人工复核。"
+                ),
                 "truthfulness_boundary": MODEL_EVIDENCE_NOTE,
             }
         )
@@ -417,6 +423,11 @@ def _crop_candidates(image, candidates, output_dir):
 def _evidence_records(candidates, output_dir):
     records = []
     for index, candidate in enumerate(candidates, start=1):
+        used_by = ["S5_target_verification", "Final_Report_V2"]
+        if candidate.get("can_enter_terp"):
+            used_by.append("S7_terp_ranking")
+        if candidate.get("can_enter_path_planning"):
+            used_by.append("S8_path_planning")
         records.append(
             {
                 "evidence_id": f"S4-EVID-{index:04d}",
@@ -429,7 +440,9 @@ def _evidence_records(candidates, output_dir):
                 "crop_path": candidate.get("crop_path", ""),
                 "human_review_required": True,
                 "generated_at": _utc_timestamp(),
-                "used_by": ["S5_target_verification", "S7_terp_ranking", "S8_path_planning", "Final_Report_V2"],
+                "used_by": used_by,
+                "can_enter_terp": bool(candidate.get("can_enter_terp")),
+                "can_enter_path_planning": bool(candidate.get("can_enter_path_planning")),
                 "truthfulness_note": MODEL_EVIDENCE_NOTE,
             }
         )

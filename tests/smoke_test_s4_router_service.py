@@ -124,6 +124,26 @@ def main():
         assert qazi_result["adapter_status"][QAZI_BACKEND]["status"] == "adapter_unavailable"
         assert qazi_result["raw_results"][QAZI_BACKEND]["detections"] == []
 
+    with tempfile.TemporaryDirectory() as tmp:
+        transformer_only = run_s4_router_detection(
+            image,
+            model_variant="missing_smoke_test_model",
+            route_override="close_range_clear_rgb",
+            availability_overrides={TRANSFORMER_BACKEND: {"available": True, "status": "available", "reason": "mock"}},
+            mock_backend_results={TRANSFORMER_BACKEND: _mock_results()[TRANSFORMER_BACKEND]},
+            output_dir=tmp,
+        )
+        assert transformer_only["execution_plan"]["selected_main_backend"] is None
+        assert transformer_only["execution_plan"]["selected_backend_combo"] == [TRANSFORMER_BACKEND]
+        assert transformer_only["rescue_candidates"]
+        candidate = transformer_only["rescue_candidates"][0]
+        assert candidate["source_backend"] == TRANSFORMER_BACKEND
+        assert candidate["can_enter_terp"] is False
+        assert candidate["can_enter_path_planning"] is False
+        evidence = transformer_only["evidence_records"][0]
+        assert "S7_terp_ranking" not in evidence["used_by"]
+        assert "S8_path_planning" not in evidence["used_by"]
+
     forbidden = ["confirmed civilian", "confirmed survivor", "已确认幸存者"]
     assert not any(term in MODEL_EVIDENCE_NOTE for term in forbidden)
     print("S4 router service smoke test passed.")

@@ -65,12 +65,6 @@ from mission_planner_panel import attach_mission_planner_panel
 from evidence_audit_panel import attach_evidence_audit_panel
 from ui.mission_dashboard_panel import attach_mission_dashboard_panel
 try:
-    from ui.mission_control_panel import attach_mission_control_panel
-    MISSION_CONTROL_PANEL_IMPORT_ERROR = ""
-except Exception as exc:
-    attach_mission_control_panel = None
-    MISSION_CONTROL_PANEL_IMPORT_ERROR = str(exc)
-try:
     from ui.validation_roadmap_panel import attach_validation_roadmap_panel
     VALIDATION_ROADMAP_PANEL_IMPORT_ERROR = ""
 except Exception as exc:
@@ -2244,6 +2238,8 @@ def target_detection_with_source(
 
 S4_TRUTHFULNESS_BOUNDARY = "模型输出为辅助研判结果，需人工复核，不代表确认人员或真实救援结论。"
 S4_FORBIDDEN_CONFIRMATION_TERMS = ("confirmed civilian", "confirmed survivor", "已确认幸存者")
+S4_DEFAULT_YOLO_MODEL_VARIANT = "yolov11m"
+S4_DEFAULT_TRANSFORMER_MODEL_KEY = "rescuedet_deformable_detr"
 
 
 def _s4_json_safe(value):
@@ -2567,7 +2563,8 @@ def _s4_send_stub(stage_key, candidates):
 
 def s4_candidate_select(evt: gr.SelectData, candidates):
     index = evt.index[0] if isinstance(evt.index, (list, tuple)) else evt.index
-    return select_s4_router_candidate_detail(candidates, index)
+    detail, _crop_path = select_s4_router_candidate_detail(candidates, index)
+    return detail
 
 
 def s4_send_to_s5(candidates):
@@ -2590,15 +2587,13 @@ def s4_adaptive_detection_workbench(
     image_source,
     shared_image,
     stage_image,
-    transformer_model_key,
     conf_threshold,
-    model_variant,
 ):
+    transformer_model_key = S4_DEFAULT_TRANSFORMER_MODEL_KEY
+    model_variant = S4_DEFAULT_YOLO_MODEL_VARIANT
     input_text, selected_image = _s4_input_panel_text(image_source, shared_image, stage_image)
     if selected_image is None:
         return (
-            input_text,
-            "检测模式：Unsupported\n系统置信度：较低\n推荐原因：未提供有效输入。\n是否发生回退：否",
             "{}",
             "未提供图像，未执行后端。",
             [],
@@ -2614,16 +2609,7 @@ def s4_adaptive_detection_workbench(
             None,
             [],
             "请选择一行候选目标查看详情。",
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
             [],
-            "",
         )
     result = run_s4_router_detection(
         selected_image,
@@ -2635,14 +2621,6 @@ def s4_adaptive_detection_workbench(
     )
     plan = result["execution_plan"]
     execution_plan_json = json.dumps(plan, ensure_ascii=False, indent=2)
-    system_mode = result["system_mode_summary"]
-    plan_md = (
-        f"检测模式：{system_mode.get('display_mode_name')}\n\n"
-        f"系统置信度：{system_mode.get('confidence_label')}\n\n"
-        f"系统选择的检测组合：{', '.join(plan.get('selected_backend_combo') or []) or '无可执行后端'}\n\n"
-        f"推荐原因：{system_mode.get('reason')}\n\n"
-        f"是否发生回退：{'是' if system_mode.get('fallback_applied') else '否'}"
-    )
     availability = result.get("availability", {})
     status_rows = [
         [
@@ -2666,22 +2644,9 @@ def s4_adaptive_detection_workbench(
     yolo_status = availability.get("yolo_main_detector", {})
     transformer_status = availability.get("transformer_compare_detector", {})
     air_status = availability.get("air_sar_detector", {})
-    first_detail, first_crop = result["candidate_detail"]
+    first_detail, _first_crop = result["candidate_detail"]
     paths = result["paths"]
-    export_summary = (
-        "Evidence Export ready\n"
-        f"- execution_plan.json: {paths.get('execution_plan')}\n"
-        f"- router_decision.json: {paths.get('router_decision')}\n"
-        f"- rescue_candidates.json: {paths.get('rescue_candidates')}\n"
-        f"- backend_agreement.json: {paths.get('backend_agreement')}\n"
-        f"- evidence_records.json: {paths.get('evidence_records')}\n"
-        f"- adapter_status.json: {paths.get('adapter_status')}\n"
-        f"- Final Report V2 summary: {paths.get('final_report_v2_s4_summary')}\n"
-        f"- 真实性边界：{S4_ROUTER_TRUTHFULNESS_BOUNDARY}"
-    )
     return (
-        input_text,
-        plan_md,
         execution_plan_json,
         backend_status_text,
         status_rows,
@@ -2697,16 +2662,7 @@ def s4_adaptive_detection_workbench(
         paths.get("s4_fused_rescue_candidates"),
         result.get("candidate_table_rows", []),
         first_detail,
-        first_crop,
-        paths.get("execution_plan"),
-        paths.get("router_decision"),
-        paths.get("rescue_candidates"),
-        paths.get("backend_agreement"),
-        paths.get("evidence_records"),
-        paths.get("s4_candidate_crops_sheet"),
-        paths.get("s4_candidate_crops_sheet"),
         result.get("rescue_candidates", []),
-        export_summary,
     )
 
 
@@ -3194,13 +3150,6 @@ with gr.Blocks(
         with gr.Accordion("任务总览", open=False, elem_classes=["stage-action-panel"]):
             attach_mission_dashboard_panel()
 
-    with gr.Tab("一键任务演示"):
-        with gr.Accordion("一键任务演示", open=False, elem_classes=["stage-action-panel"]):
-            if attach_mission_control_panel is None:
-                gr.Markdown(f"一键任务演示面板暂不可用：{MISSION_CONTROL_PANEL_IMPORT_ERROR}")
-            else:
-                attach_mission_control_panel()
-
     with gr.Tab("真实能力验证路线图"):
         with gr.Accordion("真实能力验证路线图", open=False, elem_classes=["stage-action-panel"]):
             if attach_validation_roadmap_panel is None:
@@ -3463,30 +3412,11 @@ with gr.Blocks(
                             label="图片来源",
                             value="首页照片",
                         )
-                        transformer_model_key = gr.Dropdown(
-                            list(TRANSFORMER_DETECTION_MODELS.keys()),
-                            label="Transformer 后端参数（Router 选择时使用）",
-                            value="rescuedet_deformable_detr",
-                        )
                         conf_threshold = gr.Slider(label="最低识别把握度", minimum=0.0, maximum=1.0, step=0.05, value=0.30)
-                        output_model = gr.Dropdown(
-                            ["yolov11n", "yolov11s", "yolov11m", "yolov11l"],
-                            label="YOLO 后端参数（Router 选择时使用）",
-                            info="Router 选择 YOLO 进入本次检测组合时使用该权重版本。",
-                            value="yolov11m",
-                        )
                     with gr.Column(scale=1):
                         s4_stage_image = gr.Image(label="S4 本地上传图像（可选）", type="pil", elem_classes=["stage-input-card"])
-                        s4_input_status = gr.Textbox(
-                            label="输入文件信息",
-                            lines=6,
-                            value=f"真实性边界：{S4_TRUTHFULNESS_BOUNDARY}\n输入状态：等待运行。",
-                            interactive=False,
-                        )
                 with gr.Row(elem_classes=["stage-run-row"]):
                     btn = gr.Button("运行场景自适应检测", variant="primary")
-            with gr.Accordion("系统检测模式", open=True, elem_classes=["stage-result-window s4-panel"]):
-                s4_router_summary = gr.Markdown("等待 execution_plan。")
             with gr.Accordion("检测结果图", open=True, elem_classes=["stage-result-window s4-panel"]):
                 with gr.Row():
                     s4_detection_overlay = gr.Image(label="模型检测结果图：s4_detection_overlay.png")
@@ -3506,9 +3436,6 @@ with gr.Blocks(
                     )
                     with gr.Column():
                         s4_candidate_detail = gr.Markdown("请选择候选目标。")
-                        s4_candidate_crop = gr.Image(label="候选裁剪证据图")
-            with gr.Accordion("候选目标裁剪证据", open=True, elem_classes=["stage-result-window s4-panel"]):
-                s4_crops_sheet_preview = gr.Image(label="s4_candidate_crops_sheet.png")
             with gr.Accordion("下一步入口", open=True, elem_classes=["stage-result-window s4-panel"]):
                 with gr.Row(elem_classes=["stage-run-row"]):
                     s4_send_s5_btn = gr.Button("发送到 S5 复核证据包", variant="primary")
@@ -3537,14 +3464,6 @@ with gr.Blocks(
                     with gr.Column():
                         s4_qazi_status_card = gr.Markdown("qazi0 adapter_unavailable：等待执行计划。", elem_classes=["s4-unavailable-card"])
                 s4_agreement_map = gr.Image(label="s4_backend_agreement_map.png")
-                s4_export_summary = gr.Textbox(label="导出摘要", lines=7, interactive=False)
-                with gr.Row():
-                    s4_execution_plan_file = gr.File(label="execution_plan.json")
-                    s4_router_decision_file = gr.File(label="router_decision.json")
-                    s4_rescue_candidates_json = gr.File(label="rescue_candidates.json")
-                    s4_backend_agreement_json = gr.File(label="backend_agreement.json")
-                    s4_evidence_records_json = gr.File(label="evidence_records.json")
-                    s4_crops_sheet_file = gr.File(label="s4_candidate_crops_sheet.png")
 
             btn.click(
                 fn=s4_adaptive_detection_workbench,
@@ -3552,13 +3471,9 @@ with gr.Blocks(
                     s4_image_source,
                     imported_image,
                     s4_stage_image,
-                    transformer_model_key,
                     conf_threshold,
-                    output_model,
                 ],
                 outputs=[
-                    s4_input_status,
-                    s4_router_summary,
                     s4_execution_plan_json,
                     s4_backend_status_text,
                     s4_backend_status_table,
@@ -3574,22 +3489,13 @@ with gr.Blocks(
                     s4_fused_candidates,
                     s4_candidate_table,
                     s4_candidate_detail,
-                    s4_candidate_crop,
-                    s4_execution_plan_file,
-                    s4_router_decision_file,
-                    s4_rescue_candidates_json,
-                    s4_backend_agreement_json,
-                    s4_evidence_records_json,
-                    s4_crops_sheet_file,
-                    s4_crops_sheet_preview,
                     s4_candidates_state,
-                    s4_export_summary,
                 ],
             )
             s4_candidate_table.select(
                 fn=s4_candidate_select,
                 inputs=s4_candidates_state,
-                outputs=[s4_candidate_detail, s4_candidate_crop],
+                outputs=s4_candidate_detail,
             )
             s4_send_s5_btn.click(fn=s4_send_to_s5, inputs=s4_candidates_state, outputs=s4_send_status)
             s4_send_s7_btn.click(fn=s4_send_to_s7, inputs=s4_candidates_state, outputs=s4_send_status)
@@ -3657,7 +3563,7 @@ with gr.Blocks(
     - 裁剪图来自图像像素，可能遗漏裁剪框之外的重要上下文。
     - 系统不能编造候选目标，也不能编造人工复核决定。
 
-    	当前独立 S5 页面先作为流程入口和证据结构说明；完整可运行链路请使用 **一键任务演示**，它会自动执行 S4 → S5 → S6 并生成 `outputs/target_verification/target_verification_result.json`。
+    	当前独立 S5 页面先作为流程入口和证据结构说明；完整可运行链路可按 S4 → S5 → S6 的阶段顺序执行，并生成 `outputs/target_verification/target_verification_result.json`。
     	            """
     	        )
         with gr.Accordion("2. 输入与运行", open=False, elem_classes=["stage-action-panel"]):

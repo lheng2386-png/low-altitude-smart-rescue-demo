@@ -22,38 +22,42 @@ def main():
         "本地上传",
         None,
         image,
-        "rescuedet_deformable_detr",
         0.3,
-        "missing_smoke_test_model",
     )
-    assert len(result) == 27
-    assert "route" in result[2]
-    assert "selected_backend_combo" in result[2]
-    assert "recommended_backend_combo" in result[2]
-    assert "requested_backend_combo" in result[2]
-    assert "selected_main_backend" not in result[2]
-    assert "selected_auxiliary_backends" not in result[2]
-    assert "skipped_backends" in result[2]
-    assert "unavailable_backends" in result[2]
-    assert "expected_outputs" in result[2]
+    assert len(result) == 17
+    assert "route" in result[1]
+    assert "selected_backend_combo" in result[1]
+    assert "recommended_backend_combo" in result[1]
+    assert "requested_backend_combo" in result[1]
+    assert "selected_main_backend" in result[1]
+    assert "selected_auxiliary_backends" in result[1]
+    assert "skipped_backends" in result[1]
+    assert "unavailable_backends" in result[1]
+    assert "expected_outputs" in result[1]
+    assert "selected_main_backend" not in str(result[0])
+    assert "selected_auxiliary_backends" not in str(result[0])
 
-    backend_rows = result[4]
+    backend_rows = result[3]
     assert any(row[0] == "air_sar_detector" and row[1] == "adapter_unavailable" for row in backend_rows)
     assert any(row[0] == "qazi_disaster_detector" and row[1] == "adapter_unavailable" for row in backend_rows)
-    assert "qazi0" in _update_value(result[11])
+    assert "qazi0" in _update_value(result[10])
 
-    for path in [result[12], result[13], result[14], result[18], result[19], result[20], result[21], result[22], result[23]]:
+    for path in [result[11], result[12], result[13]]:
         assert Path(path).exists()
 
-    visible_text = "\n".join(str(item) for item in result[:18])
+    visible_text = "\n".join(str(item) for item in result)
     forbidden = ["confirmed civilian", "confirmed survivor", "已确认幸存者"]
     assert not any(term in visible_text for term in forbidden)
     app_source = (APP_DIR / "app.py").read_text(encoding="utf-8")
     assert "高级详情 / Developer Details" in app_source
+    assert "输入文件信息" not in app_source
+    assert "候选目标裁剪证据" not in app_source
+    assert "导出摘要" not in app_source
     developer_section = app_source[
         app_source.index("高级详情 / Developer Details") : app_source.index("with gr.Group(visible=False) as video_detection_group")
     ]
     assert "execution_plan.json" in developer_section
+    assert "evidence_records.json" not in developer_section
 
     print("S4 adaptive multi-model workbench smoke test passed.")
 
