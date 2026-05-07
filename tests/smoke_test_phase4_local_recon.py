@@ -90,6 +90,9 @@ def main():
         )
         assert result["stage_key"] == "local_recon"
         assert result["candidate_count"] == 2
+        assert result["s4_reference_fusion"]["reference_count"] >= 3
+        assert result["candidate_summary"]["s4_reference_fusion"]["person_detection_reference_count"] >= 2
+        assert result["candidates"][0]["s4_reference_policy"]["did_reference_sources_create_target"] is False
         assert result["global_context_available"] is False
         assert result["map_registration_available"] is False
         assert mission["workflow_state"]["stages"]["local_recon"]["status"] == "completed"

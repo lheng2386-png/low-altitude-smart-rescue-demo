@@ -110,6 +110,12 @@ from transformer_detection_service import (
     run_transformer_detection,
 )
 from detection_backend_registry import summarize_detection_backend_capabilities
+from s4_reference_fusion import build_s4_reference_fusion_context, format_s4_reference_fusion_summary
+from s4_router_service import (
+    TRUTHFULNESS_BOUNDARY as S4_ROUTER_TRUTHFULNESS_BOUNDARY,
+    run_s4_router_detection,
+    select_candidate_detail as select_s4_router_candidate_detail,
+)
 from mission_orchestrator import initialize_mission_from_inputs, record_module_result, finalize_mission
 from modules.reconstruction_3d.reconstruction_workflow import (
     check_reconstruction_dependencies,
@@ -1197,6 +1203,7 @@ def image_detection(
     image_bgr = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
     image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
     detection_backend_text = str(detection_backend or "YOLO Rescue Targets")
+    s4_reference_summary = format_s4_reference_fusion_summary(build_s4_reference_fusion_context())
 
     if detection_backend_text.startswith("Transformer"):
         transformer_result = run_transformer_detection(
@@ -1209,6 +1216,7 @@ def image_detection(
         transformer_summary_text = json.dumps(transformer_result, ensure_ascii=False, indent=2)
         if not transformer_result.get("success"):
             transformer_summary_text += "\n\nTransformer 后端未成功运行；没有生成伪检测结果。"
+        transformer_summary_text += f"\n\n{s4_reference_summary}"
         gate_status = scene_gate_status_text(
             {
                 "level": "Target Only" if transformer_targets else "No Target",
@@ -1301,6 +1309,7 @@ def image_detection(
                 indent=2,
             )
         )
+    transformer_summary_text += f"\n\n{s4_reference_summary}"
     segmentation_mask = None
     segmentation_overlay = None
     segmentation_summary = {}
@@ -1622,6 +1631,7 @@ def target_detection_only(
     image_bgr = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
     image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
     detection_backend_text = str(detection_backend or "YOLO Rescue Targets")
+    s4_reference_summary = format_s4_reference_fusion_summary(build_s4_reference_fusion_context())
 
     if detection_backend_text.startswith("Transformer"):
         transformer_result = run_transformer_detection(
@@ -1634,6 +1644,7 @@ def target_detection_only(
         summary = json.dumps(transformer_result, ensure_ascii=False, indent=2)
         if not transformer_result.get("success"):
             summary += "\n\nTransformer 后端未成功运行；没有生成伪检测结果。"
+        summary += f"\n\n{s4_reference_summary}"
         report = (
             "Transformer RescueDet 辅助检测完成。\n\n"
             "当前结果只作为候选检测线索，需要人工复核；不会自动进入救援优先级或路径规划。"
@@ -1672,6 +1683,7 @@ def target_detection_only(
                 indent=2,
             )
         )
+    summary += f"\n\n{s4_reference_summary}"
     report = (
         f"目标检测完成。\n\n检测目标数：{len(targets)}\n"
         "本页只展示目标检测结果；如需语义分割与环境风险，请进入“灾情感知及影响评估”Tab；如需 TERP 排序和路径规划，请进入“综合决策”Tab。"
@@ -2223,10 +2235,478 @@ def target_detection_with_source(
     selected_image = stage_image if str(image_source or "").startswith(("本阶段", "本地", "上传")) else shared_image
     return target_detection_only(
         _normalize_ui_image_value(selected_image),
-        detection_backend,
+        "YOLO + Transformer Compare",
         transformer_model_key,
         conf_threshold,
         model_variant,
+    )
+
+
+S4_TRUTHFULNESS_BOUNDARY = "模型输出为辅助研判结果，需人工复核，不代表确认人员或真实救援结论。"
+S4_FORBIDDEN_CONFIRMATION_TERMS = ("confirmed civilian", "confirmed survivor", "已确认幸存者")
+
+
+def _s4_json_safe(value):
+    if isinstance(value, np.generic):
+        return value.item()
+    if isinstance(value, np.ndarray):
+        return value.tolist()
+    if isinstance(value, Path):
+        return str(value)
+    if isinstance(value, dict):
+        return {str(key): _s4_json_safe(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_s4_json_safe(item) for item in value]
+    return value
+
+
+def _s4_write_json(path, payload):
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(_s4_json_safe(payload), ensure_ascii=False, indent=2), encoding="utf-8")
+    return str(path)
+
+
+def _s4_output_dir():
+    root = ROOT_DIR / "outputs" / "detection" / "s4_workbench"
+    root.mkdir(parents=True, exist_ok=True)
+    output_dir = root / datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    return output_dir
+
+
+def _s4_input_panel_text(image_source, shared_image, stage_image):
+    selected = stage_image if str(image_source or "").startswith(("本阶段", "本地", "上传")) else shared_image
+    if selected is None:
+        return (
+            f"真实性边界：{S4_TRUTHFULNESS_BOUNDARY}\n"
+            "输入状态：unavailable\n"
+            f"图片来源：{image_source or '未选择'}\n"
+            "说明：请从首页共享图像或 S4 本地上传图像中选择一个输入。"
+        ), None
+    width, height = selected.size
+    source_kind = "S4 本地上传" if str(image_source or "").startswith(("本阶段", "本地", "上传")) else "首页共享图像"
+    return (
+        f"真实性边界：{S4_TRUTHFULNESS_BOUNDARY}\n"
+        "输入状态：ready\n"
+        f"图片来源：{source_kind}\n"
+        f"图像尺寸：{width} x {height}\n"
+        "说明：S4 只输出候选目标与证据链，不输出确认救援结论。",
+        selected,
+    )
+
+
+def build_s4_execution_plan(image, model_variant, transformer_model_key):
+    scene_type = "no_image"
+    reason = "未提供局部 RGB 图像，不能选择检测后端。"
+    selected_backend_combo = []
+    optional_backend_combo = []
+    skipped_backends = ["qazi0/real-time-disaster-management"]
+    unavailable_backends = []
+    expected_outputs = []
+
+    if image is not None:
+        width, height = image.size
+        scene_type = "local_rgb_rescue_target_detection"
+        reason = "当前输入为局部 RGB 图像，Router 选择 YOLO 与 Transformer 组成检测组合。"
+        selected_backend_combo = ["yolo_rescue_targets", "transformer_rescuedet_argus"]
+        optional_backend_combo = ["air_retinanet_sar_reference"]
+        expected_outputs = [
+            "yolo_raw_detection",
+            "transformer_raw_detection",
+            "backend_agreement",
+            "fused_rescue_candidates",
+            "candidate_crops",
+            "export_json",
+        ]
+        if min(width, height) < 96:
+            reason += " 图像尺寸较小，所有候选目标均提高人工复核优先级。"
+        unavailable_backends = [
+            {
+                "backend_key": "air_retinanet_sar_reference",
+                "status": "adapter_unavailable",
+                "reason": "AIR 官方仓库尚未在本机复现为可执行 S4 adapter。",
+            },
+            {
+                "backend_key": "qazi_disaster_management_reference",
+                "status": "adapter_unavailable",
+                "reason": "qazi0 仓库尚未复现为可执行 S4 adapter，当前只作为流程参考。",
+            },
+        ]
+
+    return {
+        "scene_type": scene_type,
+        "reason": reason,
+        "selected_backend_combo": selected_backend_combo,
+        "recommended_backend_combo": selected_backend_combo + optional_backend_combo,
+        "requested_backend_combo": selected_backend_combo + optional_backend_combo,
+        "skipped_backends": skipped_backends,
+        "unavailable_backends": unavailable_backends,
+        "expected_outputs": expected_outputs,
+        "model_params": {
+            "yolo_model_variant": model_variant,
+            "transformer_model_key": transformer_model_key,
+        },
+    }
+
+
+def _s4_plan_markdown(plan):
+    return (
+        "### execution_plan\n"
+        f"- scene_type: `{plan.get('scene_type')}`\n"
+        f"- reason: {plan.get('reason')}\n"
+        f"- selected_backend_combo: `{plan.get('selected_backend_combo')}`\n"
+        f"- recommended_backend_combo: `{plan.get('recommended_backend_combo')}`\n"
+        f"- requested_backend_combo: `{plan.get('requested_backend_combo')}`\n"
+        f"- skipped_backends: `{plan.get('skipped_backends')}`\n"
+        f"- unavailable_backends: `{[item.get('backend_key') for item in plan.get('unavailable_backends', [])]}`\n"
+        f"- expected_outputs: `{plan.get('expected_outputs')}`"
+    )
+
+
+def _s4_backend_status_rows(plan, runtime_status):
+    rows = []
+    for backend_key, status in runtime_status.items():
+        rows.append(
+            [
+                backend_key,
+                status.get("status"),
+                status.get("available"),
+                status.get("reason"),
+                status.get("output_role", ""),
+            ]
+        )
+    for item in plan.get("unavailable_backends", []):
+        if item.get("backend_key") not in runtime_status:
+            rows.append([item.get("backend_key"), "adapter_unavailable", False, item.get("reason"), "reference_only"])
+    for backend_key in plan.get("skipped_backends", []):
+        if backend_key not in {row[0] for row in rows}:
+            rows.append([backend_key, "skipped", False, "本次 execution_plan 未选择该后端执行。", "reference_or_future"])
+    return rows
+
+
+def _s4_backend_status_text(plan, runtime_status):
+    rows = _s4_backend_status_rows(plan, runtime_status)
+    lines = ["### Backend Status"]
+    for backend_key, status, available, reason, role in rows:
+        lines.append(f"- `{backend_key}`：{status} | available={available} | role={role} | {reason}")
+    return "\n".join(lines)
+
+
+def _s4_normalize_target(target, backend_key, candidate_index, can_enter_terp, can_enter_path_planning):
+    class_name = str(target.get("class_name") or "unknown")
+    normalized_class = "human_candidate" if class_name.lower() in {"person", "people"} else class_name
+    bbox = [float(value) for value in target.get("bbox", [0, 0, 0, 0])[:4]]
+    center = target.get("center")
+    if not center and len(bbox) == 4:
+        center = [(bbox[0] + bbox[2]) / 2.0, (bbox[1] + bbox[3]) / 2.0]
+    return {
+        "candidate_id": f"C{candidate_index:03d}",
+        "class_name": normalized_class,
+        "confidence": round(float(target.get("confidence", 0.0)), 4),
+        "bbox": [round(value, 2) for value in bbox],
+        "center": [round(float(value), 2) for value in (center or [0, 0])[:2]],
+        "source_backend": backend_key,
+        "matched_backends": [backend_key],
+        "cross_backend_agreement": "single_backend",
+        "human_review_required": True,
+        "can_enter_terp": bool(can_enter_terp),
+        "can_enter_path_planning": bool(can_enter_path_planning),
+        "review_priority": "high" if normalized_class == "human_candidate" else "normal",
+        "truthfulness_boundary": S4_TRUTHFULNESS_BOUNDARY,
+    }
+
+
+def _s4_iou(a, b):
+    ax1, ay1, ax2, ay2 = [float(v) for v in a[:4]]
+    bx1, by1, bx2, by2 = [float(v) for v in b[:4]]
+    inter_x1, inter_y1 = max(ax1, bx1), max(ay1, by1)
+    inter_x2, inter_y2 = min(ax2, bx2), min(ay2, by2)
+    inter = max(0.0, inter_x2 - inter_x1) * max(0.0, inter_y2 - inter_y1)
+    area_a = max(0.0, ax2 - ax1) * max(0.0, ay2 - ay1)
+    area_b = max(0.0, bx2 - bx1) * max(0.0, by2 - by1)
+    denom = area_a + area_b - inter
+    return 0.0 if denom <= 0 else inter / denom
+
+
+def _s4_apply_backend_agreement(candidates):
+    for candidate in candidates:
+        matched = set(candidate.get("matched_backends") or [candidate.get("source_backend")])
+        for other in candidates:
+            if candidate is other:
+                continue
+            if candidate.get("source_backend") == other.get("source_backend"):
+                continue
+            class_pair = {candidate.get("class_name"), other.get("class_name")}
+            human_pair = bool(class_pair & {"human_candidate", "civilian", "rescuer", "person"})
+            if human_pair and _s4_iou(candidate.get("bbox", []), other.get("bbox", [])) >= 0.3:
+                matched.add(other.get("source_backend"))
+        candidate["matched_backends"] = sorted(item for item in matched if item)
+        candidate["cross_backend_agreement"] = "multi_backend_overlap" if len(matched) > 1 else "single_backend"
+        if len(matched) > 1:
+            candidate["review_priority"] = "urgent_review"
+    return candidates
+
+
+def _s4_draw_candidates(image, candidates, output_path, title=None):
+    pil_image = image.copy()
+    draw = ImageDraw.Draw(pil_image)
+    font = get_chinese_font(16)
+    colors = {
+        "yolo_rescue_targets": (31, 111, 235),
+        "transformer_rescuedet_argus": (184, 134, 11),
+        "air_retinanet_sar_reference": (196, 61, 61),
+    }
+    for candidate in candidates or []:
+        x1, y1, x2, y2 = [int(round(float(value))) for value in candidate.get("bbox", [0, 0, 0, 0])[:4]]
+        color = colors.get(candidate.get("source_backend"), (20, 20, 20))
+        label = f"{candidate.get('candidate_id')} {candidate.get('class_name')} {candidate.get('confidence', 0):.2f}"
+        if candidate.get("class_name") == "human_candidate":
+            label = f"{label} | Human Review Required"
+        draw.rectangle([x1, y1, x2, y2], outline=color, width=3)
+        text_bbox = draw.textbbox((0, 0), label, font=font)
+        text_w = text_bbox[2] - text_bbox[0]
+        text_h = text_bbox[3] - text_bbox[1]
+        draw.rectangle([x1, max(0, y1 - text_h - 8), x1 + text_w + 8, y1], fill=color)
+        draw.text((x1 + 4, max(0, y1 - text_h - 6)), label, fill=(255, 255, 255), font=font)
+    if title:
+        draw.rectangle([0, 0, min(pil_image.width, 620), 28], fill=(255, 242, 204))
+        draw.text((8, 5), title, fill=(24, 33, 47), font=font)
+    pil_image.save(output_path)
+    return str(output_path)
+
+
+def _s4_candidate_rows(candidates):
+    rows = []
+    for candidate in candidates or []:
+        class_name = candidate.get("class_name", "")
+        if class_name == "human_candidate":
+            class_name = "human_candidate | Human Review Required"
+        rows.append(
+            [
+                candidate.get("candidate_id"),
+                class_name,
+                candidate.get("confidence"),
+                candidate.get("source_backend"),
+                candidate.get("cross_backend_agreement"),
+                candidate.get("human_review_required"),
+                candidate.get("can_enter_terp"),
+                candidate.get("can_enter_path_planning"),
+            ]
+        )
+    return rows
+
+
+def _s4_crop_candidates(image, candidates, output_dir):
+    crop_paths = []
+    thumbs = []
+    for candidate in candidates or []:
+        bbox = [int(round(float(value))) for value in candidate.get("bbox", [0, 0, 0, 0])[:4]]
+        x1, y1, x2, y2 = bbox
+        pad = 16
+        crop_box = (
+            max(0, x1 - pad),
+            max(0, y1 - pad),
+            min(image.width, x2 + pad),
+            min(image.height, y2 + pad),
+        )
+        if crop_box[2] <= crop_box[0] or crop_box[3] <= crop_box[1]:
+            continue
+        crop = image.crop(crop_box)
+        crop_path = Path(output_dir) / f"{candidate.get('candidate_id')}_crop.png"
+        crop.save(crop_path)
+        candidate["crop_path"] = str(crop_path)
+        crop_paths.append(str(crop_path))
+        thumb = crop.copy()
+        thumb.thumbnail((180, 140))
+        thumbs.append((candidate.get("candidate_id"), thumb.copy()))
+    sheet_path = Path(output_dir) / "s4_candidate_crops_sheet.png"
+    if thumbs:
+        cell_w, cell_h = 220, 180
+        sheet = Image.new("RGB", (cell_w * min(3, len(thumbs)), cell_h * ((len(thumbs) + 2) // 3)), (245, 246, 248))
+        draw = ImageDraw.Draw(sheet)
+        font = get_chinese_font(14)
+        for idx, (candidate_id, thumb) in enumerate(thumbs):
+            col = idx % 3
+            row = idx // 3
+            x = col * cell_w + 12
+            y = row * cell_h + 28
+            draw.text((x, y - 20), str(candidate_id), fill=(24, 33, 47), font=font)
+            sheet.paste(thumb, (x, y))
+    else:
+        sheet = Image.new("RGB", (420, 140), (255, 242, 204))
+        draw = ImageDraw.Draw(sheet)
+        draw.text((16, 52), "No candidate crop generated. No detections are fabricated.", fill=(24, 33, 47), font=get_chinese_font(16))
+    sheet.save(sheet_path)
+    return crop_paths, str(sheet_path)
+
+
+def _s4_candidate_detail(candidate):
+    if not candidate:
+        return "请选择 Rescue Candidate 表格中的一行。", None
+    label = "Human Review Required" if candidate.get("class_name") == "human_candidate" else "Human Review Required: true"
+    detail = (
+        f"### Candidate Detail\n"
+        f"- candidate_id: `{candidate.get('candidate_id')}`\n"
+        f"- class_name: `{candidate.get('class_name')}`\n"
+        f"- bbox: `{candidate.get('bbox')}`\n"
+        f"- center: `{candidate.get('center')}`\n"
+        f"- matched_backends: `{candidate.get('matched_backends')}`\n"
+        f"- review_priority: `{candidate.get('review_priority')}`\n"
+        f"- source_backend: `{candidate.get('source_backend')}`\n"
+        f"- {label}\n"
+        f"- 真实性边界：{candidate.get('truthfulness_boundary') or S4_TRUTHFULNESS_BOUNDARY}"
+    )
+    return detail, candidate.get("crop_path")
+
+
+def _s4_send_stub(stage_key, candidates):
+    count = len(candidates or [])
+    return f"已准备发送到 {stage_key}：{count} 个候选目标。真实性边界：{S4_TRUTHFULNESS_BOUNDARY}"
+
+
+def s4_candidate_select(evt: gr.SelectData, candidates):
+    index = evt.index[0] if isinstance(evt.index, (list, tuple)) else evt.index
+    return select_s4_router_candidate_detail(candidates, index)
+
+
+def s4_send_to_s5(candidates):
+    return _s4_send_stub("S5 目标复核", candidates)
+
+
+def s4_send_to_s7(candidates):
+    return _s4_send_stub("S7 决策融合", candidates)
+
+
+def s4_send_to_s8(candidates):
+    return _s4_send_stub("S8 路径与任务建议", candidates)
+
+
+def s4_write_to_final_report_v2(candidates):
+    return _s4_send_stub("Final Report V2", candidates)
+
+
+def s4_adaptive_detection_workbench(
+    image_source,
+    shared_image,
+    stage_image,
+    transformer_model_key,
+    conf_threshold,
+    model_variant,
+):
+    input_text, selected_image = _s4_input_panel_text(image_source, shared_image, stage_image)
+    if selected_image is None:
+        return (
+            input_text,
+            "检测模式：Unsupported\n系统置信度：较低\n推荐原因：未提供有效输入。\n是否发生回退：否",
+            "{}",
+            "未提供图像，未执行后端。",
+            [],
+            gr.update(value=None, visible=False),
+            gr.update(value="未选择 YOLO 执行。", visible=True),
+            gr.update(value=None, visible=False),
+            gr.update(value="未选择 Transformer 执行。", visible=True),
+            gr.update(value=None, visible=False),
+            gr.update(value="AIR adapter_unavailable：未提供图像且当前未复现 AIR adapter。", visible=True),
+            gr.update(value="qazi0 adapter_unavailable：未提供图像且当前未复现 qazi0 adapter。", visible=True),
+            None,
+            None,
+            None,
+            [],
+            "请选择一行候选目标查看详情。",
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            [],
+            "",
+        )
+    result = run_s4_router_detection(
+        selected_image,
+        input_source="S4 本地上传" if str(image_source or "").startswith(("本阶段", "本地", "上传")) else "首页共享图像",
+        input_type="image",
+        model_variant=model_variant,
+        transformer_model_key=transformer_model_key,
+        confidence_threshold=conf_threshold,
+    )
+    plan = result["execution_plan"]
+    execution_plan_json = json.dumps(plan, ensure_ascii=False, indent=2)
+    system_mode = result["system_mode_summary"]
+    plan_md = (
+        f"检测模式：{system_mode.get('display_mode_name')}\n\n"
+        f"系统置信度：{system_mode.get('confidence_label')}\n\n"
+        f"系统选择的检测组合：{', '.join(plan.get('selected_backend_combo') or []) or '无可执行后端'}\n\n"
+        f"推荐原因：{system_mode.get('reason')}\n\n"
+        f"是否发生回退：{'是' if system_mode.get('fallback_applied') else '否'}"
+    )
+    availability = result.get("availability", {})
+    status_rows = [
+        [
+            key,
+            value.get("status"),
+            value.get("available"),
+            value.get("reason"),
+            value.get("output_role"),
+        ]
+        for key, value in availability.items()
+    ]
+    backend_status_text = "\n".join(
+        f"- `{key}`: {value.get('status')} | available={value.get('available')} | {value.get('reason')}"
+        for key, value in availability.items()
+    )
+    raw_results = result.get("raw_results", {})
+    yolo_result = raw_results.get("yolo_main_detector", {})
+    transformer_result = raw_results.get("transformer_compare_detector", {})
+    air_result = raw_results.get("air_sar_detector", {})
+    qazi_status = result.get("adapter_status", {}).get("qazi_disaster_detector", {})
+    yolo_status = availability.get("yolo_main_detector", {})
+    transformer_status = availability.get("transformer_compare_detector", {})
+    air_status = availability.get("air_sar_detector", {})
+    first_detail, first_crop = result["candidate_detail"]
+    paths = result["paths"]
+    export_summary = (
+        "Evidence Export ready\n"
+        f"- execution_plan.json: {paths.get('execution_plan')}\n"
+        f"- router_decision.json: {paths.get('router_decision')}\n"
+        f"- rescue_candidates.json: {paths.get('rescue_candidates')}\n"
+        f"- backend_agreement.json: {paths.get('backend_agreement')}\n"
+        f"- evidence_records.json: {paths.get('evidence_records')}\n"
+        f"- adapter_status.json: {paths.get('adapter_status')}\n"
+        f"- Final Report V2 summary: {paths.get('final_report_v2_s4_summary')}\n"
+        f"- 真实性边界：{S4_ROUTER_TRUTHFULNESS_BOUNDARY}"
+    )
+    return (
+        input_text,
+        plan_md,
+        execution_plan_json,
+        backend_status_text,
+        status_rows,
+        gr.update(value=yolo_result.get("overlay_path"), visible=bool(yolo_result.get("overlay_path"))),
+        gr.update(value=yolo_status.get("reason"), visible=not bool(yolo_result.get("overlay_path"))),
+        gr.update(value=transformer_result.get("overlay_path"), visible=bool(transformer_result.get("overlay_path"))),
+        gr.update(value=transformer_status.get("reason"), visible=not bool(transformer_result.get("overlay_path"))),
+        gr.update(value=air_result.get("overlay_path"), visible=bool(air_result.get("overlay_path"))),
+        gr.update(value=air_status.get("reason") or "AIR adapter_unavailable。", visible=True),
+        gr.update(value=qazi_status.get("reason") or "qazi0 adapter_unavailable。", visible=True),
+        paths.get("s4_backend_agreement_map"),
+        paths.get("s4_detection_overlay"),
+        paths.get("s4_fused_rescue_candidates"),
+        result.get("candidate_table_rows", []),
+        first_detail,
+        first_crop,
+        paths.get("execution_plan"),
+        paths.get("router_decision"),
+        paths.get("rescue_candidates"),
+        paths.get("backend_agreement"),
+        paths.get("evidence_records"),
+        paths.get("s4_candidate_crops_sheet"),
+        paths.get("s4_candidate_crops_sheet"),
+        result.get("rescue_candidates", []),
+        export_summary,
     )
 
 
@@ -2634,6 +3114,43 @@ MISSION_FIRST_LAYOUT_CSS = """
 .stage-result-window textarea {
     font-size: 14px !important;
 }
+.s4-warning {
+    border-left: 4px solid #b98200;
+    background: #fff7d6;
+    color: #18212f;
+    padding: 10px 12px;
+    border-radius: 6px;
+    margin: 8px 0 14px 0;
+    font-weight: 600;
+}
+.s4-panel {
+    background: #ffffff !important;
+    border-color: #d9dee7 !important;
+    border-radius: 8px !important;
+}
+.s4-status-card,
+.s4-unavailable-card {
+    border: 1px solid #d9dee7;
+    background: #f6f7f9;
+    color: #18212f;
+    border-radius: 8px;
+    padding: 12px;
+    min-height: 96px;
+}
+.s4-unavailable-card {
+    border-color: #c43d3d;
+    background: #fff1f1;
+    color: #8a1f1f;
+}
+.s4-raw-grid {
+    align-items: stretch !important;
+    gap: 12px !important;
+}
+.s4-raw-grid .image-container {
+    height: 260px !important;
+    background: #f6f7f9 !important;
+    border: 1px solid #d9dee7 !important;
+}
 .s2s3-triptych {
     gap: 0 !important;
     margin-top: 8px !important;
@@ -2710,7 +3227,7 @@ with gr.Blocks(
     3. 热红外与热点分析  
        系统支持普通图像的模拟热力分析，也预留真实 radiometric thermal 文件解析入口。普通 JPG 只生成模拟热点结果，只有成功解析温度矩阵的热红外文件才被标记为真实测温。
 
-    4. 目标检测与灾情感知  
+    4. 目标检测与灾情感知及影响评估  
        图像和视频输入进入目标检测模块。系统以 YOLOv11（快速目标识别模型）灾害目标检测为主，同时提供 Transformer RescueDet（另一类深度学习检测模型）和双后端对比模式，用于识别平民、救援人员、动物等救援相关目标，并输出检测框、类别、置信度（模型有多确定）和目标位置。
 
     5. 已训练语义分割模型与环境风险融合  
@@ -2736,8 +3253,8 @@ with gr.Blocks(
     | 模拟热红外 / 红外热点分析 | 对普通图像生成模拟热力图，或解析真实热红外温度矩阵 | 热力图、热点叠加图、真实性说明、温度/热点 JSON |
     | 通用数据输入 | 在系统首页折叠区统一导入照片和视频 | 共享照片、共享视频 |
     | 目标检测 | 识别救援相关目标，输出类别、置信度和检测框 | 检测图、检测详情、后端对比摘要 |
-    | 灾情感知 | 融合目标检测、语义分割、环境风险和灾损统计 | 分割叠加图、灾损摘要、场景模式、环境风险排序 |
-    | 综合决策 | 汇总灾情感知结果，生成 TERP（救援优先级）排序、路径规划和救援报告 | 路径图、救援优先级排名、路径可靠性、中文救援报告 |
+    | 灾情感知及影响评估 | 融合目标检测、语义分割、环境风险和灾损统计 | 分割叠加图、灾损摘要、场景模式、环境风险排序 |
+    | 综合决策 | 汇总灾情感知及影响评估结果，生成 TERP（救援优先级）排序、路径规划和救援报告 | 路径图、救援优先级排名、路径可靠性、中文救援报告 |
     | 视频目标检测 | 对上传视频抽帧检测并生成标注视频 | 处理后视频、目标类别摘要 |
     | 360°视频 / 三维重建预处理 | 提取关键帧、特征点、匹配关系和简化点云预览 | 关键帧、匹配可视化、相机轨迹、PLY 点云预览 |
     | AI 灾情描述 | 根据已有模块结果和人工输入生成灾情描述 | 灾情描述 Markdown、生成日志 |
@@ -2761,7 +3278,7 @@ with gr.Blocks(
     - 当前系统是本地 Gradio 竞赛原型，不接入真实飞控系统，也不直接控制无人机。
     - 路径规划结果基于图像平面像素坐标，仅用于辅助研判，不等同于真实地理坐标路径。
     - 普通 RGB 图像生成的热力图属于模拟分析，不代表真实温度测量。
-    - 灾情感知结果必须来自本地已训练语义分割模型；未找到 checkpoint 时不会生成伪造分割结果。
+    - 灾情感知及影响评估结果必须来自本地已训练语义分割模型；未找到 checkpoint 时不会生成伪造分割结果。
     - 系统会把各模块产物统一写入 `outputs/` 目录，便于复核、归档和导出报告。
                 """
                 )
@@ -2773,7 +3290,7 @@ with gr.Blocks(
         with gr.Accordion("通用数据输入（照片 / 视频）", open=False):
             gr.Markdown(
                 """
-    这里保留共享输入能力，但不再单独占用一个 Tab。S4 局部精查、S2-S3 灾情感知和 S7-S8 综合决策会继续读取这里的照片或视频。
+    这里保留共享输入能力，但不再单独占用一个 Tab。S4 局部精查、S2-S3 灾情感知及影响评估和 S7-S8 综合决策会继续读取这里的照片或视频。
                 """
             )
             imported_image = gr.Image(label="导入照片 / 无人机图像", type="pil", elem_classes=["stage-input-card"])
@@ -2784,9 +3301,9 @@ with gr.Blocks(
                 visible=False,
             )
             selected_features = gr.CheckboxGroup(
-                ["目标检测", "灾情感知", "综合决策"],
+                ["目标检测", "灾情感知及影响评估", "综合决策"],
                 label="选择要使用的功能",
-                value=["目标检测", "灾情感知", "综合决策"],
+                value=["目标检测", "灾情感知及影响评估", "综合决策"],
             )
             gr.Markdown(
                 """
@@ -2794,7 +3311,7 @@ with gr.Blocks(
 
     1. 在这里导入照片或视频。
     2. 进入对应 S 阶段页面点击运行按钮。
-    3. 灾情感知阶段会固定使用本地已训练语义分割模型。
+    3. 灾情感知及影响评估阶段会固定使用本地已训练语义分割模型。
                 """
             )
             gr.Examples(
@@ -2877,7 +3394,7 @@ with gr.Blocks(
             perception_stage_image = gr.Image(label="上传高空图 / UAV 图像", type="pil")
             perception_img_size = gr.Number(label="推理尺寸", value=512, precision=0)
             with gr.Row(elem_classes=["stage-run-row"]):
-                perception_btn = gr.Button("运行灾情感知分析", variant="primary")
+                perception_btn = gr.Button("运行灾情感知及影响评估", variant="primary")
         with gr.Accordion("② 已训练语义分割模型状态", open=True, elem_classes=["stage-result-window"]):
             perception_segmentation_status = gr.Textbox(label="已训练语义分割模型状态", lines=7)
             perception_model_status = gr.Textbox(label="运行状态", lines=3)
@@ -2887,8 +3404,8 @@ with gr.Blocks(
             perception_segmentation_color = gr.Image(label="黑底彩色分割图：pred_mask 类别渲染")
         with gr.Accordion("⑤ 图例", open=True, elem_classes=["stage-result-window"]):
             perception_segmentation_legend = gr.Image(label="图例：类别颜色说明")
-        with gr.Accordion("⑥ 灾情感知摘要", open=True, elem_classes=["stage-result-window"]):
-            perception_summary = gr.Textbox(label="灾情感知摘要", lines=10)
+        with gr.Accordion("⑥ 灾情感知及影响评估摘要", open=True, elem_classes=["stage-result-window"]):
+            perception_summary = gr.Textbox(label="灾情感知及影响评估摘要", lines=10)
         with gr.Accordion("⑦ 灾损与影响评估", open=True, elem_classes=["stage-result-window"]):
             with gr.Row():
                 perception_skai_assessment = gr.Textbox(label="SKAI 建筑灾损结果", lines=13)
@@ -2923,93 +3440,160 @@ with gr.Blocks(
         )
 
     with gr.Tab("S4 局部精查"):
-        with gr.Accordion("1. 阶段说明", open=False, elem_classes=["stage-action-panel"]):
-            gr.Markdown(
-                """
-    ## 目标检测
+        gr.Markdown(
+            """
+## S4｜智能目标检测与救援候选生成
 
-    该页面只负责从无人机图像或视频中识别救援相关目标，并输出检测框（目标在图中的位置）、类别、识别把握度（模型有多确定）和备用模型对比信息。语义分割与环境风险已拆分到“灾情感知”，救援排序和路径规划已拆分到“综合决策”。
-                """
-                )
+<div class="s4-warning">模型输出为辅助研判结果，需人工复核，不代表确认人员或真实救援结论。</div>
+            """
+        )
+        s4_candidates_state = gr.State([])
+        with gr.Accordion("模式切换", open=False, elem_classes=["stage-action-panel"]):
             detection_input_mode = gr.Radio(
                 ["图片检测", "视频检测"],
                 label="检测输入类型",
                 value="图片检测",
             )
         with gr.Group(visible=True) as image_detection_group:
-            with gr.Accordion("2. 图片检测：输入与运行", open=False, elem_classes=["stage-action-panel"]):
-                gr.Markdown("读取局部 RGB 图像，生成候选目标。检测到的人只作为候选目标，需要人工复核。")
-                s4_image_source = gr.Radio(
-                    ["首页照片", "本地上传"],
-                    label="图片来源",
-                    value="首页照片",
-                )
-                s4_stage_image = gr.Image(label="局部 RGB 图像（可选）", type="pil")
-                detection_backend = gr.Radio(
-                    [
-                        "YOLO Rescue Targets",
-                        "Transformer RescueDet",
-                        "YOLO + Transformer Compare",
-                    ],
-                    label="目标识别方式",
-                    value="YOLO Rescue Targets",
-                )
-                transformer_model_key = gr.Dropdown(
-                    list(TRANSFORMER_DETECTION_MODELS.keys()),
-                    label="备用检测模型",
-                    value="rescuedet_deformable_detr",
-                )
-                conf_threshold = gr.Slider(label="最低识别把握度", minimum=0.0, maximum=1.0, step=0.05, value=0.30)
-                output_model = gr.Dropdown(["yolov11n", "yolov11s", "yolov11m", "yolov11l"], label="主检测模型大小", info="选择要使用的 YOLOv11 模型版本。", value="yolov11m")
-                with gr.Accordion("目标识别方式说明", open=False):
-                    gr.Markdown(summarize_detection_backend_capabilities())
-                    gr.Markdown(
-                        "### 运行说明\n"
-                        "- YOLO Rescue Targets：主目标识别模型，用来识别救援候选目标。\n"
-                        "- Transformer RescueDet：备用检测模型，用来提供另一套候选结果，方便人工对比。\n"
-                        "- YOLO + Transformer Compare：双模型对比模式，用来检查两个模型结果是否一致。\n"
-                        "- 综合决策仍以主结果为准，备用模型只作为人工复核线索。"
-                    )
+            with gr.Accordion("Input Panel", open=True, elem_classes=["stage-action-panel s4-panel"]):
+                with gr.Row():
+                    with gr.Column(scale=1):
+                        s4_image_source = gr.Radio(
+                            ["首页照片", "本地上传"],
+                            label="图片来源",
+                            value="首页照片",
+                        )
+                        transformer_model_key = gr.Dropdown(
+                            list(TRANSFORMER_DETECTION_MODELS.keys()),
+                            label="Transformer 后端参数（Router 选择时使用）",
+                            value="rescuedet_deformable_detr",
+                        )
+                        conf_threshold = gr.Slider(label="最低识别把握度", minimum=0.0, maximum=1.0, step=0.05, value=0.30)
+                        output_model = gr.Dropdown(
+                            ["yolov11n", "yolov11s", "yolov11m", "yolov11l"],
+                            label="YOLO 后端参数（Router 选择时使用）",
+                            info="Router 选择 YOLO 进入本次检测组合时使用该权重版本。",
+                            value="yolov11m",
+                        )
+                    with gr.Column(scale=1):
+                        s4_stage_image = gr.Image(label="S4 本地上传图像（可选）", type="pil", elem_classes=["stage-input-card"])
+                        s4_input_status = gr.Textbox(
+                            label="输入文件信息",
+                            lines=6,
+                            value=f"真实性边界：{S4_TRUTHFULNESS_BOUNDARY}\n输入状态：等待运行。",
+                            interactive=False,
+                        )
                 with gr.Row(elem_classes=["stage-run-row"]):
-                    btn = gr.Button("运行图片检测", variant="primary")
-            with gr.Accordion("3. 图片检测：核心结果", open=False, elem_classes=["stage-result-window"]):
-                output_report = gr.Textbox(
-                    label="生成提示",
-                    lines=2,
-                    placeholder="运行后显示生成状态和关键提示。",
-                    elem_classes=["compact-status"],
-                )
-                output_image = gr.Image(label="处理后图像")
-                with gr.Accordion("详细数据", open=False):
-                    output_transformer_summary = gr.Textbox(
-                        label="备用模型对比摘要",
-                        lines=8,
-                        placeholder="备用检测模型输出、失败原因或双模型一致性分析会显示在这里……",
-                    )
-                    output_details = gr.Dataframe(
-                        headers=["编号", "目标类别", "识别把握度", "检测框位置", "中心点", "目标面积"],
-                        label="检测详情",
+                    btn = gr.Button("运行场景自适应检测", variant="primary")
+            with gr.Accordion("系统检测模式", open=True, elem_classes=["stage-result-window s4-panel"]):
+                s4_router_summary = gr.Markdown("等待 execution_plan。")
+            with gr.Accordion("检测结果图", open=True, elem_classes=["stage-result-window s4-panel"]):
+                with gr.Row():
+                    s4_detection_overlay = gr.Image(label="模型检测结果图：s4_detection_overlay.png")
+                    s4_fused_candidates = gr.Image(label="融合候选目标图：s4_fused_rescue_candidates.png")
+            with gr.Accordion("救援候选目标", open=True, elem_classes=["stage-result-window s4-panel"]):
+                with gr.Row():
+                    s4_candidate_table = gr.Dataframe(
+                        headers=[
+                            "编号",
+                            "类型",
+                            "置信度",
+                            "复核状态",
+                            "建议用途",
+                        ],
+                        label="救援候选目标表格",
                         interactive=False,
                     )
+                    with gr.Column():
+                        s4_candidate_detail = gr.Markdown("请选择候选目标。")
+                        s4_candidate_crop = gr.Image(label="候选裁剪证据图")
+            with gr.Accordion("候选目标裁剪证据", open=True, elem_classes=["stage-result-window s4-panel"]):
+                s4_crops_sheet_preview = gr.Image(label="s4_candidate_crops_sheet.png")
+            with gr.Accordion("下一步入口", open=True, elem_classes=["stage-result-window s4-panel"]):
+                with gr.Row(elem_classes=["stage-run-row"]):
+                    s4_send_s5_btn = gr.Button("发送到 S5 复核证据包", variant="primary")
+                    s4_send_s7_btn = gr.Button("进入 TERP 排序", variant="secondary")
+                    s4_send_s8_btn = gr.Button("写入 Final Report V2", variant="secondary")
+                s4_send_status = gr.Textbox(label="发送状态", lines=2, interactive=False)
+            with gr.Accordion("高级详情 / Developer Details", open=False, elem_classes=["stage-result-window s4-panel"]):
+                s4_execution_plan_json = gr.Code(label="execution_plan.json（检测组合与回退记录）", language="json", lines=14)
+                s4_backend_status_text = gr.Markdown("等待后端状态。")
+                s4_backend_status_table = gr.Dataframe(
+                    headers=["backend", "status", "available", "reason", "output_role"],
+                    label="本次检测组合状态",
+                    interactive=False,
+                )
+                gr.Markdown("只展示本次 Router 选择并实际运行的后端原始结果；不可用 adapter 只显示状态卡，不显示伪造检测图。")
+                with gr.Row(elem_classes=["s4-raw-grid"]):
+                    with gr.Column():
+                        s4_yolo_raw_image = gr.Image(label="YOLO 后端结果", visible=False)
+                        s4_yolo_status_card = gr.Markdown("YOLO 等待 Router 选择。", elem_classes=["s4-status-card"])
+                    with gr.Column():
+                        s4_transformer_raw_image = gr.Image(label="Transformer 后端结果", visible=False)
+                        s4_transformer_status_card = gr.Markdown("Transformer 等待 Router 选择。", elem_classes=["s4-status-card"])
+                    with gr.Column():
+                        s4_air_raw_image = gr.Image(label="AIR 后端结果", visible=False)
+                        s4_air_status_card = gr.Markdown("AIR adapter_unavailable：等待执行计划。", elem_classes=["s4-unavailable-card"])
+                    with gr.Column():
+                        s4_qazi_status_card = gr.Markdown("qazi0 adapter_unavailable：等待执行计划。", elem_classes=["s4-unavailable-card"])
+                s4_agreement_map = gr.Image(label="s4_backend_agreement_map.png")
+                s4_export_summary = gr.Textbox(label="导出摘要", lines=7, interactive=False)
+                with gr.Row():
+                    s4_execution_plan_file = gr.File(label="execution_plan.json")
+                    s4_router_decision_file = gr.File(label="router_decision.json")
+                    s4_rescue_candidates_json = gr.File(label="rescue_candidates.json")
+                    s4_backend_agreement_json = gr.File(label="backend_agreement.json")
+                    s4_evidence_records_json = gr.File(label="evidence_records.json")
+                    s4_crops_sheet_file = gr.File(label="s4_candidate_crops_sheet.png")
 
             btn.click(
-                fn=target_detection_with_source,
+                fn=s4_adaptive_detection_workbench,
                 inputs=[
                     s4_image_source,
                     imported_image,
                     s4_stage_image,
-                    detection_backend,
                     transformer_model_key,
                     conf_threshold,
                     output_model,
                 ],
                 outputs=[
-                    output_image,
-                    output_transformer_summary,
-                    output_details,
-                    output_report,
+                    s4_input_status,
+                    s4_router_summary,
+                    s4_execution_plan_json,
+                    s4_backend_status_text,
+                    s4_backend_status_table,
+                    s4_yolo_raw_image,
+                    s4_yolo_status_card,
+                    s4_transformer_raw_image,
+                    s4_transformer_status_card,
+                    s4_air_raw_image,
+                    s4_air_status_card,
+                    s4_qazi_status_card,
+                    s4_agreement_map,
+                    s4_detection_overlay,
+                    s4_fused_candidates,
+                    s4_candidate_table,
+                    s4_candidate_detail,
+                    s4_candidate_crop,
+                    s4_execution_plan_file,
+                    s4_router_decision_file,
+                    s4_rescue_candidates_json,
+                    s4_backend_agreement_json,
+                    s4_evidence_records_json,
+                    s4_crops_sheet_file,
+                    s4_crops_sheet_preview,
+                    s4_candidates_state,
+                    s4_export_summary,
                 ],
             )
+            s4_candidate_table.select(
+                fn=s4_candidate_select,
+                inputs=s4_candidates_state,
+                outputs=[s4_candidate_detail, s4_candidate_crop],
+            )
+            s4_send_s5_btn.click(fn=s4_send_to_s5, inputs=s4_candidates_state, outputs=s4_send_status)
+            s4_send_s7_btn.click(fn=s4_send_to_s7, inputs=s4_candidates_state, outputs=s4_send_status)
+            s4_send_s8_btn.click(fn=s4_write_to_final_report_v2, inputs=s4_candidates_state, outputs=s4_send_status)
         with gr.Group(visible=False) as video_detection_group:
             with gr.Accordion("2. 视频检测：输入与运行", open=False, elem_classes=["stage-action-panel"]):
                 gr.Markdown("读取局部视频并按帧抽样检测，结果仍然只是图像/视频证据，不是现场确认结论。")
@@ -3193,7 +3777,7 @@ with gr.Blocks(
                 """
     ## 综合决策
 
-    该页面位于目标检测和灾情感知之后，负责把检测目标、环境风险、灾损评估和场景门控（证据是否足够）结果汇总为救援优先级、路径规划、路径可靠性说明和中文救援报告。
+    该页面位于目标检测和灾情感知及影响评估之后，负责把检测目标、环境风险、灾损评估和场景门控（证据是否足够）结果汇总为救援优先级、路径规划、路径可靠性说明和中文救援报告。
                 """
                 )
         with gr.Accordion("2. 输入与运行", open=False, elem_classes=["stage-action-panel"]):

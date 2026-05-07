@@ -213,7 +213,20 @@ def _brief_stage_summary(stage_key, result):
     elif stage_key == "area_tasking":
         summary.update({"area_count": result.get("area_count", len(result.get("area_tasks", []) or []))})
     elif stage_key == "local_recon":
-        summary.update({"candidate_count": result.get("candidate_count", 0), "detection_backend": result.get("detection_backend", "")})
+        reference_fusion = result.get("s4_reference_fusion") or {}
+        summary.update(
+            {
+                "candidate_count": result.get("candidate_count", 0),
+                "detection_backend": result.get("detection_backend", ""),
+                "s4_reference_fusion": {
+                    "adapter_version": reference_fusion.get("adapter_version"),
+                    "reference_count": reference_fusion.get("reference_count", 0),
+                    "person_detection_reference_count": reference_fusion.get("person_detection_reference_count", 0),
+                }
+                if reference_fusion
+                else {},
+            }
+        )
     elif stage_key == "target_verification":
         verification_summary = result.get("verification_summary", {}) or {}
         summary.update({"candidate_count": result.get("candidate_count", 0), "verification_summary": verification_summary})
@@ -240,6 +253,13 @@ def _collect_key_findings(stage_results, evidence_summary):
     local_recon = stage_results.get("local_recon", {}) or {}
     if local_recon:
         findings.append(f"S4 local_recon generated {local_recon.get('candidate_count', 0)} rescue candidates for review.")
+        reference_fusion = local_recon.get("s4_reference_fusion") or {}
+        if reference_fusion:
+            findings.append(
+                "S4 source-level reference fusion carries "
+                f"{reference_fusion.get('reference_count', 0)} qazi/AIR/literature provenance sources "
+                "without treating them as runtime detections."
+            )
     target_verification = stage_results.get("target_verification", {}) or {}
     if target_verification:
         summary = target_verification.get("verification_summary", {}) or {}

@@ -22,6 +22,8 @@ def main():
     assert "yolo_rescue_targets" in keys
     assert "transformer_rescuedet" in keys
     assert "post_disaster_survivor_yolo" in keys
+    assert "qazi_disaster_management_reference" in keys
+    assert "bahmanyar_merkle_person_detection_reference" in keys
     assert all(item.get("truthfulness_note") for item in backends)
 
     active = get_active_detection_backends()
@@ -48,6 +50,8 @@ def main():
     assert planned["available"] is False
     reference = check_detection_backend_availability("air_retinanet_sar_reference", root_dir=ROOT_DIR)
     assert reference["available"] is False
+    literature_reference = check_detection_backend_availability("bahmanyar_merkle_person_detection_reference", root_dir=ROOT_DIR)
+    assert literature_reference["available"] is False
 
     summary = summarize_detection_backend_capabilities()
     assert isinstance(summary, str)
@@ -56,6 +60,7 @@ def main():
     assert "human_candidate" in summary
     assert "confirmed civilian" in summary or "人工复核" in summary
     assert "参考" in summary or "未来训练" in summary
+    assert "Bahmanyar" in summary
 
     print("灾情感知及影响评估 detection backend registry smoke test passed.")
 

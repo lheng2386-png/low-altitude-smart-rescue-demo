@@ -77,6 +77,19 @@ DETECTION_BACKENDS = {
         "requires_human_review": True,
         "truthfulness_note": "This disaster-management detector is a reference item only. It is not integrated as an active 灾情感知及影响评估 backend.",
     },
+    "bahmanyar_merkle_person_detection_reference": {
+        "display_name": "Saving Lives from Above Person Detection Reference",
+        "backend_type": "literature_reference",
+        "status": "reference_not_integrated",
+        "reference_paper": "Bahmanyar, R. and Merkle, N. (2023), Saving Lives from Above: Person Detection in Disaster Response Using Deep Neural Networks",
+        "reference_url": "https://doi.org/10.5194/isprs-annals-X-1-W1-2023-343-2023",
+        "primary_classes": ["person", "human_candidate"],
+        "output_role": "future_aerial_person_detection_reference",
+        "can_enter_terp": False,
+        "can_enter_path_planning": False,
+        "requires_human_review": True,
+        "truthfulness_note": "This paper is a literature reference for aerial and UAV person detection using deep neural networks. It is not an active 灾情感知及影响评估 model backend.",
+    },
     "vtsar_dataset_reference": {
         "display_name": "VTSaR Aerial SAR Dataset Reference",
         "backend_type": "reference_dataset_or_future_backend",
@@ -236,6 +249,8 @@ def summarize_detection_backend_capabilities():
     transformer = DETECTION_BACKENDS["transformer_rescuedet"]
     survivor = DETECTION_BACKENDS["post_disaster_survivor_yolo"]
     air = DETECTION_BACKENDS["air_retinanet_sar_reference"]
+    qazi = DETECTION_BACKENDS["qazi_disaster_management_reference"]
+    bahmanyar = DETECTION_BACKENDS["bahmanyar_merkle_person_detection_reference"]
     vtsar = DETECTION_BACKENDS["sardet_or_vtsar_reference"]
     return f"""## 目标检测后端能力说明
 
@@ -256,9 +271,12 @@ def summarize_detection_backend_capabilities():
 - 类别规划：{', '.join(survivor['primary_classes'])}
 - 说明：只有训练出真实 checkpoint 并完成验证后，才可启用。
 
-### 参考后端：{air['display_name']} / {vtsar['display_name']}
-- 状态：相关工作参考，不是当前系统输出。
-- 说明：这些后端不会进入当前 TERP 或路径规划流程，也不代表本项目已复现实验指标。
+### 已纳入 S4 工程记录的参考工作
+- {qazi['display_name']}：来自 {qazi['reference_repo']}，用于说明灾害管理检测流程参考；当前不是可执行 S4 后端。
+- {air['display_name']}：来自 {air['reference_repo']}，用于说明搜救人员检测方向参考；当前不是可执行 S4 后端。
+- {bahmanyar['display_name']}：Bahmanyar 和 Merkle 2023 的航拍 / 无人机人员检测深度神经网络文献参考，DOI：{bahmanyar['reference_url']}。
+- {vtsar['display_name']}：空中搜救人员检测数据 / 未来后端参考。
+- 边界：以上参考工作不会进入当前 TERP 或路径规划流程，也不代表本项目已复现实验指标。
 """
 
 
@@ -267,6 +285,7 @@ def format_detection_backend_summary_for_report():
     return (
         "当前目标检测主后端为 YOLO Rescue Targets，用于 civilian、rescuer 及动物目标检测；"
         "可选辅助后端为 Transformer RescueDet，用于 human_candidate、vehicle、fire 等场景补充识别。"
-        "Post-Disaster Survivor YOLO、AIR、VTSaR 等目前属于未来训练或参考后端，不作为当前系统真实输出，"
+        "qazi0 real-time-disaster-management、AIR、Bahmanyar 和 Merkle 2023 航拍人员检测文献、"
+        "Post-Disaster Survivor YOLO、VTSaR 等目前属于未来训练或参考后端，不作为当前系统真实输出，"
         "也不报告未验证的 mAP、precision、recall 或 FPS。"
     )

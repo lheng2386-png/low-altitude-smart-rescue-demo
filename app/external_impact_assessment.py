@@ -507,7 +507,7 @@ def format_external_impact_assessment_status(status):
     legacy = status.get("legacy_internal_fallback", {}) or {}
     lines.append(
         f"legacy/internal fallback: {legacy.get('key')} = {legacy.get('status')}; "
-        "不得作为最终 S2-S3 高级深度版主展示。"
+        "不得作为最终 S2-S3 灾情感知及影响评估主展示。"
     )
     return "\n".join(lines).strip()
 

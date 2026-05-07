@@ -84,15 +84,22 @@ This backend can only become active after a real checkpoint and validation resul
 
 ## Reference Backends
 
-### AIR / VTSaR
+### qazi0 / AIR / Bahmanyar-Merkle / VTSaR
 
-These projects are search-and-rescue person detection references.
+These projects and papers are disaster-management or search-and-rescue person detection references.
 
 Current status:
 
 - reference only;
 - not integrated as 灾情感知及影响评估 runtime outputs;
 - not allowed to enter TERP or path planning as current model results.
+
+Reference scope:
+
+- qazi0 / real-time-disaster-management: disaster-management detection workflow reference.
+- Accenture / AIR: search-and-rescue person detection repository reference.
+- Bahmanyar and Merkle (2023), "Saving Lives from Above: Person Detection in Disaster Response Using Deep Neural Networks": aerial / UAV person detection literature reference.
+- VTSaR: aerial search-and-rescue person detection dataset or future backend reference.
 
 ## Truthfulness Boundaries
 
@@ -106,4 +113,4 @@ Current status:
 
 Suggested wording:
 
-> 系统采用 Detection Backend Registry 管理多种救援目标检测后端。当前主后端为 YOLO Rescue Targets，用于平民、救援人员和动物目标检测；可选辅助后端为 Transformer RescueDet，用于 human_candidate、vehicle、fire 等场景目标补充识别；Post-Disaster Survivor YOLO、AIR、VTSaR 等作为未来训练或相关工作参考，不被包装成当前已完成能力。
+> 系统采用 Detection Backend Registry 管理多种救援目标检测后端。当前主后端为 YOLO Rescue Targets，用于平民、救援人员和动物目标检测；可选辅助后端为 Transformer RescueDet，用于 human_candidate、vehicle、fire 等场景目标补充识别；qazi0 real-time-disaster-management、Accenture/AIR、Bahmanyar 和 Merkle 2023 航拍人员检测文献、Post-Disaster Survivor YOLO、VTSaR 等作为未来训练或相关工作参考，不被包装成当前已完成能力。

@@ -431,7 +431,7 @@ def build_truthfulness_boundary_section(context, sections):
         "- Registry / Reference 模块不是运行结果。\n"
         "- Transformer human_candidate 不是已核实人员身份，不能确认幸存者或平民状态。\n"
         "- SKAI 外部源码级建筑灾损评估和 InaSAFE 外部源码级灾害影响评估只有在真实调用源码并验证输出文件后才标记为真实输出。\n"
-        "- legacy/internal lightweight_skai_inasafe_adaptation 不得作为最终 S2-S3 高级深度版主展示，也不得称为真实 SKAI 或 InaSAFE 结果。\n"
+        "- legacy/internal lightweight_skai_inasafe_adaptation 不得作为最终 S2-S3 灾情感知及影响评估主展示，也不得称为真实 SKAI 或 InaSAFE 结果。\n"
         "- 报告不能替代现场人工判断。"
     )
 

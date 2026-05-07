@@ -20,6 +20,10 @@ try:
         normalize_local_rgb_images,
         summarize_candidates,
     )
+    from ..s4_reference_fusion import (
+        annotate_targets_with_reference_policy,
+        build_s4_reference_fusion_context,
+    )
     from ..workflow.workflow_orchestrator import initialize_rescue_workflow, record_stage_output
 except ImportError:  # pragma: no cover - supports direct app/ path imports.
     from services.local_recon_service import (
@@ -30,6 +34,10 @@ except ImportError:  # pragma: no cover - supports direct app/ path imports.
         normalize_imported_detections,
         normalize_local_rgb_images,
         summarize_candidates,
+    )
+    from s4_reference_fusion import (
+        annotate_targets_with_reference_policy,
+        build_s4_reference_fusion_context,
     )
     from workflow.workflow_orchestrator import initialize_rescue_workflow, record_stage_output
 
@@ -142,6 +150,7 @@ def run_local_recon_stage(
     resolved_global_context = _resolve_global_context(mission, global_context_available)
     map_registration_available = bool(map_registration_available)
     source_type = _source_type_for_backend(detection_backend)
+    s4_reference_fusion = build_s4_reference_fusion_context()
 
     if detections:
         source_image = image_paths[0] if image_paths else ""
@@ -153,7 +162,13 @@ def run_local_recon_stage(
             global_context_available=resolved_global_context,
             map_registration_available=map_registration_available,
         )
+        candidates = annotate_targets_with_reference_policy(candidates, s4_reference_fusion)
         candidate_summary = summarize_candidates(candidates)
+        candidate_summary["s4_reference_fusion"] = {
+            "adapter_version": s4_reference_fusion.get("adapter_version"),
+            "reference_count": s4_reference_fusion.get("reference_count", 0),
+            "person_detection_reference_count": s4_reference_fusion.get("person_detection_reference_count", 0),
+        }
         status = "completed"
     else:
         no_detection = build_no_detection_result(
@@ -190,6 +205,7 @@ def run_local_recon_stage(
         "global_context_available": resolved_global_context,
         "map_registration_available": map_registration_available,
         "truthfulness_note": truthfulness_note,
+        "s4_reference_fusion": s4_reference_fusion,
         "human_review_required": True,
     }
     result_path = _save_stage_result(mission_dir, result)

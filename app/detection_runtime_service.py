@@ -36,6 +36,7 @@ YOLO_CLASSES = ["civilian", "rescuer", "dog", "cat", "horse", "cow"]
 REFERENCE_OR_PLANNED_MODES = {
     "qazi_disaster_management_reference",
     "air_retinanet_sar_reference",
+    "bahmanyar_merkle_person_detection_reference",
     "vtsar_dataset_reference",
     "sardet_or_vtsar_reference",
     "post_disaster_survivor_yolo",
@@ -90,7 +91,7 @@ def build_empty_detection_result(
     message="Detection did not run.",
 ):
     """Build a structured failure result."""
-    return {
+    result = {
         "success": False,
         "detection_mode": detection_mode,
         "backend_key": backend_key,
@@ -112,6 +113,12 @@ def build_empty_detection_result(
         "error_code": error_code,
         "message": message,
     }
+    try:
+        from s4_reference_fusion import enrich_detection_result_with_reference_fusion
+
+        return enrich_detection_result_with_reference_fusion(result, root_dir=ROOT_DIR)
+    except Exception:
+        return result
 
 
 def _json_safe(value):
@@ -222,6 +229,15 @@ def save_detection_artifacts(result, output_dir):
     return result
 
 
+def _with_s4_reference_fusion(result):
+    try:
+        from s4_reference_fusion import enrich_detection_result_with_reference_fusion
+
+        return enrich_detection_result_with_reference_fusion(result, root_dir=ROOT_DIR)
+    except Exception:
+        return result
+
+
 def run_yolo_detection_runtime(image, model_variant="yolov11m", confidence_threshold=0.3, output_dir=None):
     """Run YOLO rescue-target detection with local weights only."""
     try:
@@ -295,7 +311,7 @@ def run_yolo_detection_runtime(image, model_variant="yolov11m", confidence_thres
                 "truthfulness_note": "YOLO detections are local model outputs if weights exist.",
             },
         }
-        return save_detection_artifacts(result, output_dir)
+        return save_detection_artifacts(_with_s4_reference_fusion(result), output_dir)
     except Exception as exc:
         return build_empty_detection_result(
             "yolo_rescue_targets",
@@ -357,6 +373,7 @@ def run_transformer_detection_runtime(
         "can_enter_terp": "human_candidate_only_with_review" if transformer_result.get("success") else False,
         "can_enter_path_planning": False,
     }
+    result = _with_s4_reference_fusion(result)
     if output_dir is not None:
         output_path = Path(output_dir)
         output_path.mkdir(parents=True, exist_ok=True)
@@ -475,6 +492,7 @@ def run_dual_backend_compare_runtime(
         "detection_result_path": None,
         "metadata_path": None,
     }
+    result = _with_s4_reference_fusion(result)
     if output_dir is not None:
         output_path = Path(output_dir)
         output_path.mkdir(parents=True, exist_ok=True)
@@ -552,6 +570,9 @@ def format_detection_runtime_status(result):
         lines.append(f"- 状态说明：{result.get('message')}")
     if result.get("consensus"):
         lines.append(f"- 双后端一致性：{result['consensus'].get('consensus_summary', '')}")
+    reference_fusion = result.get("s4_reference_fusion") or {}
+    if reference_fusion:
+        lines.append(f"- S4 源码级参考融合：{reference_fusion.get('reference_count', 0)} 个参考源")
     return "\n".join(lines)
 
 
@@ -569,4 +590,11 @@ def format_detection_result_for_report(result):
     ]
     if result.get("consensus"):
         text.append(f"双后端一致性摘要：{result['consensus'].get('consensus_summary', '')}")
+    reference_fusion = result.get("s4_reference_fusion") or {}
+    if reference_fusion:
+        text.append(
+            "S4 源码级参考融合："
+            f"{reference_fusion.get('reference_count', 0)} 个参考源，"
+            f"{reference_fusion.get('person_detection_reference_count', 0)} 个人员检测参考源。"
+        )
     return "\n".join(text)

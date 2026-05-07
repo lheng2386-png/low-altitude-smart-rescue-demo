@@ -39,11 +39,14 @@ def main():
     assert unsupported["success"] is False
     assert unsupported["error_code"] in {"UNSUPPORTED_DETECTION_MODE", "REFERENCE_BACKEND_NOT_EXECUTABLE"}
     assert unsupported["targets"] == []
+    assert unsupported["s4_reference_fusion"]["reference_count"] >= 3
+    assert unsupported["s4_reference_fusion"]["runtime_policy"]["reference_sources_do_not_create_targets"] is True
 
     missing_yolo = run_yolo_detection_runtime(np_image, model_variant="missing_smoke_test_model")
     assert missing_yolo["success"] is False
     assert missing_yolo["error_code"] == "YOLO_WEIGHTS_MISSING"
     assert missing_yolo["targets"] == []
+    assert "qazi0" in missing_yolo["truthfulness_note"]
 
     transformer = run_transformer_detection_runtime(np_image)
     assert isinstance(transformer, dict)
@@ -59,6 +62,7 @@ def main():
     assert "auxiliary_result" in dual
     assert "consensus" in dual
     assert dual["can_enter_terp"] is False
+    assert dual["s4_reference_fusion"]["person_detection_reference_count"] >= 2
 
     yolo_targets = [
         {
@@ -83,6 +87,7 @@ def main():
     failed_status = format_detection_runtime_status(missing_yolo)
     assert "检测运行状态" in failed_status
     assert "真实性说明" in failed_status
+    assert "源码级参考融合" in failed_status
 
     fake_success = {
         "success": True,
