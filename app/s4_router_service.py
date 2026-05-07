@@ -467,7 +467,7 @@ def _candidate_table_rows(candidates):
 
 def _candidate_detail(candidate):
     if not candidate:
-        return "请选择候选目标。", None
+        return "", None
     source = "多模型一致性" if candidate.get("cross_backend_agreement") else (
         "小目标人体检测流程" if candidate.get("source_backend") == AIR_BACKEND else "单模型检测"
     )

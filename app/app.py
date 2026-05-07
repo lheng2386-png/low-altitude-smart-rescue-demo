@@ -2242,6 +2242,24 @@ S4_DEFAULT_YOLO_MODEL_VARIANT = "yolov11m"
 S4_DEFAULT_TRANSFORMER_MODEL_KEY = "rescuedet_deformable_detr"
 
 
+def _ui_loading_html(message):
+    return (
+        "<div class='run-status run-status-loading'>"
+        "<span class='run-spinner'></span>"
+        f"<span>{message}</span>"
+        "</div>"
+    )
+
+
+def _ui_success_html(message):
+    return (
+        "<div class='run-status run-status-success'>"
+        "<span class='run-check'>✓</span>"
+        f"<span>{message}</span>"
+        "</div>"
+    )
+
+
 def _s4_json_safe(value):
     if isinstance(value, np.generic):
         return value.item()
@@ -2276,7 +2294,6 @@ def _s4_input_panel_text(image_source, shared_image, stage_image):
     if selected is None:
         return (
             f"真实性边界：{S4_TRUTHFULNESS_BOUNDARY}\n"
-            "输入状态：unavailable\n"
             f"图片来源：{image_source or '未选择'}\n"
             "说明：请从首页共享图像或 S4 本地上传图像中选择一个输入。"
         ), None
@@ -2284,7 +2301,6 @@ def _s4_input_panel_text(image_source, shared_image, stage_image):
     source_kind = "S4 本地上传" if str(image_source or "").startswith(("本阶段", "本地", "上传")) else "首页共享图像"
     return (
         f"真实性边界：{S4_TRUTHFULNESS_BOUNDARY}\n"
-        "输入状态：ready\n"
         f"图片来源：{source_kind}\n"
         f"图像尺寸：{width} x {height}\n"
         "说明：S4 只输出候选目标与证据链，不输出确认救援结论。",
@@ -3063,6 +3079,58 @@ MISSION_FIRST_LAYOUT_CSS = """
 .compact-status textarea {
     min-height: 56px !important;
 }
+.run-status-host {
+    flex: 1 1 280px !important;
+    min-width: 240px !important;
+}
+.run-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 42px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid #d9dee7;
+    background: #ffffff;
+    color: #18212f;
+    font-weight: 600;
+}
+.run-status-loading {
+    border-color: #f97316;
+    background: #fff7ed;
+}
+.run-status-success {
+    border-color: #0f9f6e;
+    background: #ecfdf5;
+    color: #075e49;
+}
+.run-spinner {
+    width: 18px;
+    height: 18px;
+    border: 3px solid #fed7aa;
+    border-top-color: #f97316;
+    border-radius: 50%;
+    animation: aerorescue-spin 0.8s linear infinite;
+    flex: 0 0 auto;
+}
+.run-check {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #0f9f6e;
+    color: #ffffff;
+    font-size: 14px;
+    line-height: 1;
+    flex: 0 0 auto;
+}
+@keyframes aerorescue-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
 .stage-action-panel .label-wrap,
 .stage-result-window .label-wrap {
     font-size: 14px !important;
@@ -3314,6 +3382,7 @@ with gr.Blocks(
             with gr.Row(elem_classes=["stage-run-row"]):
                 orthomosaic_btn = gr.Button("运行高空建图", variant="primary")
                 odm_env_btn = gr.Button("检查 ODM 环境", variant="secondary")
+                orthomosaic_loading_status = gr.HTML(value="", elem_classes=["run-status-host"])
         with gr.Accordion("3. 核心结果", open=False, elem_classes=["stage-result-window"]):
             orthomosaic_status = gr.Textbox(label="生成提示", lines=2, elem_classes=["compact-status"])
             orthomosaic_image = gr.Image(label="拼接 / 预览图")
@@ -3321,14 +3390,30 @@ with gr.Blocks(
                 orthomosaic_log = gr.Code(label="结果 JSON", language="json", lines=12)
                 orthomosaic_run_log = gr.Textbox(label="运行日志", lines=12)
         orthomosaic_btn.click(
+            fn=lambda: _ui_loading_html("高空建图加载中"),
+            inputs=[],
+            outputs=orthomosaic_loading_status,
+        ).then(
             fn=run_orthomosaic_mode,
             inputs=[orthomosaic_files, orthomosaic_mode, odm_task_name, odm_max_images, odm_fast_orthophoto],
             outputs=[orthomosaic_image, orthomosaic_status, orthomosaic_log, orthomosaic_run_log],
+        ).then(
+            fn=lambda: _ui_success_html("高空建图加载成功，请查看结果"),
+            inputs=[],
+            outputs=orthomosaic_loading_status,
         )
         odm_env_btn.click(
+            fn=lambda: _ui_loading_html("ODM 环境检查中"),
+            inputs=[],
+            outputs=orthomosaic_loading_status,
+        ).then(
             fn=check_odm_environment,
             inputs=[],
             outputs=[orthomosaic_status, orthomosaic_log, orthomosaic_run_log],
+        ).then(
+            fn=lambda: _ui_success_html("ODM 环境检查完成"),
+            inputs=[],
+            outputs=orthomosaic_loading_status,
         )
 
     with gr.Tab("S2-S3 灾情感知及影响评估"):
@@ -3344,6 +3429,7 @@ with gr.Blocks(
             perception_img_size = gr.Number(label="推理尺寸", value=512, precision=0)
             with gr.Row(elem_classes=["stage-run-row"]):
                 perception_btn = gr.Button("运行灾情感知及影响评估", variant="primary")
+                perception_loading_status = gr.HTML(value="", elem_classes=["run-status-host"])
         with gr.Accordion("② 已训练语义分割模型状态", open=True, elem_classes=["stage-result-window"]):
             perception_segmentation_status = gr.Textbox(label="已训练语义分割模型状态", lines=7)
             perception_model_status = gr.Textbox(label="运行状态", lines=3)
@@ -3368,6 +3454,10 @@ with gr.Blocks(
         with gr.Accordion("⑨ 统一真实性边界", open=True, elem_classes=["stage-result-window"]):
             perception_truthfulness = gr.Textbox(label="统一真实性边界", lines=10)
         perception_btn.click(
+            fn=lambda: _ui_loading_html("灾情感知及影响评估加载中"),
+            inputs=[],
+            outputs=perception_loading_status,
+        ).then(
             fn=run_damage_segmentation_analysis,
             inputs=[perception_stage_image, perception_img_size],
             outputs=[
@@ -3386,6 +3476,10 @@ with gr.Blocks(
                 perception_truthfulness,
                 perception_model_status,
             ],
+        ).then(
+            fn=lambda: _ui_success_html("灾情感知及影响评估加载成功，请查看结果"),
+            inputs=[],
+            outputs=perception_loading_status,
         )
 
     with gr.Tab("S4 局部精查"):
@@ -3417,6 +3511,7 @@ with gr.Blocks(
                         s4_stage_image = gr.Image(label="S4 本地上传图像（可选）", type="pil", elem_classes=["stage-input-card"])
                 with gr.Row(elem_classes=["stage-run-row"]):
                     btn = gr.Button("运行场景自适应检测", variant="primary")
+                    s4_loading_status = gr.HTML(value="", elem_classes=["run-status-host"])
             with gr.Accordion("检测结果图", open=True, elem_classes=["stage-result-window s4-panel"]):
                 with gr.Row():
                     s4_detection_overlay = gr.Image(label="模型检测结果图：s4_detection_overlay.png")
@@ -3435,7 +3530,7 @@ with gr.Blocks(
                         interactive=False,
                     )
                     with gr.Column():
-                        s4_candidate_detail = gr.Markdown("请选择候选目标。")
+                        s4_candidate_detail = gr.Markdown("")
             with gr.Accordion("下一步入口", open=True, elem_classes=["stage-result-window s4-panel"]):
                 with gr.Row(elem_classes=["stage-run-row"]):
                     s4_send_s5_btn = gr.Button("发送到 S5 复核证据包", variant="primary")
@@ -3444,7 +3539,7 @@ with gr.Blocks(
                 s4_send_status = gr.Textbox(label="发送状态", lines=2, interactive=False)
             with gr.Accordion("高级详情 / Developer Details", open=False, elem_classes=["stage-result-window s4-panel"]):
                 s4_execution_plan_json = gr.Code(label="execution_plan.json（检测组合与回退记录）", language="json", lines=14)
-                s4_backend_status_text = gr.Markdown("等待后端状态。")
+                s4_backend_status_text = gr.Markdown("")
                 s4_backend_status_table = gr.Dataframe(
                     headers=["backend", "status", "available", "reason", "output_role"],
                     label="本次检测组合状态",
@@ -3454,18 +3549,22 @@ with gr.Blocks(
                 with gr.Row(elem_classes=["s4-raw-grid"]):
                     with gr.Column():
                         s4_yolo_raw_image = gr.Image(label="YOLO 后端结果", visible=False)
-                        s4_yolo_status_card = gr.Markdown("YOLO 等待 Router 选择。", elem_classes=["s4-status-card"])
+                        s4_yolo_status_card = gr.Markdown("", elem_classes=["s4-status-card"])
                     with gr.Column():
                         s4_transformer_raw_image = gr.Image(label="Transformer 后端结果", visible=False)
-                        s4_transformer_status_card = gr.Markdown("Transformer 等待 Router 选择。", elem_classes=["s4-status-card"])
+                        s4_transformer_status_card = gr.Markdown("", elem_classes=["s4-status-card"])
                     with gr.Column():
                         s4_air_raw_image = gr.Image(label="AIR 后端结果", visible=False)
-                        s4_air_status_card = gr.Markdown("AIR adapter_unavailable：等待执行计划。", elem_classes=["s4-unavailable-card"])
+                        s4_air_status_card = gr.Markdown("", elem_classes=["s4-unavailable-card"])
                     with gr.Column():
-                        s4_qazi_status_card = gr.Markdown("qazi0 adapter_unavailable：等待执行计划。", elem_classes=["s4-unavailable-card"])
+                        s4_qazi_status_card = gr.Markdown("", elem_classes=["s4-unavailable-card"])
                 s4_agreement_map = gr.Image(label="s4_backend_agreement_map.png")
 
             btn.click(
+                fn=lambda: _ui_loading_html("场景自适应检测加载中"),
+                inputs=[],
+                outputs=s4_loading_status,
+            ).then(
                 fn=s4_adaptive_detection_workbench,
                 inputs=[
                     s4_image_source,
@@ -3491,6 +3590,10 @@ with gr.Blocks(
                     s4_candidate_detail,
                     s4_candidates_state,
                 ],
+            ).then(
+                fn=lambda: _ui_success_html("场景自适应检测加载成功，请查看结果"),
+                inputs=[],
+                outputs=s4_loading_status,
             )
             s4_candidate_table.select(
                 fn=s4_candidate_select,
@@ -3520,14 +3623,23 @@ with gr.Blocks(
                 )
                 with gr.Row(elem_classes=["stage-run-row"]):
                     video_btn = gr.Button("运行视频检测", variant="primary")
+                    video_loading_status = gr.HTML(value="", elem_classes=["run-status-host"])
             with gr.Accordion("3. 视频检测：核心结果", open=False, elem_classes=["stage-result-window"]):
-                output_predictions = gr.Textbox(label="生成提示", lines=2, placeholder="运行后显示生成状态和目标摘要。", elem_classes=["compact-status"])
+                output_predictions = gr.Textbox(label="生成提示", lines=2, elem_classes=["compact-status"])
                 output_video = gr.Video(label="处理后视频", autoplay=True)
 
             video_btn.click(
+                fn=lambda: _ui_loading_html("视频检测加载中"),
+                inputs=[],
+                outputs=video_loading_status,
+            ).then(
                 fn=video_detection_with_source,
                 inputs=[s4_video_source, imported_video, s4_stage_video, video_conf_threshold, video_model, frame_skip, max_frames],
                 outputs=[output_video, output_predictions],
+            ).then(
+                fn=lambda: _ui_success_html("视频检测加载成功，请查看结果"),
+                inputs=[],
+                outputs=video_loading_status,
             )
         detection_input_mode.change(
             fn=lambda mode: (
@@ -3657,6 +3769,7 @@ with gr.Blocks(
             )
             with gr.Row(elem_classes=["stage-run-row"]):
                 thermal_btn = gr.Button("运行热红外复查", variant="primary")
+                thermal_loading_status = gr.HTML(value="", elem_classes=["run-status-host"])
         with gr.Accordion("3. 核心结果", open=False, elem_classes=["stage-result-window"]):
             thermal_status = gr.Textbox(label="生成提示", lines=2, elem_classes=["compact-status"])
             thermal_truthfulness = gr.Textbox(label="真实性说明", lines=2, elem_classes=["compact-status"])
@@ -3665,6 +3778,10 @@ with gr.Blocks(
                 thermal_heatmap = gr.Image(label="热力图")
                 thermal_json = gr.Code(label="分析结果 JSON", language="json", lines=12)
         thermal_btn.click(
+            fn=lambda: _ui_loading_html("热红外复查加载中"),
+            inputs=[],
+            outputs=thermal_loading_status,
+        ).then(
             fn=lambda image_file, mode, threshold: (
                 lambda result: (
                     result[0],
@@ -3676,7 +3793,11 @@ with gr.Blocks(
             )(analyze_thermal(image_file, mode=mode, threshold_celsius=threshold)),
             inputs=[thermal_image, thermal_mode, thermal_threshold],
             outputs=[thermal_heatmap, thermal_overlay, thermal_status, thermal_truthfulness, thermal_json],
-            )
+        ).then(
+            fn=lambda: _ui_success_html("热红外复查加载成功，请查看结果"),
+            inputs=[],
+            outputs=thermal_loading_status,
+        )
     with gr.Tab("S7-S8 决策路径"):
         with gr.Accordion("1. 阶段说明", open=False, elem_classes=["stage-action-panel"]):
             gr.Markdown(
@@ -3718,6 +3839,7 @@ with gr.Blocks(
                 decision_model = gr.Dropdown(["yolov11n", "yolov11s", "yolov11m", "yolov11l"], label="主检测模型大小", value="yolov11m")
             with gr.Row(elem_classes=["stage-run-row"]):
                 decision_btn = gr.Button("运行决策与路径建议", variant="primary")
+                decision_loading_status = gr.HTML(value="", elem_classes=["run-status-host"])
         with gr.Accordion("3. 核心结果", open=False, elem_classes=["stage-result-window"]):
             decision_scene_gate_status = gr.Textbox(label="生成提示", lines=2, elem_classes=["compact-status"])
             decision_path_reliability = gr.Textbox(label="路径真实性", lines=2, elem_classes=["compact-status"])
@@ -3767,6 +3889,10 @@ with gr.Blocks(
                 ]
             )
         decision_btn.click(
+            fn=lambda: _ui_loading_html("决策与路径建议加载中"),
+            inputs=[],
+            outputs=decision_loading_status,
+        ).then(
             fn=decision_detection_with_source,
             inputs=[
                 decision_image_source,
@@ -3804,6 +3930,10 @@ with gr.Blocks(
                 decision_path_comparison,
                 decision_report,
             ],
+        ).then(
+            fn=lambda: _ui_success_html("决策与路径建议加载成功，请查看结果"),
+            inputs=[],
+            outputs=decision_loading_status,
         )
     with gr.Tab("S9 证据报告"):
         with gr.Accordion("1. 阶段说明", open=False, elem_classes=["stage-action-panel"]):
@@ -3818,6 +3948,7 @@ with gr.Blocks(
             gr.Markdown("点击生成报告后，系统只汇总已有结果；缺失阶段会标记为未生成，不会补造结论。")
             with gr.Row(elem_classes=["stage-run-row"]):
                 final_report_btn = gr.Button("生成证据报告", variant="primary")
+                final_report_loading_status = gr.HTML(value="", elem_classes=["run-status-host"])
         with gr.Accordion("3. 核心结果", open=False, elem_classes=["stage-result-window"]):
             final_report_status = gr.Textbox(label="生成提示", lines=2, elem_classes=["compact-status"])
             final_report_md = gr.File(label="Markdown 报告下载")
@@ -3825,9 +3956,17 @@ with gr.Blocks(
             with gr.Accordion("4. 报告正文预览", open=False):
                 final_report_preview = gr.Textbox(label="报告预览", lines=24)
         final_report_btn.click(
+            fn=lambda: _ui_loading_html("证据报告加载中"),
+            inputs=[],
+            outputs=final_report_loading_status,
+        ).then(
             fn=export_final_report,
             inputs=[],
             outputs=[final_report_status, final_report_md, final_report_html, final_report_preview],
+        ).then(
+            fn=lambda: _ui_success_html("证据报告加载成功，请查看结果"),
+            inputs=[],
+            outputs=final_report_loading_status,
         )
         with gr.Accordion("5. 外部证据导入（预留）", open=False, elem_classes=["stage-action-panel"]):
             s9_evidence_ledger_upload = gr.File(
@@ -3904,6 +4043,7 @@ with gr.Blocks(
             with gr.Row(elem_classes=["stage-run-row"]):
                 real_dependency_btn = gr.Button("检查真实重建依赖")
                 real_reconstruction_btn = gr.Button("运行真实重建工作流", variant="primary")
+                real_reconstruction_loading_status = gr.HTML(value="", elem_classes=["run-status-host"])
             real_dependency_status = gr.Textbox(label="依赖状态摘要", lines=9)
             real_workflow_status = gr.Textbox(label="工作流状态摘要", lines=14)
             with gr.Accordion("重建输出文件与 JSON", open=False):
@@ -3914,11 +4054,23 @@ with gr.Blocks(
                 real_report_md_file = gr.File(label="reconstruction_report.md")
 
             real_dependency_btn.click(
+                fn=lambda: _ui_loading_html("真实重建依赖检查中"),
+                inputs=[],
+                outputs=real_reconstruction_loading_status,
+            ).then(
                 fn=run_reconstruction_dependency_check,
                 inputs=[panorama_sfm_script, odm_docker_image],
                 outputs=[real_dependency_status, real_dependency_json],
+            ).then(
+                fn=lambda: _ui_success_html("真实重建依赖检查完成"),
+                inputs=[],
+                outputs=real_reconstruction_loading_status,
             )
             real_reconstruction_btn.click(
+                fn=lambda: _ui_loading_html("真实重建工作流加载中"),
+                inputs=[],
+                outputs=real_reconstruction_loading_status,
+            ).then(
                 fn=run_real_reconstruction_workflow_ui,
                 inputs=[
                     real_reconstruction_mode,
@@ -3950,6 +4102,10 @@ with gr.Blocks(
                     real_report_json_file,
                     real_report_md_file,
                 ],
+            ).then(
+                fn=lambda: _ui_success_html("真实重建工作流加载成功，请查看结果"),
+                inputs=[],
+                outputs=real_reconstruction_loading_status,
             )
 
         with gr.Accordion("3. 轻量三维预览（非真实 SfM / ODM）", open=False, elem_classes=["stage-action-panel"]):
@@ -3965,6 +4121,7 @@ with gr.Blocks(
                 value=20,
             )
             reconstruction_btn = gr.Button("运行轻量三维预览 / ORB 点云预览", variant="secondary")
+            reconstruction_loading_status = gr.HTML(value="", elem_classes=["run-status-host"])
             reconstruction_output = gr.Image(label="关键帧预览")
             reconstruction_status = gr.Textbox(label="预览状态", lines=5)
             with gr.Accordion("预览细节与文件", open=False):
@@ -3974,10 +4131,14 @@ with gr.Blocks(
                 reconstruction_ply = gr.File(label="预览 PLY 文件（非真实重建成果）")
                 reconstruction_json = gr.Code(label="预览结果 JSON", language="json", lines=12)
             reconstruction_btn.click(
+                fn=lambda: _ui_loading_html("轻量三维预览加载中"),
+                inputs=[],
+                outputs=reconstruction_loading_status,
+            ).then(
                 fn=process_reconstruction,
                 inputs=[reconstruction_video, max_keyframes],
                 outputs=[
-            reconstruction_output,
+                    reconstruction_output,
                     reconstruction_features,
                     reconstruction_matches,
                     reconstruction_trajectory,
@@ -3985,6 +4146,10 @@ with gr.Blocks(
                     reconstruction_status,
                     reconstruction_json,
                 ],
+            ).then(
+                fn=lambda: _ui_success_html("轻量三维预览加载成功，请查看结果"),
+                inputs=[],
+                outputs=reconstruction_loading_status,
             )
 
     with gr.Tab("AI 灾情描述"):
@@ -4013,10 +4178,15 @@ with gr.Blocks(
                 ollama_model = gr.Textbox(label="本地模型名称", value="llama3.2")
             with gr.Row(elem_classes=["stage-run-row"]):
                 scene_btn = gr.Button("生成 AI 灾情描述", variant="primary")
+                scene_loading_status = gr.HTML(value="", elem_classes=["run-status-host"])
         with gr.Accordion("3. 核心结果", open=False, elem_classes=["stage-result-window"]):
             scene_description_output = gr.Markdown(label="灾情描述 Markdown")
             scene_description_file = gr.File(label="灾情描述文件下载")
         scene_btn.click(
+            fn=lambda: _ui_loading_html("AI 灾情描述加载中"),
+            inputs=[],
+            outputs=scene_loading_status,
+        ).then(
             fn=generate_scene_description,
             inputs=[
                 scene_task_name,
@@ -4030,6 +4200,10 @@ with gr.Blocks(
                 ollama_model,
             ],
             outputs=[scene_description_output, scene_description_file],
+        ).then(
+            fn=lambda: _ui_success_html("AI 灾情描述加载成功，请查看结果"),
+            inputs=[],
+            outputs=scene_loading_status,
         )
 
 

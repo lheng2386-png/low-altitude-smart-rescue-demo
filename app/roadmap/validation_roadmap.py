@@ -17,8 +17,6 @@ CAPABILITY_LAYERS = [
         "items": [
             "S1-S9 任务工作流",
             "灵活入口：可从完整流程、外部地图或 S4 局部精查开始",
-            "一键演示任务",
-            "任务控制中心界面",
             "证据链台账",
             "Final Report 2.0 辅助决策报告",
         ],
@@ -280,11 +278,6 @@ VALIDATION_TASKS = [
 
 
 LIGHTWEIGHT_CAPABILITY_NOTES = [
-    {
-        "capability": "一键演示",
-        "note": "可继续用 demo/mock 数据，但必须标注 workflow demonstration only。",
-        "truthfulness_boundary": "演示数据只用于流程展示，不是实际灾害现场证据。",
-    },
     {
         "capability": "模拟热红外",
         "note": "可用于流程演示，但不是测温。",
