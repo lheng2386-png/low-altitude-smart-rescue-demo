@@ -1,0 +1,84 @@
+services:
+  argus_detection_worker:
+    runtime: nvidia
+    environment:
+      DEVICE: "cuda:0"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  argus_yolo_worker:
+    runtime: nvidia
+    environment:
+      DEVICE: "cuda"
+      ARGUS_YOLO_PRESET: ${ARGUS_YOLO_PRESET:-max}
+      ARGUS_YOLO_ENSEMBLE: ${ARGUS_YOLO_ENSEMBLE:-true}
+      ARGUS_YOLO_IMGSZ: ${ARGUS_YOLO_IMGSZ:-1536}
+      ARGUS_FALLBACK_YOLO_IMGSZ: ${ARGUS_FALLBACK_YOLO_IMGSZ:-2048}
+      ARGUS_ULTRALYTICS_YOLO_ENABLED: ${ARGUS_ULTRALYTICS_YOLO_ENABLED:-true}
+      ARGUS_ULTRALYTICS_YOLO_MODEL: ${ARGUS_ULTRALYTICS_YOLO_MODEL:-yolo11x.pt}
+      ARGUS_ULTRALYTICS_YOLO_IMGSZ: ${ARGUS_ULTRALYTICS_YOLO_IMGSZ:-1536}
+      ARGUS_YOLO_CONF: ${ARGUS_YOLO_CONF:-0.15}
+      ARGUS_YOLO_IOU: ${ARGUS_YOLO_IOU:-0.50}
+      ARGUS_YOLO_AUGMENT: ${ARGUS_YOLO_AUGMENT:-true}
+      ARGUS_YOLO_TILE_DEPTHS: ${ARGUS_YOLO_TILE_DEPTHS:-3}
+      ARGUS_YOLO_TILE_OVERLAP: ${ARGUS_YOLO_TILE_OVERLAP:-0.30}
+      ARGUS_YOLO_TILE_BATCH_SIZE: ${ARGUS_YOLO_TILE_BATCH_SIZE:-4}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  argus_stella_worker:
+    runtime: nvidia
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  ollama:
+    runtime: nvidia
+    environment:
+      DEVICE: "cuda:0"
+      OLLAMA_GPU: "1"
+      OLLAMA_NUM_GPU: "1"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  # da3_streaming_worker:
+  #   build: ./da3_streaming
+  #   container_name: argusII_da3_streaming_worker
+  #   entrypoint: celery
+  #   command: -A tasks_da3_streaming worker -Q da3_streaming --loglevel=info
+  #   runtime: nvidia
+  #   deploy:
+  #     resources:
+  #       reservations:
+  #         devices:
+  #           - capabilities: [gpu]
+  #   volumes:
+  #     - argus_uploaded_files:/data/input
+  #     - argus_outputs:/data/output
+  #     - hf_cache:/data/.huggingface
+  #   environment:
+  #     REDIS_HOST: ${HOST_REDIS}
+  #     REDIS_PORT: ${PORT_REDIS}
+  #     HF_HOME: /data/.huggingface
+  #     DEVICE: cuda
+  #   depends_on:
+  #     - redis

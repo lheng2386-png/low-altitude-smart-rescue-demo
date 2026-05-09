@@ -1,0 +1,193 @@
+services:
+  db:
+    image: postgres:16
+    container_name: argusII_project_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - argus_db_data:/var/lib/postgresql/data
+
+  api:
+    platform: linux/amd64
+    build: ./api
+    working_dir: /api
+    container_name: argusII_backend
+    restart: unless-stopped
+    ports:
+      - "${PORT_API}:8000"
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_PORT: ${PORT_REDIS}
+      REDIS_HOST: ${HOST_REDIS}
+      VITE_API_URL: ${VITE_API_URL}
+      WEBODM_ENABLED: ${ENABLE_WEBODM}
+      WEBODM_USERNAME: ${WEBODM_USERNAME}
+      WEBODM_PASSWORD: ${WEBODM_PASSWORD}
+      WEBODM_URL: ${WEBODM_URL}
+      LLM_PROVIDER: ${LLM_PROVIDER}
+      LLM_API_KEY: ${LLM_API_KEY}
+      LLM_API_BASE_URL: ${LLM_API_BASE_URL}
+      LLM_VISION_MODEL: ${LLM_VISION_MODEL}
+      LLM_TEXT_MODEL: ${LLM_TEXT_MODEL}
+      LLM_TRANSLATE_TO: ${LLM_TRANSLATE_TO}
+      GEMINI_API_BASE_URL: ${GEMINI_API_BASE_URL}
+      OPEN_WEATHER_API_KEY: ${OPEN_WEATHER_API_KEY}
+      LOG_LEVEL: ${LOG_LEVEL}
+    links:
+      - db
+      - redis
+    volumes:
+      - ./api:/api
+      - argus_uploaded_files:/api/reports_data
+
+  frontend:
+    build: ./frontend
+    container_name: argusII_frontend
+    restart: unless-stopped
+    ports:
+      - "${PORT_FRONTEND}:5173"
+    volumes:
+      - ./frontend:/frontend
+      - frontend_node_modules:/frontend/node_modules  # Separates Volume für node_modules
+    stdin_open: true
+    tty: true
+    environment:
+      VITE_API_URL: ${VITE_API_URL}
+      WEBODM_URL: ${WEBODM_URL}
+
+  argus_mapping_worker:
+    platform: linux/amd64
+    build: ./api
+    working_dir: /api
+    container_name: argusII_mapping_worker
+    entrypoint: celery
+    command: -A app.services.mapping.processing_manager worker -Q mapping --loglevel=${LOG_LEVEL}
+    volumes:
+      - ./api:/api
+      - argus_uploaded_files:/api/reports_data
+    links:
+      - db
+      - redis
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_PORT: ${PORT_REDIS}
+      REDIS_HOST: ${HOST_REDIS}
+      OPEN_WEATHER_API_KEY: ${OPEN_WEATHER_API_KEY}
+      WEBODM_ENABLED: ${ENABLE_WEBODM}
+      WEBODM_USERNAME: ${WEBODM_USERNAME}
+      WEBODM_PASSWORD: ${WEBODM_PASSWORD}
+      WEBODM_URL: ${WEBODM_URL}
+
+  argus_detection_worker:
+    build: ./detection
+    working_dir: /detection
+    container_name: argusII_detection_worker
+    entrypoint: celery
+    command: -A tasks_detection worker -Q detection --loglevel=${LOG_LEVEL}
+    volumes:
+      - argus_uploaded_files:/detection/reports_data
+    depends_on:
+      - redis
+      - api
+    environment:
+      REDIS_PORT: ${PORT_REDIS}
+      REDIS_HOST: ${HOST_REDIS}
+      BACKEND_URL: ${VITE_API_URL}
+      DEVICE: "cpu"
+
+  argus_yolo_worker:
+    build: ./detection_yolo
+    working_dir: /detection_yolo
+    container_name: argusII_yolo_worker
+    entrypoint: celery
+    command: -A tasks_detection_yolo worker -Q detection_yolo --loglevel=${LOG_LEVEL}
+    volumes:
+      - argus_uploaded_files:/detection_yolo/reports_data
+    depends_on:
+      - redis
+      - api
+    environment:
+      REDIS_PORT: ${PORT_REDIS}
+      REDIS_HOST: ${HOST_REDIS}
+      BACKEND_URL: ${VITE_API_URL}
+      DEVICE: "cpu"
+      ARGUS_YOLO_PRESET: ${ARGUS_YOLO_PRESET:-balanced}
+      ARGUS_YOLO_ENSEMBLE: ${ARGUS_YOLO_ENSEMBLE:-false}
+      ARGUS_YOLO_IMGSZ: ${ARGUS_YOLO_IMGSZ:-640}
+      ARGUS_FALLBACK_YOLO_IMGSZ: ${ARGUS_FALLBACK_YOLO_IMGSZ:-1280}
+      ARGUS_ULTRALYTICS_YOLO_ENABLED: ${ARGUS_ULTRALYTICS_YOLO_ENABLED:-false}
+      ARGUS_ULTRALYTICS_YOLO_MODEL: ${ARGUS_ULTRALYTICS_YOLO_MODEL:-yolo11x.pt}
+      ARGUS_ULTRALYTICS_YOLO_IMGSZ: ${ARGUS_ULTRALYTICS_YOLO_IMGSZ:-1280}
+      ARGUS_YOLO_CONF: ${ARGUS_YOLO_CONF:-0.15}
+      ARGUS_YOLO_IOU: ${ARGUS_YOLO_IOU:-0.50}
+      ARGUS_YOLO_AUGMENT: ${ARGUS_YOLO_AUGMENT:-false}
+      ARGUS_YOLO_TILE_DEPTHS: ${ARGUS_YOLO_TILE_DEPTHS:-2}
+      ARGUS_YOLO_TILE_OVERLAP: ${ARGUS_YOLO_TILE_OVERLAP:-0.25}
+      ARGUS_YOLO_TILE_BATCH_SIZE: ${ARGUS_YOLO_TILE_BATCH_SIZE:-8}
+
+  argus_stella_worker:
+    build: ./reconstruction_stella
+    container_name: argusII_stella_worker
+    entrypoint: celery
+    command: -A tasks_reconstruction_stella worker -Q reconstruction_stella --loglevel=${LOG_LEVEL}
+    volumes:
+      - argus_uploaded_files:/data/reports
+    depends_on:
+      - redis
+      - api
+    environment:
+      REDIS_PORT: ${PORT_REDIS}
+      REDIS_HOST: ${HOST_REDIS}
+      BACKEND_URL: ${VITE_API_URL}
+      LOG_LEVEL: ${LOG_LEVEL}
+
+  ollama:
+    image: ollama/ollama
+    container_name: argusII_ollama
+    volumes:
+      - models:/root/.ollama:rw
+    restart: unless-stopped
+
+  argus_ollama_worker:
+    platform: linux/amd64
+    build: ./api
+    working_dir: /api
+    container_name: argusII_ollama_worker
+    entrypoint: celery
+    command: -A app.services.image_describer worker -Q description --loglevel=${LOG_LEVEL}
+    volumes:
+      - ./api:/api
+      - argus_uploaded_files:/api/reports_data
+    links:
+      - db
+      - redis
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_PORT: ${PORT_REDIS}
+      REDIS_HOST: ${HOST_REDIS}
+      OPEN_WEATHER_API_KEY: ${OPEN_WEATHER_API_KEY}
+      WEBODM_ENABLED: ${ENABLE_WEBODM}
+      WEBODM_USERNAME: ${WEBODM_USERNAME}
+      WEBODM_PASSWORD: ${WEBODM_PASSWORD}
+      WEBODM_URL: ${WEBODM_URL}
+      LLM_PROVIDER: ${LLM_PROVIDER}
+      LLM_API_KEY: ${LLM_API_KEY}
+      LLM_API_BASE_URL: ${LLM_API_BASE_URL}
+      LLM_VISION_MODEL: ${LLM_VISION_MODEL}
+      LLM_TEXT_MODEL: ${LLM_TEXT_MODEL}
+      LLM_TRANSLATE_TO: ${LLM_TRANSLATE_TO}
+      GEMINI_API_BASE_URL: ${GEMINI_API_BASE_URL}
+
+  redis:
+    image: redis:latest
+    container_name: argusII_redis
+
+volumes:
+  argus_db_data:
+  argus_uploaded_files:
+  frontend_node_modules:
+  hf_cache:
+  models:
